@@ -1,5 +1,165 @@
 from flask import Flask, request, jsonify
 from datetime import date
+import sqlite3
+import uuid
+import random
+from datetime import datetime
+from flask import g
+
+DB_PATH = "family.db"
+
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = sqlite3.connect(DB_PATH)
+        db.row_factory = sqlite3.Row
+        g._database = db
+    return db
+
+
+def init_db():
+    db = sqlite3.connect(DB_PATH)
+    cursor = db.cursor()
+
+    # families
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS families (
+        family_id TEXT PRIMARY KEY,
+        family_name TEXT,
+        invite_code TEXT UNIQUE,
+        created_at TIMESTAMP
+    )
+    """)
+
+    # users
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        user_id TEXT PRIMARY KEY,
+        family_id TEXT,
+        name TEXT,
+        role TEXT CHECK(role IN ('parent','child')),
+        created_at TIMESTAMP
+    )
+    """)
+
+    db.commit()
+    db.close()
+
+def generate_invite_code():
+    return str(random.randint(100000, 999999))
+
+@app.route("/create_family", methods=["POST"])
+def create_family():
+    data = request.json
+
+    if not data or "family_name" not in data:
+        return jsonify({"error": "family_name required"}), 400
+
+    family_name = data["family_name"]
+
+    db = get_db()
+    cursor = db.cursor()
+
+    family_id = str(uuid.uuid4())
+    invite_code = generate_invite_code()
+
+    try:
+        cursor.execute("""
+            INSERT INTO families (family_id, family_name, invite_code, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (family_id, family_name, invite_code, datetime.utcnow()))
+
+        db.commit()
+
+        return jsonify({
+            "family_id": family_id,
+            "invite_code": invite_code,
+            "status": "ok"
+        })
+
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "invite_code collision"}), 500
+
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.json
+
+    required = ["family_id", "invite_code", "name", "role"]
+    if not all(k in data for k in required):
+        return jsonify({"error": "missing fields"}), 400
+
+    family_id = data["family_id"]
+    invite_code = data["invite_code"]
+    name = data["name"]
+    role = data["role"]
+
+    if role not in ["parent", "child"]:
+        return jsonify({"error": "invalid role"}), 400
+
+    db = get_db()
+    cursor = db.cursor()
+
+    # проверка invite_code
+    cursor.execute("""
+        SELECT * FROM families WHERE family_id=? AND invite_code=?
+    """, (family_id, invite_code))
+
+    family = cursor.fetchone()
+
+    if not family:
+        return jsonify({"error": "invalid invite_code or family_id"}), 404
+
+    user_id = str(uuid.uuid4())
+
+    cursor.execute("""
+        INSERT INTO users (user_id, family_id, name, role, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (user_id, family_id, name, role, datetime.utcnow()))
+
+    db.commit()
+
+    return jsonify({
+        "user_id": user_id,
+        "status": "ok"
+    })
+
+@app.route("/register_child", methods=["POST"])
+def register_child():
+    data = request.json
+
+    if not data or "invite_code" not in data or "name" not in data:
+        return jsonify({"error": "invite_code and name required"}), 400
+
+    invite_code = data["invite_code"]
+    name = data["name"]
+
+    db = get_db()
+    cursor = db.cursor()
+
+    cursor.execute("""
+        SELECT family_id FROM families WHERE invite_code=?
+    """, (invite_code,))
+
+    family = cursor.fetchone()
+
+    if not family:
+        return jsonify({"error": "invalid invite_code"}), 404
+
+    family_id = family["family_id"]
+    user_id = str(uuid.uuid4())
+
+    cursor.execute("""
+        INSERT INTO users (user_id, family_id, name, role, created_at)
+        VALUES (?, ?, ?, 'child', ?)
+    """, (user_id, family_id, name, datetime.utcnow()))
+
+    db.commit()
+
+    return jsonify({
+        "user_id": user_id,
+        "family_id": family_id,
+        "status": "ok"
+    })
 
 app = Flask(__name__)
 
@@ -102,10 +262,12 @@ def get_reward():
 # -----------------------------
 # Run server
 # -----------------------------
-@app.route("/")
-def home():
-    return "Family Focus API is running"
-
-
 if __name__ == "__main__":
-    app.run()
+    init_db()
+    app.run(host="0.0.0.0", port=5000)
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
