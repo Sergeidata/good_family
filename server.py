@@ -21,10 +21,9 @@ def get_db():
 
 
 def init_db():
-    db = sqlite3.connect(DB_PATH)
-    cursor = db.cursor()
+    conn = sqlite3.connect("family.db")
+    cursor = conn.cursor()
 
-    # families
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS families (
         family_id TEXT PRIMARY KEY,
@@ -34,19 +33,20 @@ def init_db():
     )
     """)
 
-    # users
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS users (
         user_id TEXT PRIMARY KEY,
         family_id TEXT,
         name TEXT,
-        role TEXT CHECK(role IN ('parent','child')),
+        role TEXT,
         created_at TIMESTAMP
     )
     """)
 
-    db.commit()
-    db.close()
+    conn.commit()
+    conn.close()
+
+    print("DB INIT CALLED")
 
 def generate_invite_code():
     return str(random.randint(100000, 999999))
