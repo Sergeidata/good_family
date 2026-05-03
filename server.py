@@ -7,7 +7,7 @@ from datetime import datetime
 from flask import g
 
 app = Flask(__name__)
-
+init_db()
 
 DB_PATH = "family.db"
 
