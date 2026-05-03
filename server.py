@@ -6,8 +6,6 @@ import random
 from datetime import datetime
 from flask import g
 
-app = Flask(__name__)
-init_db()
 
 DB_PATH = "family.db"
 
@@ -261,7 +259,9 @@ def get_reward():
 
     return jsonify(result)
 
+app = Flask(__name__)
 
+init_db()   # ✅ В ПРАВИЛЬНОМ МЕСТЕ
 
 @app.teardown_appcontext
 def close_connection(exception):
