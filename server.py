@@ -6,6 +6,9 @@ import random
 from datetime import datetime
 from flask import g
 
+app = Flask(__name__)
+
+
 DB_PATH = "family.db"
 
 def get_db():
@@ -161,7 +164,7 @@ def register_child():
         "status": "ok"
     })
 
-app = Flask(__name__)
+
 
 # -----------------------------
 # Классификатор приложений
@@ -259,15 +262,21 @@ def get_reward():
     return jsonify(result)
 
 
-# -----------------------------
-# Run server
-# -----------------------------
-if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=5000)
 
 @app.teardown_appcontext
 def close_connection(exception):
     db = getattr(g, '_database', None)
     if db is not None:
         db.close()
+
+
+# -----------------------------
+# Run server
+# -----------------------------
+
+
+
+if __name__ == "__main__":
+    init_db()
+    app.run(host="0.0.0.0", port=5000)
+
