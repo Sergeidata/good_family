@@ -17,6 +17,8 @@ from usage_stats import (
     collect_and_send
 )
 
+from api import create_family, register_parent, register_child
+
 @dataclass
 class Member:
     id: int
@@ -59,10 +61,17 @@ class ParentScreen(Screen):
         layout.add_widget(self.rate_input)
 
         btn = Button(text="Подтвердить", size_hint=(1, None), height=dp(50))
-        btn.bind(on_press=self.confirm_rate)
+        btn.bind(on_press=lambda x: self.create_family_api())
         layout.add_widget(btn)
 
         self.add_widget(layout)
+
+    def create_family_api(self):
+        family_name = self.rate_input.text  # временно используем это поле
+
+        result = create_family(family_name)
+
+        print("CREATE FAMILY:", result)
 
     def confirm_rate(self, *args):
         global conversion_rate
@@ -74,6 +83,8 @@ class ParentScreen(Screen):
             self.manager.current = "child"
         except:
             show_error("Введите корректное число")
+
+
 
 
 class ChildScreen(Screen):
@@ -89,7 +100,7 @@ class ChildScreen(Screen):
             size_hint=(1, None),
             height=dp(50)
         )
-        btn_refresh.bind(on_press=self.on_refresh)
+        btn_refresh.bind(on_press=lambda x: self.register_child_api())
         layout.add_widget(btn_refresh)
 
         btn_timer = Button(text="Начать сессию", size_hint=(1, None), height=dp(50))
@@ -97,6 +108,14 @@ class ChildScreen(Screen):
         layout.add_widget(btn_timer)
 
         self.add_widget(layout)
+
+    def register_child_api(self):
+        invite_code = "123456"  # пока захардкодим для теста
+        name = "Миша"
+
+        result = register_child(invite_code, name)
+
+        print("REGISTER CHILD:", result)
 
     def on_enter(self):
         if not has_usage_stats_permission():
@@ -162,7 +181,10 @@ class ChildScreen(Screen):
         print("SERVER RESPONSE:", result)
 
         self.show_usage()
-        
+
+
+
+
 class BalanceScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
