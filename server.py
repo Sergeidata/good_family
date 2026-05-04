@@ -140,7 +140,7 @@ def send_usage():
     data = request.json
 
     user_id = data.get("user_id")
-    usage_list = data.get("usage")  # список
+    usage_list = data.get("usage")
 
     if not user_id or not usage_list:
         return jsonify({"error": "user_id and usage required"}), 400
@@ -166,62 +166,48 @@ def send_usage():
 
 
 # =====================
-# GET USAGE (для родителя/ребенка)
+# GET FAMILY DATA (🔥 НОВОЕ)
 # =====================
 
-@app.route("/get_usage", methods=["POST"])
-def get_usage():
-    data = request.json
-    user_id = data.get("user_id")
-
-    if not user_id:
-        return jsonify({"error": "user_id required"}), 400
-
+@app.route("/family/<family_id>", methods=["GET"])
+def get_family_data(family_id):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
-    cursor.execute("""
-        SELECT app_name, SUM(minutes)
-        FROM usage
-        WHERE user_id = ?
-        GROUP BY app_name
-        ORDER BY SUM(minutes) DESC
-    """, (user_id,))
-
-    rows = cursor.fetchall()
-    conn.close()
-
-    result = [
-        {"app": row[0], "minutes": row[1]}
-        for row in rows
-    ]
-
-    return jsonify(result)
-
-@app.route("/get_children", methods=["POST"])
-def get_children():
-    data = request.json
-    family_id = data.get("family_id")
-
-    if not family_id:
-        return jsonify({"error": "family_id required"}), 400
-
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
-
+    # получаем детей
     cursor.execute("""
         SELECT user_id, name
         FROM users
         WHERE family_id = ? AND role = 'child'
     """, (family_id,))
+    children = cursor.fetchall()
 
-    rows = cursor.fetchall()
+    result = []
+
+    for child_id, name in children:
+        cursor.execute("""
+            SELECT app_name, SUM(minutes)
+            FROM usage
+            WHERE user_id = ?
+            GROUP BY app_name
+        """, (child_id,))
+
+        usage = [
+            {"app": row[0], "minutes": row[1]}
+            for row in cursor.fetchall()
+        ]
+
+        result.append({
+            "user_id": child_id,
+            "name": name,
+            "usage": usage
+        })
+
     conn.close()
 
-    return jsonify([
-        {"user_id": r[0], "name": r[1]}
-        for r in rows
-    ])
+    return jsonify({
+        "children": result
+    })
 
 
 # =====================
