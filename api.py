@@ -2,67 +2,44 @@ import requests
 
 BASE_URL = "https://good-family.onrender.com"
 
+SESSION = {
+    "user_id": None,
+    "family_id": None
+}
+
 
 def create_family(name):
-    try:
-        r = requests.post(f"{BASE_URL}/create_family", json={
-            "family_name": name
-        })
-        return r.json()
-    except Exception as e:
-        return {"error": str(e)}
+    r = requests.post(f"{BASE_URL}/create_family", json={
+        "family_name": name
+    })
+    data = r.json()
+
+    SESSION["family_id"] = data.get("family_id")
+
+    return data
 
 
 def register_child(invite_code, name):
-    try:
-        r = requests.post(f"{BASE_URL}/register_child", json={
-            "invite_code": invite_code,
-            "name": name
-        })
-        return r.json()
-    except Exception as e:
-        return {"error": str(e)}
-
-
-# ✅ ВОТ ЭТОГО У ТЕБЯ НЕ БЫЛО
-def get_family_data(family_id):
-    try:
-        r = requests.get(f"{BASE_URL}/family/{family_id}")
-        return r.json()
-    except Exception as e:
-        return {"error": str(e)}
-
-# =====================
-# SEND USAGE
-# =====================
-
-def send_usage(user_id, usage):
-    """
-    usage = [
-        {"app": "YouTube", "minutes": 10},
-        ...
-    ]
-    """
-    r = requests.post(f"{BASE_URL}/send_usage", json={
-        "user_id": user_id,
-        "usage": usage
+    r = requests.post(f"{BASE_URL}/register_child", json={
+        "invite_code": invite_code,
+        "name": name
     })
-    return r.json()
+    data = r.json()
+
+    SESSION["user_id"] = data.get("user_id")
+    SESSION["family_id"] = data.get("family_id")
+
+    return data
 
 
-# =====================
-# GET USAGE
-# =====================
+def send_usage(usage_dict):
+    return requests.post(f"{BASE_URL}/send_usage", json={
+        "user_id": SESSION["user_id"],
+        "usage": usage_dict
+    }).json()
 
-def get_usage(user_id):
-    r = requests.post(f"{BASE_URL}/get_usage", json={
-        "user_id": user_id
-    })
-    return r.json()
 
-def get_children(family_id):
-    r = requests.post(f"{BASE_URL}/get_children", json={
-        "family_id": family_id
-    })
-    return r.json()
-
+def get_family_data():
+    return requests.get(
+        f"{BASE_URL}/family/{SESSION['family_id']}"
+    ).json()

@@ -13,6 +13,12 @@ import threading
 
 from api import create_family, register_child, get_family_data
 
+from permissions import (
+    has_usage_stats_permission,
+    request_usage_stats_permission
+)
+from usage_stats import collect_and_send
+from api import SESSION
 
 # =====================
 # GLOBAL STATE
@@ -35,6 +41,24 @@ def show_error(message):
 
     popup = Popup(title="Ошибка", content=layout, size_hint=(0.8, 0.4))
     btn.bind(on_press=popup.dismiss)
+    popup.open()
+
+
+def show_permission_dialog():
+    layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
+
+    layout.add_widget(Label(text="Нужно разрешение Usage Stats"))
+
+    btn = Button(text="Открыть настройки", size_hint=(1, None), height=dp(44))
+    layout.add_widget(btn)
+
+    popup = Popup(title="Разрешение", content=layout, size_hint=(0.8, 0.4))
+
+    def open_settings(instance):
+        request_usage_stats_permission()
+        popup.dismiss()
+
+    btn.bind(on_press=open_settings)
     popup.open()
 
 
@@ -204,20 +228,77 @@ class ChildScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self.layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
+        layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(12))
 
-        self.label = Label(text="Активность", font_size=dp(22))
-        self.layout.add_widget(self.label)
+        layout.add_widget(Label(text="Ребёнок", font_size=dp(24)))
 
-        btn_refresh = Button(text="Обновить", size_hint=(1, None), height=dp(50))
-        btn_refresh.bind(on_press=self.load_data)
-        self.layout.add_widget(btn_refresh)
+        self.invite_input = TextInput(hint_text="Invite code", multiline=False)
+        layout.add_widget(self.invite_input)
 
-        back = Button(text="Назад", size_hint=(1, None), height=dp(50))
-        back.bind(on_press=self.go_menu)
-        self.layout.add_widget(back)
+        self.name_input = TextInput(hint_text="Имя", multiline=False)
+        layout.add_widget(self.name_input)
 
-        self.add_widget(self.layout)
+        btn_register = Button(text="Зарегистрироваться")
+        btn_register.bind(on_press=self.on_register)
+        layout.add_widget(btn_register)
+
+        btn_refresh = Button(text="Обновить активность")
+        btn_refresh.bind(on_press=self.on_refresh)
+        layout.add_widget(btn_refresh)
+
+        self.output = Label(text="")
+        layout.add_widget(self.output)
+
+        self.add_widget(layout)
+
+    def on_pre_enter(self):
+        self.check_permission()
+
+    def check_permission(self):
+        try:
+            if not has_usage_stats_permission():
+                show_permission_dialog()
+        except Exception as e:
+            show_error(f"Permission error: {e}")
+
+    def on_register(self, *args):
+        invite = self.invite_input.text.strip()
+        name = self.name_input.text.strip()
+
+        if not invite or not name:
+            show_error("Введите код и имя")
+            return
+
+        try:
+            result = register_child(invite, name)
+
+            print("REGISTER RESULT:", result)
+
+            if not isinstance(result, dict):
+                show_error("Ошибка сервера: неверный ответ")
+                return
+
+            if "error" in result:
+                show_error(result["error"])
+                return
+
+            self.output.text = "Успешно зарегистрирован"
+
+        except Exception as e:
+            print("REGISTER ERROR:", e)
+            show_error(f"Ошибка регистрации: {e}")
+
+    def on_refresh(self, *args):
+        try:
+            if not has_usage_stats_permission():
+                show_permission_dialog()
+                return
+
+            data = collect_and_send()
+            self.output.text = str(data)
+
+        except Exception as e:
+            show_error(f"Ошибка: {e}")
 
     def go_menu(self, *args):
         self.manager.current = "menu"
@@ -226,20 +307,29 @@ class ChildScreen(Screen):
         threading.Thread(target=self._load).start()
 
     def _load(self):
-        result = get_family_data(APP_STATE["family_id"])
-        print("DATA:", result)
+        try:
+            result = get_family_data(APP_STATE["family_id"])
+            print("DATA:", result)
 
-        Clock.schedule_once(lambda dt: self.show_data(result))
+            Clock.schedule_once(lambda dt: self.show_data(result))
+
+        except Exception as e:
+            print("LOAD ERROR:", e)
+            Clock.schedule_once(lambda dt: show_error(str(e)))
 
     def show_data(self, data):
-        if "error" in data:
+        if not data:
+            show_error("Пустые данные")
+            return
+
+        if isinstance(data, dict) and "error" in data:
             show_error(data["error"])
             return
 
         popup_layout = BoxLayout(orientation="vertical")
 
         for user in data.get("users", []):
-            popup_layout.add_widget(Label(text=user["name"]))
+            popup_layout.add_widget(Label(text=user.get("name", "unknown")))
 
         popup = Popup(title="Семья", content=popup_layout, size_hint=(0.8, 0.8))
         popup.open()
