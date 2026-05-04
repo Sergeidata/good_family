@@ -8,39 +8,69 @@ from kivy.uix.popup import Popup
 from kivy.clock import Clock
 from kivy.metrics import dp
 from kivy.uix.scrollview import ScrollView
-from dataclasses import dataclass
 
-from usage_stats import (
-    has_usage_stats_permission,
-    request_usage_stats_permission,
-    get_usage_stats,
-    collect_and_send
-)
+import threading
 
-from api import create_family, register_parent, register_child
+from api import create_family, register_child, get_family_data
 
-@dataclass
-class Member:
-    id: int
-    name: str
-    role: str
-    balance_bonus: float = 0.0
-    balance_real: float = 0.0
 
-parent = Member(id=1, name="Мама", role="parent")
-child  = Member(id=2, name="Миша", role="child")
-conversion_rate: float = 1.0
+# =====================
+# GLOBAL STATE
+# =====================
+
+APP_STATE = {
+    "family_id": None,
+    "invite_code": None,
+    "user_id": None,
+    "role": None,
+}
 
 
 def show_error(message):
     layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
     layout.add_widget(Label(text=message))
+
     btn = Button(text="OK", size_hint=(1, None), height=dp(44))
     layout.add_widget(btn)
+
     popup = Popup(title="Ошибка", content=layout, size_hint=(0.8, 0.4))
     btn.bind(on_press=popup.dismiss)
     popup.open()
 
+
+# =====================
+# MENU SCREEN
+# =====================
+
+class MenuScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        layout = BoxLayout(orientation="vertical", padding=dp(30), spacing=dp(20))
+
+        layout.add_widget(Label(text="Family Focus", font_size=dp(26)))
+
+        btn_parent = Button(text="Я родитель", size_hint=(1, None), height=dp(50))
+        btn_parent.bind(on_press=self.go_parent)
+
+        btn_child = Button(text="Я ребенок", size_hint=(1, None), height=dp(50))
+        btn_child.bind(on_press=self.go_child)
+
+        layout.add_widget(btn_parent)
+        layout.add_widget(btn_child)
+
+        self.add_widget(layout)
+
+    def go_parent(self, *args):
+        self.manager.current = "parent"
+
+    def go_child(self, *args):
+        self.manager.current = "child_register"
+
+
+# =====================
+# PARENT CREATE FAMILY
+# =====================
 
 class ParentScreen(Screen):
     def __init__(self, **kwargs):
@@ -48,199 +78,240 @@ class ParentScreen(Screen):
 
         layout = BoxLayout(orientation="vertical", padding=dp(30), spacing=dp(16))
 
-        layout.add_widget(Label(text="Family Focus", font_size=dp(26)))
-        layout.add_widget(Label(text="Курс: 1 минута = ? рублей"))
+        layout.add_widget(Label(text="Создать семью", font_size=dp(22)))
 
-        self.rate_input = TextInput(
-            hint_text="Например: 5",
-            input_filter="float",
+        self.input = TextInput(
+            hint_text="Название семьи",
             multiline=False,
             size_hint=(1, None),
             height=dp(50)
         )
-        layout.add_widget(self.rate_input)
+        layout.add_widget(self.input)
 
-        btn = Button(text="Подтвердить", size_hint=(1, None), height=dp(50))
-        btn.bind(on_press=lambda x: self.create_family_api())
+        btn = Button(text="Создать", size_hint=(1, None), height=dp(50))
+        btn.bind(on_press=self.on_create)
         layout.add_widget(btn)
+
+        back = Button(text="Назад", size_hint=(1, None), height=dp(50))
+        back.bind(on_press=self.go_menu)
+        layout.add_widget(back)
 
         self.add_widget(layout)
 
-    def create_family_api(self):
-        family_name = self.rate_input.text  # временно используем это поле
+    def go_menu(self, *args):
+        self.manager.current = "menu"
 
-        result = create_family(family_name)
+    def on_create(self, *args):
+        name = self.input.text.strip()
+        if not name:
+            show_error("Введите название семьи")
+            return
 
+        threading.Thread(target=self._create, args=(name,)).start()
+
+    def _create(self, name):
+        result = create_family(name)
         print("CREATE FAMILY:", result)
 
-    def confirm_rate(self, *args):
-        global conversion_rate
-        try:
-            value = float(self.rate_input.text.replace(",", "."))
-            if value <= 0:
-                raise ValueError
-            conversion_rate = value
-            self.manager.current = "child"
-        except:
-            show_error("Введите корректное число")
+        if "error" in result:
+            Clock.schedule_once(lambda dt: show_error(result["error"]))
+            return
+
+        APP_STATE["family_id"] = result["family_id"]
+        APP_STATE["invite_code"] = result["invite_code"]
+        APP_STATE["role"] = "parent"
+
+        Clock.schedule_once(lambda dt: self.go_dashboard())
+
+    def go_dashboard(self):
+        self.manager.current = "parent_dashboard"
 
 
+# =====================
+# CHILD REGISTER
+# =====================
 
+class ChildRegisterScreen(Screen):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        layout = BoxLayout(orientation="vertical", padding=dp(30), spacing=dp(16))
+
+        layout.add_widget(Label(text="Регистрация ребенка", font_size=dp(22)))
+
+        self.code_input = TextInput(
+            hint_text="Invite code",
+            multiline=False,
+            size_hint=(1, None),
+            height=dp(50)
+        )
+        layout.add_widget(self.code_input)
+
+        self.name_input = TextInput(
+            hint_text="Имя",
+            multiline=False,
+            size_hint=(1, None),
+            height=dp(50)
+        )
+        layout.add_widget(self.name_input)
+
+        btn = Button(text="Зарегистрироваться", size_hint=(1, None), height=dp(50))
+        btn.bind(on_press=self.on_register)
+        layout.add_widget(btn)
+
+        back = Button(text="Назад", size_hint=(1, None), height=dp(50))
+        back.bind(on_press=self.go_menu)
+        layout.add_widget(back)
+
+        self.add_widget(layout)
+
+    def go_menu(self, *args):
+        self.manager.current = "menu"
+
+    def on_register(self, *args):
+        code = self.code_input.text.strip()
+        name = self.name_input.text.strip()
+
+        if not code or not name:
+            show_error("Заполни все поля")
+            return
+
+        threading.Thread(target=self._register, args=(code, name)).start()
+
+    def _register(self, code, name):
+        result = register_child(code, name)
+        print("REGISTER:", result)
+
+        if "error" in result:
+            Clock.schedule_once(lambda dt: show_error(result["error"]))
+            return
+
+        APP_STATE["user_id"] = result["user_id"]
+        APP_STATE["family_id"] = result["family_id"]
+        APP_STATE["role"] = "child"
+
+        Clock.schedule_once(lambda dt: self.go_child())
+
+    def go_child(self):
+        self.manager.current = "child"
+
+
+# =====================
+# CHILD SCREEN
+# =====================
 
 class ChildScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(12))
+        self.layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
 
-        layout.add_widget(Label(text="Привет!", font_size=dp(24)))
+        self.label = Label(text="Активность", font_size=dp(22))
+        self.layout.add_widget(self.label)
 
-        btn_refresh = Button(
-            text="Обновить (список приложений)",
-            size_hint=(1, None),
-            height=dp(50)
-        )
-        btn_refresh.bind(on_press=lambda x: self.register_child_api())
-        layout.add_widget(btn_refresh)
+        btn_refresh = Button(text="Обновить", size_hint=(1, None), height=dp(50))
+        btn_refresh.bind(on_press=self.load_data)
+        self.layout.add_widget(btn_refresh)
 
-        btn_timer = Button(text="Начать сессию", size_hint=(1, None), height=dp(50))
-        btn_timer.bind(on_press=self.go_to_timer)
-        layout.add_widget(btn_timer)
+        back = Button(text="Назад", size_hint=(1, None), height=dp(50))
+        back.bind(on_press=self.go_menu)
+        self.layout.add_widget(back)
 
-        self.add_widget(layout)
+        self.add_widget(self.layout)
 
-    def register_child_api(self):
-        invite_code = "123456"  # пока захардкодим для теста
-        name = "Миша"
+    def go_menu(self, *args):
+        self.manager.current = "menu"
 
-        result = register_child(invite_code, name)
+    def load_data(self, *args):
+        threading.Thread(target=self._load).start()
 
-        print("REGISTER CHILD:", result)
+    def _load(self):
+        result = get_family_data(APP_STATE["family_id"])
+        print("DATA:", result)
 
-    def on_enter(self):
-        if not has_usage_stats_permission():
-            self.show_permission_dialog()
+        Clock.schedule_once(lambda dt: self.show_data(result))
 
-    def show_permission_dialog(self):
-        layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
-
-        layout.add_widget(Label(text="Нужно разрешение на доступ к статистике"))
-
-        btn = Button(text="Открыть настройки", size_hint=(1, None), height=dp(44))
-        layout.add_widget(btn)
-
-        popup = Popup(title="Разрешение", content=layout, size_hint=(0.8, 0.4))
-
-        def open_settings(*args):
-            request_usage_stats_permission()
-            popup.dismiss()
-
-        btn.bind(on_press=open_settings)
-
-        popup.open()
-
-    def show_usage(self, *args):
-        if not has_usage_stats_permission():
-            self.show_permission_dialog()
+    def show_data(self, data):
+        if "error" in data:
+            show_error(data["error"])
             return
 
-        data = get_usage_stats()
+        popup_layout = BoxLayout(orientation="vertical")
 
-        layout = BoxLayout(orientation="vertical", size_hint_y=None, padding=10, spacing=5)
-        layout.bind(minimum_height=layout.setter('height'))
+        for user in data.get("users", []):
+            popup_layout.add_widget(Label(text=user["name"]))
 
-        if not data:
-            layout.add_widget(Label(text="Нет данных"))
-        else:
-            for pkg, minutes in data:
-                layout.add_widget(Label(
-                    text=f"{pkg} — {minutes:.1f} мин",
-                    size_hint_y=None,
-                    height=dp(30)
-                ))
-
-        scroll = ScrollView()
-        scroll.add_widget(layout)
-
-        popup = Popup(
-            title="Использование приложений",
-            content=scroll,
-            size_hint=(0.9, 0.9)
-        )
+        popup = Popup(title="Семья", content=popup_layout, size_hint=(0.8, 0.8))
         popup.open()
 
-    def go_to_timer(self, *args):
-        self.manager.current = "balance"
 
-    def on_refresh(self, *args):
-        if not has_usage_stats_permission():
-            self.show_permission_dialog()
-            return
+# =====================
+# PARENT DASHBOARD
+# =====================
 
-        result = collect_and_send()
-        print("SERVER RESPONSE:", result)
-
-        self.show_usage()
-
-
-
-
-class BalanceScreen(Screen):
+class ParentDashboard(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        self._seconds = 0
-        self._event = None
-
         layout = BoxLayout(orientation="vertical", padding=dp(20), spacing=dp(10))
 
-        self.timer_label = Label(text="00:00", font_size=dp(40))
-        layout.add_widget(self.timer_label)
+        self.label = Label(text="Дашборд родителя", font_size=dp(22))
+        layout.add_widget(self.label)
 
-        btn_start = Button(text="Старт", size_hint=(1, None), height=dp(50))
-        btn_start.bind(on_press=self.start)
-        layout.add_widget(btn_start)
+        self.code_label = Label(text="")
+        layout.add_widget(self.code_label)
 
-        btn_stop = Button(text="Стоп", size_hint=(1, None), height=dp(50))
-        btn_stop.bind(on_press=self.stop)
-        layout.add_widget(btn_stop)
+        btn_refresh = Button(text="Обновить", size_hint=(1, None), height=dp(50))
+        btn_refresh.bind(on_press=self.load_data)
+        layout.add_widget(btn_refresh)
 
-        self.balance_label = Label(text="0 руб")
-        layout.add_widget(self.balance_label)
+        back = Button(text="Назад", size_hint=(1, None), height=dp(50))
+        back.bind(on_press=self.go_menu)
+        layout.add_widget(back)
 
         self.add_widget(layout)
 
-    def start(self, *args):
-        self._seconds = 0
-        if self._event:
-            self._event.cancel()
-        self._event = Clock.schedule_interval(self.tick, 1)
+    def on_enter(self):
+        self.code_label.text = f"Invite code: {APP_STATE['invite_code']}"
 
-    def tick(self, dt):
-        self._seconds += 1
-        m, s = divmod(self._seconds, 60)
-        self.timer_label.text = f"{m:02}:{s:02}"
+    def go_menu(self, *args):
+        self.manager.current = "menu"
 
-    def stop(self, *args):
-        if self._event:
-            self._event.cancel()
+    def load_data(self, *args):
+        threading.Thread(target=self._load).start()
 
-        minutes = self._seconds / 60
-        earned = minutes * conversion_rate
+    def _load(self):
+        result = get_family_data(APP_STATE["family_id"])
+        print("PARENT DATA:", result)
 
-        child.balance_real += earned
+        Clock.schedule_once(lambda dt: self.show_data(result))
 
-        self.balance_label.text = f"{child.balance_real:.2f} руб"
+    def show_data(self, data):
+        if "error" in data:
+            show_error(data["error"])
+            return
+
+        text = "Участники:\n"
+        for u in data.get("users", []):
+            text += f"- {u['name']} ({u['role']})\n"
+
+        self.label.text = text
 
 
-class FamilyFocusApp(App):
+# =====================
+# APP
+# =====================
+
+class FamilyApp(App):
     def build(self):
         sm = ScreenManager()
+        sm.add_widget(MenuScreen(name="menu"))
         sm.add_widget(ParentScreen(name="parent"))
+        sm.add_widget(ChildRegisterScreen(name="child_register"))
         sm.add_widget(ChildScreen(name="child"))
-        sm.add_widget(BalanceScreen(name="balance"))
+        sm.add_widget(ParentDashboard(name="parent_dashboard"))
         return sm
 
 
 if __name__ == "__main__":
-    FamilyFocusApp().run()
+    FamilyApp().run()
