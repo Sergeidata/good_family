@@ -198,6 +198,31 @@ def get_usage():
 
     return jsonify(result)
 
+@app.route("/get_children", methods=["POST"])
+def get_children():
+    data = request.json
+    family_id = data.get("family_id")
+
+    if not family_id:
+        return jsonify({"error": "family_id required"}), 400
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT user_id, name
+        FROM users
+        WHERE family_id = ? AND role = 'child'
+    """, (family_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    return jsonify([
+        {"user_id": r[0], "name": r[1]}
+        for r in rows
+    ])
+
 
 # =====================
 # RUN
