@@ -1,26 +1,19 @@
 from flask import Flask, request, jsonify
-from datetime import date
 import sqlite3
 import uuid
 import random
 from datetime import datetime
-from flask import g
 
 app = Flask(__name__)
+DB_NAME = "family.db"
 
-DB_PATH = "family.db"
 
-def get_db():
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = sqlite3.connect(DB_PATH)
-        db.row_factory = sqlite3.Row
-        g._database = db
-    return db
-
+# =====================
+# DB INIT
+# =====================
 
 def init_db():
-    conn = sqlite3.connect("family.db")
+    conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
 
     cursor.execute("""
@@ -42,242 +35,173 @@ def init_db():
     )
     """)
 
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS usage (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT,
+        app_name TEXT,
+        minutes REAL,
+        created_at TIMESTAMP
+    )
+    """)
+
     conn.commit()
     conn.close()
 
-    print("DB INIT CALLED")
+
+init_db()
+
+
+# =====================
+# HELPERS
+# =====================
 
 def generate_invite_code():
     return str(random.randint(100000, 999999))
 
+
+# =====================
+# CREATE FAMILY
+# =====================
+
 @app.route("/create_family", methods=["POST"])
 def create_family():
     data = request.json
+    family_name = data.get("family_name")
 
-    if not data or "family_name" not in data:
+    if not family_name:
         return jsonify({"error": "family_name required"}), 400
-
-    family_name = data["family_name"]
-
-    db = get_db()
-    cursor = db.cursor()
 
     family_id = str(uuid.uuid4())
     invite_code = generate_invite_code()
 
-    try:
-        cursor.execute("""
-            INSERT INTO families (family_id, family_name, invite_code, created_at)
-            VALUES (?, ?, ?, ?)
-        """, (family_id, family_name, invite_code, datetime.utcnow()))
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
 
-        db.commit()
-
-        return jsonify({
-            "family_id": family_id,
-            "invite_code": invite_code,
-            "status": "ok"
-        })
-
-    except sqlite3.IntegrityError:
-        return jsonify({"error": "invite_code collision"}), 500
-
-@app.route("/register", methods=["POST"])
-def register():
-    data = request.json
-
-    required = ["family_id", "invite_code", "name", "role"]
-    if not all(k in data for k in required):
-        return jsonify({"error": "missing fields"}), 400
-
-    family_id = data["family_id"]
-    invite_code = data["invite_code"]
-    name = data["name"]
-    role = data["role"]
-
-    if role not in ["parent", "child"]:
-        return jsonify({"error": "invalid role"}), 400
-
-    db = get_db()
-    cursor = db.cursor()
-
-    # проверка invite_code
     cursor.execute("""
-        SELECT * FROM families WHERE family_id=? AND invite_code=?
-    """, (family_id, invite_code))
+        INSERT INTO families (family_id, family_name, invite_code, created_at)
+        VALUES (?, ?, ?, ?)
+    """, (family_id, family_name, invite_code, datetime.utcnow()))
 
-    family = cursor.fetchone()
+    conn.commit()
+    conn.close()
 
-    if not family:
-        return jsonify({"error": "invalid invite_code or family_id"}), 404
+    return jsonify({
+        "family_id": family_id,
+        "invite_code": invite_code
+    })
 
+
+# =====================
+# REGISTER CHILD
+# =====================
+
+@app.route("/register_child", methods=["POST"])
+def register_child():
+    data = request.json
+    invite_code = data.get("invite_code")
+    name = data.get("name")
+
+    if not invite_code or not name:
+        return jsonify({"error": "invite_code and name required"}), 400
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT family_id FROM families WHERE invite_code = ?", (invite_code,))
+    row = cursor.fetchone()
+
+    if not row:
+        return jsonify({"error": "invalid invite_code"}), 400
+
+    family_id = row[0]
     user_id = str(uuid.uuid4())
 
     cursor.execute("""
         INSERT INTO users (user_id, family_id, name, role, created_at)
         VALUES (?, ?, ?, ?, ?)
-    """, (user_id, family_id, name, role, datetime.utcnow()))
+    """, (user_id, family_id, name, "child", datetime.utcnow()))
 
-    db.commit()
+    conn.commit()
+    conn.close()
 
     return jsonify({
         "user_id": user_id,
-        "status": "ok"
+        "family_id": family_id
     })
 
-@app.route("/register_child", methods=["POST"])
-def register_child():
+
+# =====================
+# SEND USAGE
+# =====================
+
+@app.route("/send_usage", methods=["POST"])
+def send_usage():
     data = request.json
 
-    if not data or "invite_code" not in data or "name" not in data:
-        return jsonify({"error": "invite_code and name required"}), 400
+    user_id = data.get("user_id")
+    usage_list = data.get("usage")  # список
 
-    invite_code = data["invite_code"]
-    name = data["name"]
+    if not user_id or not usage_list:
+        return jsonify({"error": "user_id and usage required"}), 400
 
-    db = get_db()
-    cursor = db.cursor()
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+
+    for item in usage_list:
+        cursor.execute("""
+            INSERT INTO usage (user_id, app_name, minutes, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (
+            user_id,
+            item["app"],
+            item["minutes"],
+            datetime.utcnow()
+        ))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"status": "ok"})
+
+
+# =====================
+# GET USAGE (для родителя/ребенка)
+# =====================
+
+@app.route("/get_usage", methods=["POST"])
+def get_usage():
+    data = request.json
+    user_id = data.get("user_id")
+
+    if not user_id:
+        return jsonify({"error": "user_id required"}), 400
+
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT family_id FROM families WHERE invite_code=?
-    """, (invite_code,))
+        SELECT app_name, SUM(minutes)
+        FROM usage
+        WHERE user_id = ?
+        GROUP BY app_name
+        ORDER BY SUM(minutes) DESC
+    """, (user_id,))
 
-    family = cursor.fetchone()
+    rows = cursor.fetchall()
+    conn.close()
 
-    if not family:
-        return jsonify({"error": "invalid invite_code"}), 404
-
-    family_id = family["family_id"]
-    user_id = str(uuid.uuid4())
-
-    cursor.execute("""
-        INSERT INTO users (user_id, family_id, name, role, created_at)
-        VALUES (?, ?, ?, 'child', ?)
-    """, (user_id, family_id, name, datetime.utcnow()))
-
-    db.commit()
-
-    return jsonify({
-        "user_id": user_id,
-        "family_id": family_id,
-        "status": "ok"
-    })
-
-
-
-# -----------------------------
-# Классификатор приложений
-# -----------------------------
-APP_CATEGORIES = {
-    "social": [
-        "com.instagram.android",
-        "com.snapchat.android",
-        "com.facebook.katana",
-        "com.vkontakte.android",
-        "org.telegram.messenger"
-    ],
-
-    "games": [
-        "com.supercell.clashofclans",
-        "com.supercell.clashroyale",
-        "com.king.candycrushsaga",
-        "com.nianticlabs.pokemongo"
+    result = [
+        {"app": row[0], "minutes": row[1]}
+        for row in rows
     ]
-}
-
-# -----------------------------
-# Хранилище в памяти
-# -----------------------------
-daily_log = {}
-
-
-def classify_app(package_name):
-    for category, packages in APP_CATEGORIES.items():
-        if package_name in packages:
-            return category
-    return "neutral"
-
-
-def calculate_bonus(neutral_minutes):
-    return neutral_minutes * 0.5
-
-
-# -----------------------------
-# Upload usage stats
-# -----------------------------
-@app.route("/upload_stats", methods=["POST"])
-def upload_stats():
-    data = request.json
-
-    family_id = data["family_id"]
-    member = data["member"]
-    usage = data["usage"]
-
-    bad_minutes = 0
-    neutral_minutes = 0
-
-    for package_name, minutes in usage.items():
-        category = classify_app(package_name)
-
-        if category in ["social", "games"]:
-            bad_minutes += minutes
-        else:
-            neutral_minutes += minutes
-
-    bonus = calculate_bonus(neutral_minutes)
-
-    key = f"{family_id}:{member}:{date.today()}"
-
-    daily_log[key] = {
-        "bad_minutes": bad_minutes,
-        "neutral_minutes": neutral_minutes,
-        "bonus": bonus
-    }
-
-    return jsonify({
-        "status": "ok",
-        "bad_minutes": bad_minutes,
-        "neutral_minutes": neutral_minutes,
-        "bonus": bonus
-    })
-
-
-# -----------------------------
-# Get reward
-# -----------------------------
-@app.route("/get_reward", methods=["GET"])
-def get_reward():
-    family_id = request.args.get("family_id")
-    member = request.args.get("member")
-
-    key = f"{family_id}:{member}:{date.today()}"
-
-    result = daily_log.get(key, {
-        "bad_minutes": 0,
-        "neutral_minutes": 0,
-        "bonus": 0
-    })
 
     return jsonify(result)
 
 
-
-init_db()   # ✅ В ПРАВИЛЬНОМ МЕСТЕ
-
-@app.teardown_appcontext
-def close_connection(exception):
-    db = getattr(g, '_database', None)
-    if db is not None:
-        db.close()
-
-
-# -----------------------------
-# Run server
-# -----------------------------
-
-
+# =====================
+# RUN
+# =====================
 
 if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=5000)
-
+    app.run(host="0.0.0.0", port=10000)
