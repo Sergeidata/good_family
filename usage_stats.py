@@ -11,32 +11,40 @@ def get_usage_stats():
     context = PythonActivity.mActivity
     usm = context.getSystemService(Context.USAGE_STATS_SERVICE)
 
-    end = int(time.time() * 1000)
-    start = end - 1000 * 60 * 60 * 24
+    end_time = int(time.time() * 1000)
+    start_time = end_time - 1000 * 60 * 60 * 24  # последние 24 часа
 
     stats = usm.queryUsageStats(
         UsageStatsManager.INTERVAL_DAILY,
-        start,
-        end
+        start_time,
+        end_time
     )
 
-    result = {}
+    result = []
 
     if stats:
         for s in stats:
             minutes = s.getTotalTimeInForeground() / 1000 / 60
             if minutes > 0:
-                result[s.getPackageName()] = int(minutes)
+                result.append({
+                    "app": s.getPackageName(),
+                    "minutes": round(minutes, 2)
+                })
 
-    return result
+    # сортировка
+    result.sort(key=lambda x: x["minutes"], reverse=True)
+
+    return result[:30]  # топ 30
 
 
 def collect_and_send():
-    raw = get_usage_stats()
+    usage_list = get_usage_stats()
 
-    usage = [
-        {"app": pkg, "minutes": mins}
-        for pkg, mins in raw
-    ]
+    print("USAGE DATA:", usage_list)
 
-    return send_usage(usage)
+    # отправка на сервер
+    response = send_usage(usage_list)
+
+    print("SERVER RESPONSE:", response)
+
+    return response
