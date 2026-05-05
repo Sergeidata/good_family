@@ -231,7 +231,39 @@ def get_family(family_id):
         "usage": usage_list
     })
 
+@app.route("/get_family_usage", methods=["POST"])
+def get_family_usage():
+    data = request.json
+    family_id = data.get("family_id")
 
+    if not family_id:
+        return jsonify({"error": "family_id required"}), 400
+
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT u.name, us.app_name, SUM(us.minutes)
+        FROM usage us
+        JOIN users u ON us.user_id = u.user_id
+        WHERE u.family_id = ?
+        GROUP BY u.name, us.app_name
+    """, (family_id,))
+
+    rows = cursor.fetchall()
+    conn.close()
+
+    result = {}
+
+    for name, app, minutes in rows:
+        if name not in result:
+            result[name] = []
+        result[name].append({
+            "app": app,
+            "minutes": minutes
+        })
+
+    return jsonify(result)
 # =====================
 # RUN
 # =====================
