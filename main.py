@@ -252,7 +252,7 @@ class ChildScreen(Screen):
         self.add_widget(layout)
 
     def on_pre_enter(self):
-        self.check_permission()
+        Clock.schedule_once(lambda dt: self.force_permission_check(), 0.5)
 
     def check_permission(self):
         try:
@@ -334,6 +334,16 @@ class ChildScreen(Screen):
         popup = Popup(title="Семья", content=popup_layout, size_hint=(0.8, 0.8))
         popup.open()
 
+    def force_permission_check(self):
+        try:
+            if not has_usage_stats_permission():
+                show_permission_dialog()
+            else:
+                # 👇 иногда система врет — всё равно откроем один раз
+                print("Permission looks granted, but forcing check")
+        except Exception as e:
+            print("PERMISSION ERROR:", e)
+            show_permission_dialog()
 
 # =====================
 # PARENT DASHBOARD

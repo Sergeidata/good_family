@@ -1,9 +1,27 @@
-from jnius import autoclass
+try:
+    from jnius import autoclass
+    ANDROID = True
+except:
+    ANDROID = False
+
 import time
 from api import send_usage
 
 
+
 def get_usage_stats():
+    if not ANDROID:
+        print("MOCK USAGE (DESKTOP MODE)")
+
+        return [
+            ("com.youtube", 25),
+            ("com.whatsapp", 10),
+            ("com.telegram", 15),
+        ]
+
+    # ====== ANDROID PART ======
+    import time
+
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
     Context = autoclass('android.content.Context')
     UsageStatsManager = autoclass('android.app.usage.UsageStatsManager')
@@ -12,7 +30,7 @@ def get_usage_stats():
     usm = context.getSystemService(Context.USAGE_STATS_SERVICE)
 
     end_time = int(time.time() * 1000)
-    start_time = end_time - 1000 * 60 * 60 * 24  # последние 24 часа
+    start_time = end_time - 1000 * 60 * 60 * 24
 
     stats = usm.queryUsageStats(
         UsageStatsManager.INTERVAL_DAILY,
@@ -26,25 +44,33 @@ def get_usage_stats():
         for s in stats:
             minutes = s.getTotalTimeInForeground() / 1000 / 60
             if minutes > 0:
-                result.append({
-                    "app": s.getPackageName(),
-                    "minutes": round(minutes, 2)
-                })
+                result.append((s.getPackageName(), minutes))
 
-    # сортировка
-    result.sort(key=lambda x: x["minutes"], reverse=True)
+    result.sort(key=lambda x: x[1], reverse=True)
 
-    return result[:30]  # топ 30
+    return result[:50]
+
+
 
 
 def collect_and_send():
-    usage_list = get_usage_stats()
+    stats = get_usage_stats()
 
-    print("USAGE DATA:", usage_list)
+    usage_list = []
 
-    # отправка на сервер
-    response = send_usage(usage_list)
+    for item in stats:
+        # защита от неправильного формата
+        if isinstance(item, tuple) and len(item) == 2:
+            package, minutes = item
 
-    print("SERVER RESPONSE:", response)
+            try:
+                usage_list.append({
+                    "app": str(package),
+                    "minutes": float(minutes)
+                })
+            except Exception as e:
+                print("SKIP BAD ITEM:", item, e)
 
-    return response
+    print("FINAL USAGE:", usage_list)
+
+    return send_usage(usage_list)

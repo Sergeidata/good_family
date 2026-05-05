@@ -33,10 +33,32 @@ def register_child(invite_code, name):
 
 
 def send_usage(usage_dict):
-    return requests.post(f"{BASE_URL}/send_usage", json={
-        "user_id": SESSION["user_id"],
-        "usage": usage_dict
-    }).json()
+
+    if not SESSION["user_id"]:
+        return {"error": "user not registered"}
+
+    try:
+        r = requests.post(
+            f"{BASE_URL}/send_usage",
+            json={
+                "user_id": SESSION["user_id"],
+                "usage": usage_dict
+            }
+        )
+
+        print("STATUS:", r.status_code)
+        print("RAW RESPONSE:", r.text)
+
+        # защита от не-JSON
+        try:
+            return r.json()
+        except Exception:
+            return {"error": "invalid json response", "raw": r.text}
+
+    except Exception as e:
+        return {"error": str(e)}
+
+
 
 
 def get_family_data():
