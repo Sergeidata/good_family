@@ -144,33 +144,49 @@ def register_child():
 
 @app.route("/send_usage", methods=["POST"])
 def send_usage():
-    data = request.json
+    try:
+        data = request.json or {}
 
-    user_id = data.get("user_id")
-    usage_dict = data.get("usage")
+        user_id = data.get("user_id")
+        usage_list = data.get("usage", [])
 
-    if not user_id or not usage_dict:
-        return jsonify({"error": "user_id and usage required"}), 400
+        if not user_id:
+            return jsonify({"error": "user_id required"}), 400
 
-    conn = get_conn()
-    cursor = conn.cursor()
+        if not isinstance(usage_list, list):
+            return jsonify({"error": "usage must be list"}), 400
 
-    # 🔥 ВАЖНО: теперь принимаем dict, а не list
-    for app_name, minutes in usage_dict.items():
-        cursor.execute("""
-            INSERT INTO usage (user_id, app_name, minutes, created_at)
-            VALUES (?, ?, ?, ?)
-        """, (
-            user_id,
-            app_name,
-            float(minutes),
-            datetime.utcnow()
-        ))
+        conn = sqlite3.connect(DB_NAME, timeout=10)
+        cursor = conn.cursor()
 
-    conn.commit()
-    conn.close()
+        for item in usage_list:
+            if not isinstance(item, dict):
+                continue
 
-    return jsonify({"status": "ok"})
+            app_name = item.get("app")
+            minutes = item.get("minutes")
+
+            if app_name is None or minutes is None:
+                continue
+
+            cursor.execute("""
+                INSERT INTO usage (user_id, app_name, minutes, created_at)
+                VALUES (?, ?, ?, ?)
+            """, (
+                user_id,
+                str(app_name),
+                float(minutes),
+                datetime.utcnow()
+            ))
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({"status": "ok"})
+
+    except Exception as e:
+        print("SEND_USAGE ERROR:", e)
+        return jsonify({"error": str(e)}), 500
 
 
 # =====================
