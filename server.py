@@ -147,31 +147,31 @@ def send_usage():
         cursor = conn.cursor()
 
         for item in usage_list:
+
+            # ===== SCREEN TIME =====
+            if "screen_time" in item:
+                cursor.execute("""
+                    INSERT INTO usage (user_id, app_name, minutes, created_at)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    user_id,
+                    "SCREEN_TIME",
+                    float(item["screen_time"]),
+                    datetime.utcnow()
+                ))
+                continue
+
+            # ===== APP MODE (старый) =====
             app = item.get("app")
             minutes = item.get("minutes")
 
             if not app or minutes is None:
                 continue
 
-            # UPSERT логика
             cursor.execute("""
-                SELECT id FROM usage
-                WHERE user_id = ? AND app_name = ?
-            """, (user_id, app))
-
-            row = cursor.fetchone()
-
-            if row:
-                cursor.execute("""
-                    UPDATE usage
-                    SET minutes = ?, created_at = ?
-                    WHERE id = ?
-                """, (float(minutes), datetime.utcnow(), row[0]))
-            else:
-                cursor.execute("""
-                    INSERT INTO usage (user_id, app_name, minutes, created_at)
-                    VALUES (?, ?, ?, ?)
-                """, (user_id, app, float(minutes), datetime.utcnow()))
+                INSERT INTO usage (user_id, app_name, minutes, created_at)
+                VALUES (?, ?, ?, ?)
+            """, (user_id, app, float(minutes), datetime.utcnow()))
 
         conn.commit()
         conn.close()
@@ -199,7 +199,7 @@ def get_family_usage():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT u.name, us.app_name, us.minutes
+        SELECT u.name, SUM(us.minutes)
         FROM usage us
         JOIN users u ON u.user_id = us.user_id
         WHERE u.family_id = ?
@@ -210,11 +210,8 @@ def get_family_usage():
 
     result = {}
 
-    for name, app, minutes in rows:
-        result.setdefault(name, []).append({
-            "app": app,
-            "minutes": minutes
-        })
+    for name, minutes in rows:
+        result[name] = round(minutes, 1)
 
     return jsonify(result)
 
