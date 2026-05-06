@@ -3,20 +3,25 @@ import time
 
 
 def has_usage_stats_permission():
-    PythonActivity = autoclass('org.kivy.android.PythonActivity')
-    Context = autoclass('android.content.Context')
-    AppOpsManager = autoclass('android.app.AppOpsManager')
+    try:
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        Context = autoclass('android.content.Context')
+        AppOpsManager = autoclass('android.app.AppOpsManager')
 
-    context = PythonActivity.mActivity
-    app_ops = context.getSystemService(Context.APP_OPS_SERVICE)
+        context = PythonActivity.mActivity
+        app_ops = context.getSystemService(Context.APP_OPS_SERVICE)
 
-    mode = app_ops.checkOpNoThrow(
-        "android:get_usage_stats",
-        context.getApplicationInfo().uid,
-        context.getPackageName()
-    )
+        mode = app_ops.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            context.getApplicationInfo().uid,
+            context.getPackageName()
+        )
 
-    return mode == AppOpsManager.MODE_ALLOWED
+        return mode == AppOpsManager.MODE_ALLOWED
+
+    except Exception as e:
+        print("PERMISSION CHECK ERROR:", e)
+        return True  # 👈 важно: не блокируем UI
 
 
 def request_usage_stats_permission():

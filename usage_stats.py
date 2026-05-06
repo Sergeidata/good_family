@@ -8,19 +8,18 @@ import time
 from api import send_usage
 
 
+# =====================
+# GET USAGE
+# =====================
 
 def get_usage_stats():
     if not ANDROID:
         print("MOCK USAGE (DESKTOP MODE)")
-
         return [
-            ("com.youtube", 25),
+            ("com.instagram.android", 25),
             ("com.whatsapp", 10),
-            ("com.telegram", 15),
+            ("org.telegram.messenger", 15),
         ]
-
-    # ====== ANDROID PART ======
-    import time
 
     PythonActivity = autoclass('org.kivy.android.PythonActivity')
     Context = autoclass('android.content.Context')
@@ -30,7 +29,7 @@ def get_usage_stats():
     usm = context.getSystemService(Context.USAGE_STATS_SERVICE)
 
     end_time = int(time.time() * 1000)
-    start_time = end_time - 1000 * 60 * 60 * 24
+    start_time = end_time - 1000 * 60 * 60 * 24  # 24 часа
 
     stats = usm.queryUsageStats(
         UsageStatsManager.INTERVAL_DAILY,
@@ -48,29 +47,56 @@ def get_usage_stats():
 
     result.sort(key=lambda x: x[1], reverse=True)
 
-    return result[:50]
+    return result[:30]
 
 
-
+# =====================
+# MAIN PIPELINE
+# =====================
 
 def collect_and_send():
     stats = get_usage_stats()
 
-    usage_list = []
+    total_minutes = 0
 
     for item in stats:
-        # защита от неправильного формата
         if isinstance(item, tuple) and len(item) == 2:
-            package, minutes = item
+            _, minutes = item
+            total_minutes += float(minutes)
 
-            try:
-                usage_list.append({
-                    "app": str(package),
-                    "minutes": float(minutes)
-                })
-            except Exception as e:
-                print("SKIP BAD ITEM:", item, e)
+    print("TOTAL SCREEN TIME:", total_minutes)
 
-    print("FINAL USAGE:", usage_list)
+    return send_usage({
+        "screen_time": total_minutes
+    })
 
-    return send_usage(usage_list)
+
+# =====================
+# CLEAN NAMES
+# =====================
+
+def clean_app_name(package):
+    mapping = {
+        "com.instagram.android": "Instagram",
+        "com.whatsapp": "WhatsApp",
+        "org.telegram.messenger": "Telegram",
+        "com.google.android.youtube": "YouTube",
+    }
+
+    return mapping.get(package, package.split(".")[-1])
+
+
+# =====================
+# CATEGORIES
+# =====================
+
+def categorize(app):
+    social = ["Instagram", "Telegram", "WhatsApp"]
+    video = ["YouTube"]
+
+    if app in social:
+        return "Соцсети"
+    if app in video:
+        return "Видео"
+
+    return "Другое"
