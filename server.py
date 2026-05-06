@@ -30,7 +30,6 @@ def init_db():
         user_id TEXT PRIMARY KEY,
         family_id TEXT,
         name TEXT,
-        role TEXT,
         created_at TIMESTAMP
     )
     """)
@@ -52,16 +51,12 @@ def init_db():
 init_db()
 
 
-# =====================
-# HELPERS
-# =====================
+def get_conn():
+    return sqlite3.connect(DB_NAME)
+
 
 def generate_invite_code():
     return str(random.randint(100000, 999999))
-
-
-def get_conn():
-    return sqlite3.connect(DB_NAME)
 
 
 # =====================
@@ -70,10 +65,10 @@ def get_conn():
 
 @app.route("/create_family", methods=["POST"])
 def create_family():
-    data = request.json
-    family_name = data.get("family_name")
+    data = request.json or {}
+    name = data.get("family_name")
 
-    if not family_name:
+    if not name:
         return jsonify({"error": "family_name required"}), 400
 
     family_id = str(uuid.uuid4())
@@ -83,9 +78,8 @@ def create_family():
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO families (family_id, family_name, invite_code, created_at)
-        VALUES (?, ?, ?, ?)
-    """, (family_id, family_name, invite_code, datetime.utcnow()))
+        INSERT INTO families VALUES (?, ?, ?, ?)
+    """, (family_id, name, invite_code, datetime.utcnow()))
 
     conn.commit()
     conn.close()
@@ -97,25 +91,22 @@ def create_family():
 
 
 # =====================
-# REGISTER CHILD
+# JOIN FAMILY
 # =====================
 
-@app.route("/register_child", methods=["POST"])
-def register_child():
-    data = request.json
-    invite_code = data.get("invite_code")
+@app.route("/join_family", methods=["POST"])
+def join_family():
+    data = request.json or {}
+    code = data.get("invite_code")
     name = data.get("name")
 
-    if not invite_code or not name:
+    if not code or not name:
         return jsonify({"error": "invite_code and name required"}), 400
 
     conn = get_conn()
     cursor = conn.cursor()
 
-    cursor.execute(
-        "SELECT family_id FROM families WHERE invite_code = ?",
-        (invite_code,)
-    )
+    cursor.execute("SELECT family_id FROM families WHERE invite_code = ?", (code,))
     row = cursor.fetchone()
 
     if not row:
@@ -125,9 +116,8 @@ def register_child():
     user_id = str(uuid.uuid4())
 
     cursor.execute("""
-        INSERT INTO users (user_id, family_id, name, role, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    """, (user_id, family_id, name, "child", datetime.utcnow()))
+        INSERT INTO users VALUES (?, ?, ?, ?)
+    """, (user_id, family_id, name, datetime.utcnow()))
 
     conn.commit()
     conn.close()
@@ -139,7 +129,7 @@ def register_child():
 
 
 # =====================
-# SEND USAGE (FIXED)
+# SEND USAGE (NO DUPES)
 # =====================
 
 @app.route("/send_usage", methods=["POST"])
@@ -153,52 +143,35 @@ def send_usage():
         if not user_id:
             return jsonify({"error": "user_id required"}), 400
 
-        if not isinstance(usage_list, list):
-            return jsonify({"error": "usage must be list"}), 400
-
-        conn = sqlite3.connect(DB_NAME, timeout=10)
+        conn = get_conn()
         cursor = conn.cursor()
 
         for item in usage_list:
-            if not isinstance(item, dict):
-                continue
-
-            app_name = item.get("app")
+            app = item.get("app")
             minutes = item.get("minutes")
 
-            if app_name is None or minutes is None:
+            if not app or minutes is None:
                 continue
 
-            # 🔍 проверяем — уже есть такая запись?
+            # UPSERT логика
             cursor.execute("""
                 SELECT id FROM usage
                 WHERE user_id = ? AND app_name = ?
-            """, (user_id, app_name))
+            """, (user_id, app))
 
-            existing = cursor.fetchone()
+            row = cursor.fetchone()
 
-            if existing:
-                # 🔁 обновляем
+            if row:
                 cursor.execute("""
                     UPDATE usage
                     SET minutes = ?, created_at = ?
                     WHERE id = ?
-                """, (
-                    float(minutes),
-                    datetime.utcnow(),
-                    existing[0]
-                ))
+                """, (float(minutes), datetime.utcnow(), row[0]))
             else:
-                # ➕ создаем
                 cursor.execute("""
                     INSERT INTO usage (user_id, app_name, minutes, created_at)
                     VALUES (?, ?, ?, ?)
-                """, (
-                    user_id,
-                    str(app_name),
-                    float(minutes),
-                    datetime.utcnow()
-                ))
+                """, (user_id, app, float(minutes), datetime.utcnow()))
 
         conn.commit()
         conn.close()
@@ -206,55 +179,17 @@ def send_usage():
         return jsonify({"status": "ok"})
 
     except Exception as e:
-        print("SEND_USAGE ERROR:", e)
+        print("ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
 
 # =====================
-# GET FAMILY DATA
+# GET FAMILY USAGE
 # =====================
-
-@app.route("/family/<family_id>", methods=["GET"])
-def get_family(family_id):
-    conn = get_conn()
-    cursor = conn.cursor()
-
-    # users
-    cursor.execute("""
-        SELECT user_id, name, role
-        FROM users
-        WHERE family_id = ?
-    """, (family_id,))
-    users = cursor.fetchall()
-
-    # usage aggregated
-    cursor.execute("""
-        SELECT user_id, app_name, SUM(minutes)
-        FROM usage
-        GROUP BY user_id, app_name
-    """)
-    usage_rows = cursor.fetchall()
-
-    conn.close()
-
-    users_list = [
-        {"user_id": u[0], "name": u[1], "role": u[2]}
-        for u in users
-    ]
-
-    usage_list = [
-        {"user_id": r[0], "app": r[1], "minutes": r[2]}
-        for r in usage_rows
-    ]
-
-    return jsonify({
-        "users": users_list,
-        "usage": usage_list
-    })
 
 @app.route("/get_family_usage", methods=["POST"])
 def get_family_usage():
-    data = request.json
+    data = request.json or {}
     family_id = data.get("family_id")
 
     if not family_id:
@@ -264,11 +199,10 @@ def get_family_usage():
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT u.name, us.app_name, SUM(us.minutes)
+        SELECT u.name, us.app_name, us.minutes
         FROM usage us
-        JOIN users u ON us.user_id = u.user_id
+        JOIN users u ON u.user_id = us.user_id
         WHERE u.family_id = ?
-        GROUP BY u.name, us.app_name
     """, (family_id,))
 
     rows = cursor.fetchall()
@@ -277,14 +211,14 @@ def get_family_usage():
     result = {}
 
     for name, app, minutes in rows:
-        if name not in result:
-            result[name] = []
-        result[name].append({
+        result.setdefault(name, []).append({
             "app": app,
             "minutes": minutes
         })
 
     return jsonify(result)
+
+
 # =====================
 # RUN
 # =====================
