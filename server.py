@@ -169,15 +169,36 @@ def send_usage():
             if app_name is None or minutes is None:
                 continue
 
+            # 🔍 проверяем — уже есть такая запись?
             cursor.execute("""
-                INSERT INTO usage (user_id, app_name, minutes, created_at)
-                VALUES (?, ?, ?, ?)
-            """, (
-                user_id,
-                str(app_name),
-                float(minutes),
-                datetime.utcnow()
-            ))
+                SELECT id FROM usage
+                WHERE user_id = ? AND app_name = ?
+            """, (user_id, app_name))
+
+            existing = cursor.fetchone()
+
+            if existing:
+                # 🔁 обновляем
+                cursor.execute("""
+                    UPDATE usage
+                    SET minutes = ?, created_at = ?
+                    WHERE id = ?
+                """, (
+                    float(minutes),
+                    datetime.utcnow(),
+                    existing[0]
+                ))
+            else:
+                # ➕ создаем
+                cursor.execute("""
+                    INSERT INTO usage (user_id, app_name, minutes, created_at)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    user_id,
+                    str(app_name),
+                    float(minutes),
+                    datetime.utcnow()
+                ))
 
         conn.commit()
         conn.close()
