@@ -37,7 +37,7 @@ version = 0.1
 
 # (list) Application requirements
 # comma separated e.g. requirements = sqlite3,kivy
-requirements = python3,kivy
+requirements = python3,kivy,pyjnius
 
 # (str) Custom source folders for requirements
 # Sets custom source for any requirements with recipes
@@ -95,13 +95,13 @@ fullscreen = 0
 
 # (list) Permissions
 # (See https://python-for-android.readthedocs.io/en/latest/buildoptions/#build-options-1 for all the supported syntaxes and properties)
-android.permissions = INTERNET,PACKAGE_USAGE_STATS
+android.permissions = PACKAGE_USAGE_STATS, INTERNET
 
 # (list) features (adds uses-feature -tags to manifest)
 #android.features = android.hardware.usb.host
 
 # (int) Target Android API, should be as high as possible.
-#android.api = 31
+android.api = 31
 
 # (int) Minimum API your APK / AAB will support.
 #android.minapi = 21
