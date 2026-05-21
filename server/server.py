@@ -4,6 +4,8 @@ import psycopg2
 import sqlite3
 import json
 import os
+import uuid
+import random
 
 app = Flask(__name__)
 
@@ -78,6 +80,33 @@ def init_db():
                 UNIQUE(user_id, date)
             )
         """)
+
+        # Семьи
+
+        if is_postgres():
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS families (
+                    id SERIAL PRIMARY KEY,
+                    family_id TEXT UNIQUE NOT NULL,
+                    family_name TEXT NOT NULL,
+                    invite_code TEXT UNIQUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+
+        else:
+
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS families (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    family_id TEXT UNIQUE,
+                    family_name TEXT,
+                    invite_code TEXT UNIQUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
 
     conn.commit()
 
@@ -372,6 +401,88 @@ def stats():
             "status": "error",
             "message": str(e)
         }), 500
+
+# ---------------------------------
+# семья
+# ---------------------------------
+@app.route("/create_family", methods=["POST"])
+def create_family():
+
+    try:
+
+        data = request.get_json()
+
+        family_name = data.get(
+            "family_name",
+            ""
+        ).strip()
+
+        if not family_name:
+
+            return jsonify({
+                "status": "error",
+                "message": "family_name required"
+            }), 400
+
+        family_id = str(uuid.uuid4())
+
+        invite_code = str(
+            random.randint(100000, 999999)
+        )
+
+        conn = get_connection()
+
+        cur = conn.cursor()
+
+        if is_postgres():
+
+            cur.execute("""
+                INSERT INTO families (
+                    family_id,
+                    family_name,
+                    invite_code
+                )
+                VALUES (%s, %s, %s)
+            """, (
+                family_id,
+                family_name,
+                invite_code
+            ))
+
+        else:
+
+            cur.execute("""
+                INSERT INTO families (
+                    family_id,
+                    family_name,
+                    invite_code
+                )
+                VALUES (?, ?, ?)
+            """, (
+                family_id,
+                family_name,
+                invite_code
+            ))
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "family_id": family_id,
+            "invite_code": invite_code
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
 
 
 if __name__ == "__main__":
