@@ -589,6 +589,26 @@ def family_members():
         "members": members
     })
 
+
+@app.route("/debug/members")
+def debug_members():
+    conn = get_connection()
+    cur = conn.cursor()
+    if is_postgres():
+        cur.execute("SELECT * FROM members")
+    else:
+        cur.execute("SELECT * FROM members")
+    rows = cur.fetchall()
+    result = []
+    for row in rows:
+        if is_postgres():
+            result.append({"id": row[0], "family_id": row[1], "user_name": row[2], "role": row[3]})
+        else:
+            result.append({"id": row["id"], "family_id": row["family_id"], "user_name": row["user_name"], "role": row["role"]})
+    cur.close()
+    conn.close()
+    return jsonify({"members": result})
+
 if __name__ == "__main__":
 
     app.run(
