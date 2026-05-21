@@ -43,13 +43,10 @@ def get_connection():
 
 
 def init_db():
-
     conn = get_connection()
-
     cur = conn.cursor()
 
     if is_postgres():
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS screen_time (
                 id SERIAL PRIMARY KEY,
@@ -60,15 +57,31 @@ def init_db():
                 created_at TIMESTAMP DEFAULT NOW()
             );
         """)
-
         cur.execute("""
-            CREATE UNIQUE INDEX IF NOT EXISTS
-            idx_user_date
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_user_date
             ON screen_time(user_id, date);
         """)
-
+        
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS families (
+                id SERIAL PRIMARY KEY,
+                family_id TEXT UNIQUE NOT NULL,
+                family_name TEXT NOT NULL,
+                invite_code TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+        
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS members (
+                id SERIAL PRIMARY KEY,
+                family_id TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                role TEXT DEFAULT 'member',
+                joined_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
     else:
-
         cur.execute("""
             CREATE TABLE IF NOT EXISTS screen_time (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -80,36 +93,28 @@ def init_db():
                 UNIQUE(user_id, date)
             )
         """)
-
-        # Семьи
-
-        if is_postgres():
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS families (
-                    id SERIAL PRIMARY KEY,
-                    family_id TEXT UNIQUE NOT NULL,
-                    family_name TEXT NOT NULL,
-                    invite_code TEXT UNIQUE NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                );
-            """)
-
-        else:
-
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS families (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    family_id TEXT UNIQUE,
-                    family_name TEXT,
-                    invite_code TEXT UNIQUE,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
+        
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS families (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                family_id TEXT UNIQUE,
+                family_name TEXT,
+                invite_code TEXT UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS members (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                family_id TEXT NOT NULL,
+                user_name TEXT NOT NULL,
+                role TEXT DEFAULT 'member',
+                joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
 
     conn.commit()
-
     cur.close()
     conn.close()
 
@@ -412,10 +417,8 @@ def create_family():
 
         data = request.get_json()
 
-        family_name = data.get(
-            "family_name",
-            ""
-        ).strip()
+        family_name = data.get("family_name", "").strip()
+        user_name = data.get("user_name", "").strip()
 
         if not family_name:
 
@@ -435,47 +438,27 @@ def create_family():
         cur = conn.cursor()
 
         if is_postgres():
-
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS families (
-                    id SERIAL PRIMARY KEY,
-                    family_id TEXT UNIQUE NOT NULL,
-                    family_name TEXT NOT NULL,
-                    invite_code TEXT UNIQUE NOT NULL,
-                    created_at TIMESTAMP DEFAULT NOW()
-                );
-            """)
-            
-            
-            cur.execute("""
-                INSERT INTO families (
-                    family_id,
-                    family_name,
-                    invite_code
-                )
+                INSERT INTO families (family_id, family_name, invite_code)
                 VALUES (%s, %s, %s)
-            """, (
-                family_id,
-                family_name,
-                invite_code
-            ))
-
-        else:
-
+            """, (family_id, family_name, invite_code))
+            
             cur.execute("""
-                INSERT INTO families (
-                    family_id,
-                    family_name,
-                    invite_code
-                )
+                INSERT INTO members (family_id, user_name, role)
+                VALUES (%s, %s, 'admin')
+            """, (family_id, user_name))
+        else:
+            cur.execute("""
+                INSERT INTO families (family_id, family_name, invite_code)
                 VALUES (?, ?, ?)
-            """, (
-                family_id,
-                family_name,
-                invite_code
-            ))
+            """, (family_id, family_name, invite_code))
+            
+            cur.execute("""
+                INSERT INTO members (family_id, user_name, role)
+                VALUES (?, ?, 'admin')
+            """, (family_id, user_name))
 
-        conn.commit()
+        conn.commit()       
 
         cur.close()
         conn.close()
@@ -499,86 +482,112 @@ def create_family():
 # ---------------------------------
 @app.route("/join_family", methods=["POST"])
 def join_family():
-
     try:
-
         data = request.get_json()
-
-        invite_code = data.get(
-            "invite_code",
-            ""
-        ).strip()
+        invite_code = data.get("invite_code", "").strip()
+        user_name = data.get("user_name", "").strip()
 
         if not invite_code:
-
-            return jsonify({
-                "status": "error",
-                "message": "invite_code required"
-            }), 400
+            return jsonify({"status": "error", "message": "invite_code required"}), 400
 
         conn = get_connection()
-
         cur = conn.cursor()
 
         if is_postgres():
-
-            cur.execute("""
-                SELECT
-                    family_id,
-                    family_name
-                FROM families
-                WHERE invite_code = %s
-            """, (
-                invite_code,
-            ))
-
+            cur.execute("SELECT family_id, family_name FROM families WHERE invite_code = %s", (invite_code,))
         else:
-
-            cur.execute("""
-                SELECT
-                    family_id,
-                    family_name
-                FROM families
-                WHERE invite_code = ?
-            """, (
-                invite_code,
-            ))
+            cur.execute("SELECT family_id, family_name FROM families WHERE invite_code = ?", (invite_code,))
 
         row = cur.fetchone()
 
-        cur.close()
-        conn.close()
-
         if not row:
-
-            return jsonify({
-                "status": "error",
-                "message": "family not found"
-            }), 404
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "family not found"}), 404
 
         if is_postgres():
-
             family_id = row[0]
             family_name = row[1]
-
         else:
-
             family_id = row["family_id"]
             family_name = row["family_name"]
 
-        return jsonify({
-            "status": "ok",
-            "family_id": family_id,
-            "family_name": family_name
-        })
+        # Добавляем участника
+        if is_postgres():
+            cur.execute("INSERT INTO members (family_id, user_name, role) VALUES (%s, %s, 'member')", (family_id, user_name))
+        else:
+            cur.execute("INSERT INTO members (family_id, user_name, role) VALUES (?, ?, 'member')", (family_id, user_name))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({"status": "ok", "family_id": family_id, "family_name": family_name})
 
     except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    
 
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
 
+@app.route("/family_members", methods=["GET"])
+def family_members():
+
+    family_id = request.args.get("family_id")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    if os.environ.get("RENDER"):
+
+        cursor.execute(
+            """
+            SELECT user_name, role, joined_at
+            FROM members
+            WHERE family_id = %s
+            ORDER BY joined_at ASC
+            """,
+            (family_id,)
+        )
+
+        rows = cursor.fetchall()
+
+        members = []
+
+        for row in rows:
+            members.append({
+                "user_name": row[0],
+                "role": row[1],
+                "joined_at": str(row[2])
+            })
+
+    else:
+
+        cursor.execute(
+            """
+            SELECT user_name, role, joined_at
+            FROM members
+            WHERE family_id = ?
+            ORDER BY joined_at ASC
+            """,
+            (family_id,)
+        )
+
+        rows = cursor.fetchall()
+
+        members = []
+
+        for row in rows:
+            members.append({
+                "user_name": row["user_name"],
+                "role": row["role"],
+                "joined_at": str(row["joined_at"])
+            })
+
+    conn.close()
+
+    return jsonify({
+        "members": members
+    })
 
 if __name__ == "__main__":
 
