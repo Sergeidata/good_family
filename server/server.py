@@ -494,6 +494,90 @@ def create_family():
         }), 500
 
 
+# ---------------------------------
+# присоединение к семье
+# ---------------------------------
+@app.route("/join_family", methods=["POST"])
+def join_family():
+
+    try:
+
+        data = request.get_json()
+
+        invite_code = data.get(
+            "invite_code",
+            ""
+        ).strip()
+
+        if not invite_code:
+
+            return jsonify({
+                "status": "error",
+                "message": "invite_code required"
+            }), 400
+
+        conn = get_connection()
+
+        cur = conn.cursor()
+
+        if is_postgres():
+
+            cur.execute("""
+                SELECT
+                    family_id,
+                    family_name
+                FROM families
+                WHERE invite_code = %s
+            """, (
+                invite_code,
+            ))
+
+        else:
+
+            cur.execute("""
+                SELECT
+                    family_id,
+                    family_name
+                FROM families
+                WHERE invite_code = ?
+            """, (
+                invite_code,
+            ))
+
+        row = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        if not row:
+
+            return jsonify({
+                "status": "error",
+                "message": "family not found"
+            }), 404
+
+        if is_postgres():
+
+            family_id = row[0]
+            family_name = row[1]
+
+        else:
+
+            family_id = row["family_id"]
+            family_name = row["family_name"]
+
+        return jsonify({
+            "status": "ok",
+            "family_id": family_id,
+            "family_name": family_name
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
 if __name__ == "__main__":
