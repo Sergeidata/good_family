@@ -437,6 +437,17 @@ def create_family():
         if is_postgres():
 
             cur.execute("""
+                CREATE TABLE IF NOT EXISTS families (
+                    id SERIAL PRIMARY KEY,
+                    family_id TEXT UNIQUE NOT NULL,
+                    family_name TEXT NOT NULL,
+                    invite_code TEXT UNIQUE NOT NULL,
+                    created_at TIMESTAMP DEFAULT NOW()
+                );
+            """)
+            
+            
+            cur.execute("""
                 INSERT INTO families (
                     family_id,
                     family_name,
