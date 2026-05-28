@@ -374,6 +374,31 @@ def stats():
                     ) + minutes
                 )
 
+        if period == "week":
+
+            days_passed = (
+                datetime.now().weekday() + 1
+            )
+
+            if days_passed < 1:
+                days_passed = 1
+
+            total_seconds = int(
+                total_seconds / days_passed
+            )
+
+            averaged_apps = {}
+
+            for app_name, minutes in (
+                app_totals.items()
+            ):
+
+                averaged_apps[app_name] = int(
+                    minutes / days_passed
+                )
+
+            app_totals = averaged_apps
+
         sorted_apps = sorted(
             app_totals.items(),
             key=lambda x: x[1],
