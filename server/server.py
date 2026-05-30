@@ -84,14 +84,14 @@ def init_db():
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS achievements (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id SERIAL PRIMARY KEY,
                 user_name TEXT NOT NULL,
                 family_id TEXT NOT NULL,
                 achievement_key TEXT NOT NULL,
                 period TEXT NOT NULL,
-                earned_date TEXT NOT NULL,
+                earned_date DATE NOT NULL,
                 UNIQUE(user_name, achievement_key, period)
-            )
+            );
         """)
 
     else:
@@ -107,7 +107,7 @@ def init_db():
             )
         """)
 
-        
+
         
         cur.execute("""
             CREATE TABLE IF NOT EXISTS families (
@@ -760,8 +760,6 @@ def achievement_check():
             ))
 
             count = cur.fetchone()[0]
-
-            
 
         conn.commit()
 
