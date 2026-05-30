@@ -648,6 +648,84 @@ def family_members():
         "members": members
     })
 
+@app.route("/family_info")
+def family_info():
+
+    family_id = request.args.get(
+        "family_id"
+    )
+
+    if not family_id:
+
+        return jsonify({
+            "status": "error",
+            "message": "family_id required"
+        }), 400
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    if is_postgres():
+
+        cur.execute("""
+            SELECT
+                family_name,
+                invite_code,
+                created_at
+            FROM families
+            WHERE family_id = %s
+        """, (
+            family_id,
+        ))
+
+        row = cur.fetchone()
+
+        if not row:
+            return jsonify({
+                "status": "error"
+            }), 404
+
+        result = {
+            "family_name": row[0],
+            "invite_code": row[1],
+            "created_at": str(row[2])
+        }
+
+    else:
+
+        cur.execute("""
+            SELECT
+                family_name,
+                invite_code,
+                created_at
+            FROM families
+            WHERE family_id = ?
+        """, (
+            family_id,
+        ))
+
+        row = cur.fetchone()
+
+        if not row:
+            return jsonify({
+                "status": "error"
+            }), 404
+
+        result = {
+            "family_name": row["family_name"],
+            "invite_code": row["invite_code"],
+            "created_at": row["created_at"]
+        }
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "status": "ok",
+        **result
+    })
+
+
 @app.route(
     "/achievements/check",
     methods=["POST"]
@@ -795,6 +873,10 @@ def achievements():
             "period"
         )
 
+        min_date = request.args.get(
+            "min_date"
+        )
+
         if not family_id:
 
             return jsonify({
@@ -812,32 +894,38 @@ def achievements():
                 cur.execute("""
                     SELECT
                         user_name,
+                        min_date,
                         achievement_key,
                         period,
                         earned_date
                     FROM achievements
                     WHERE family_id=%s
                     AND period=%s
+                    AND earned_date >= %s
                     ORDER BY earned_date DESC
                 """, (
                     family_id,
-                    period
+                    period,
+                    min_date
                 ))
 
             else:
 
-                cur.execute("""
-                    SELECT
-                        user_name,
-                        achievement_key,
-                        period,
-                        earned_date
-                    FROM achievements
-                    WHERE family_id=%s
-                    ORDER BY earned_date DESC
-                """, (
-                    family_id,
-                ))
+            
+                if min_date:
+                    cur.execute("""
+                        SELECT user_name, achievement_key, period, earned_date
+                        FROM achievements
+                        WHERE family_id=%s AND earned_date >= %s
+                        ORDER BY earned_date DESC
+                    """, (family_id, min_date))
+                else:
+                    cur.execute("""
+                        SELECT user_name, achievement_key, period, earned_date
+                        FROM achievements
+                        WHERE family_id=%s
+                        ORDER BY earned_date DESC
+                    """, (family_id,))
 
             rows = cur.fetchall()
 
@@ -861,22 +949,29 @@ def achievements():
                     FROM achievements
                     WHERE family_id=?
                     AND period=?
+                    AND earned_date >= ?
                     ORDER BY earned_date DESC
                 """, (
                     family_id,
-                    period
+                    period,
+                    min_date
                 ))
 
             else:
-
-                cur.execute("""
-                    SELECT *
-                    FROM achievements
-                    WHERE family_id=?
-                    ORDER BY earned_date DESC
-                """, (
-                    family_id,
-                ))
+                if min_date:
+                    cur.execute("""
+                        SELECT user_name, achievement_key, period, earned_date
+                        FROM achievements
+                        WHERE family_id=%s AND earned_date >= %s
+                        ORDER BY earned_date DESC
+                    """, (family_id, min_date))
+                else:
+                    cur.execute("""
+                        SELECT user_name, achievement_key, period, earned_date
+                        FROM achievements
+                        WHERE family_id=%s
+                        ORDER BY earned_date DESC
+                    """, (family_id,))
 
             rows = cur.fetchall()
 
