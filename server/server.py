@@ -94,6 +94,15 @@ def init_db():
             );
         """)
 
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS garden (
+                id SERIAL PRIMARY KEY,
+                family_id TEXT UNIQUE NOT NULL,
+                level INTEGER DEFAULT 1,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+        """)
+
     else:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS screen_time (
@@ -138,6 +147,15 @@ def init_db():
                 period TEXT NOT NULL,
                 earned_date TEXT NOT NULL,
                 UNIQUE(user_name, achievement_key, period)
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS garden (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                family_id TEXT UNIQUE NOT NULL,
+                level INTEGER DEFAULT 1,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
@@ -1000,6 +1018,254 @@ def achievements():
             "status": "error",
             "message": str(e)
         }), 500
+    
+@app.route("/garden")
+def get_garden():
+
+    try:
+
+        family_id = request.args.get(
+            "family_id"
+        )
+
+        if not family_id:
+
+            return jsonify({
+                "status": "error",
+                "message": "family_id required"
+            }), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        if is_postgres():
+
+            cur.execute("""
+                SELECT
+                    level,
+                    updated_at
+                FROM garden
+                WHERE family_id = %s
+            """, (
+                family_id,
+            ))
+
+            row = cur.fetchone()
+
+            if row:
+
+                result = {
+                    "level": row[0],
+                    "updated_at": str(row[1])
+                }
+
+            else:
+
+                result = {
+                    "level": 1,
+                    "updated_at": None
+                }
+
+        else:
+
+            cur.execute("""
+                SELECT
+                    level,
+                    updated_at
+                FROM garden
+                WHERE family_id = ?
+            """, (
+                family_id,
+            ))
+
+            row = cur.fetchone()
+
+            if row:
+
+                result = {
+                    "level": row["level"],
+                    "updated_at": row["updated_at"]
+                }
+
+            else:
+
+                result = {
+                    "level": 1,
+                    "updated_at": None
+                }
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            **result
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+    
+
+@app.route(
+    "/garden/levelup",
+    methods=["POST"]
+)
+def garden_levelup():
+
+    try:
+
+        data = request.get_json()
+
+        family_id = data.get(
+            "family_id"
+        )
+
+        new_level = int(
+            data.get(
+                "new_level",
+                1
+            )
+        )
+
+        if not family_id:
+
+            return jsonify({
+                "status": "error",
+                "message": "family_id required"
+            }), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        if is_postgres():
+
+            cur.execute("""
+                SELECT level
+                FROM garden
+                WHERE family_id = %s
+            """, (
+                family_id,
+            ))
+
+            row = cur.fetchone()
+
+            if not row:
+
+                cur.execute("""
+                    INSERT INTO garden (
+                        family_id,
+                        level
+                    )
+                    VALUES (%s, %s)
+                """, (
+                    family_id,
+                    max(
+                        1,
+                        new_level
+                    )
+                ))
+
+                final_level = max(
+                    1,
+                    new_level
+                )
+
+            else:
+
+                current_level = row[0]
+
+                final_level = current_level
+
+                if new_level > current_level:
+
+                    cur.execute("""
+                        UPDATE garden
+                        SET
+                            level = %s,
+                            updated_at = NOW()
+                        WHERE family_id = %s
+                    """, (
+                        new_level,
+                        family_id
+                    ))
+
+                    final_level = new_level
+
+        else:
+
+            cur.execute("""
+                SELECT level
+                FROM garden
+                WHERE family_id = ?
+            """, (
+                family_id,
+            ))
+
+            row = cur.fetchone()
+
+            if not row:
+
+                cur.execute("""
+                    INSERT INTO garden (
+                        family_id,
+                        level
+                    )
+                    VALUES (?, ?)
+                """, (
+                    family_id,
+                    max(
+                        1,
+                        new_level
+                    )
+                ))
+
+                final_level = max(
+                    1,
+                    new_level
+                )
+
+            else:
+
+                current_level = row["level"]
+
+                final_level = current_level
+
+                if new_level > current_level:
+
+                    cur.execute("""
+                        UPDATE garden
+                        SET
+                            level = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE family_id = ?
+                    """, (
+                        new_level,
+                        family_id
+                    ))
+
+                    final_level = new_level
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "level": final_level
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 
 @app.route("/debug/members")
 def debug_members():
