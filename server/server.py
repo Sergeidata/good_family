@@ -81,6 +81,19 @@ def init_db():
                 joined_at TIMESTAMP DEFAULT NOW()
             );
         """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS achievements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_name TEXT NOT NULL,
+                family_id TEXT NOT NULL,
+                achievement_key TEXT NOT NULL,
+                period TEXT NOT NULL,
+                earned_date TEXT NOT NULL,
+                UNIQUE(user_name, achievement_key, period)
+            )
+        """)
+
     else:
         cur.execute("""
             CREATE TABLE IF NOT EXISTS screen_time (
@@ -93,6 +106,8 @@ def init_db():
                 UNIQUE(user_id, date)
             )
         """)
+
+        
         
         cur.execute("""
             CREATE TABLE IF NOT EXISTS families (
@@ -111,6 +126,18 @@ def init_db():
                 user_name TEXT NOT NULL,
                 role TEXT DEFAULT 'member',
                 joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS achievements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_name TEXT NOT NULL,
+                family_id TEXT NOT NULL,
+                achievement_key TEXT NOT NULL,
+                period TEXT NOT NULL,
+                earned_date TEXT NOT NULL,
+                UNIQUE(user_name, achievement_key, period)
             )
         """)
 
@@ -621,6 +648,265 @@ def family_members():
         "members": members
     })
 
+@app.route(
+    "/achievements/check",
+    methods=["POST"]
+)
+def achievement_check():
+
+    try:
+
+        data = request.get_json()
+
+        family_id = data.get(
+            "family_id"
+        )
+
+        user_name = data.get(
+            "user_name"
+        )
+
+        achievement_key = data.get(
+            "achievement_key"
+        )
+
+        period = data.get(
+            "period"
+        )
+
+        earned_date = data.get(
+            "earned_date"
+        )
+
+        if (
+            not family_id or
+            not user_name or
+            not achievement_key or
+            not period or
+            not earned_date
+        ):
+            return jsonify({
+                "status": "error",
+                "message": "missing fields"
+            }), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        if is_postgres():
+
+            cur.execute("""
+                INSERT INTO achievements (
+                    user_name,
+                    family_id,
+                    achievement_key,
+                    period,
+                    earned_date
+                )
+                VALUES (%s,%s,%s,%s,%s)
+                ON CONFLICT (
+                    user_name,
+                    achievement_key,
+                    period
+                )
+                DO NOTHING
+            """, (
+                user_name,
+                family_id,
+                achievement_key,
+                period,
+                earned_date
+            ))
+
+            cur.execute("""
+                SELECT COUNT(*)
+                FROM achievements
+                WHERE user_name=%s
+                AND achievement_key=%s
+            """, (
+                user_name,
+                achievement_key
+            ))
+
+            count = cur.fetchone()[0]
+
+        else:
+
+            cur.execute("""
+                INSERT OR IGNORE INTO achievements (
+                    user_name,
+                    family_id,
+                    achievement_key,
+                    period,
+                    earned_date
+                )
+                VALUES (?,?,?,?,?)
+            """, (
+                user_name,
+                family_id,
+                achievement_key,
+                period,
+                earned_date
+            ))
+
+            cur.execute("""
+                SELECT COUNT(*) AS cnt
+                FROM achievements
+                WHERE user_name=?
+                AND achievement_key=?
+            """, (
+                user_name,
+                achievement_key
+            ))
+
+            count = cur.fetchone()[0]
+
+            
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "count": count
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+
+@app.route(
+    "/achievements",
+    methods=["GET"]
+)
+def achievements():
+
+    try:
+
+        family_id = request.args.get(
+            "family_id"
+        )
+
+        period = request.args.get(
+            "period"
+        )
+
+        if not family_id:
+
+            return jsonify({
+                "status": "error",
+                "message": "family_id required"
+            }), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        if is_postgres():
+
+            if period:
+
+                cur.execute("""
+                    SELECT
+                        user_name,
+                        achievement_key,
+                        period,
+                        earned_date
+                    FROM achievements
+                    WHERE family_id=%s
+                    AND period=%s
+                    ORDER BY earned_date DESC
+                """, (
+                    family_id,
+                    period
+                ))
+
+            else:
+
+                cur.execute("""
+                    SELECT
+                        user_name,
+                        achievement_key,
+                        period,
+                        earned_date
+                    FROM achievements
+                    WHERE family_id=%s
+                    ORDER BY earned_date DESC
+                """, (
+                    family_id,
+                ))
+
+            rows = cur.fetchall()
+
+            result = []
+
+            for row in rows:
+
+                result.append({
+                    "user_name": row[0],
+                    "achievement_key": row[1],
+                    "period": row[2],
+                    "earned_date": str(row[3])
+                })
+
+        else:
+
+            if period:
+
+                cur.execute("""
+                    SELECT *
+                    FROM achievements
+                    WHERE family_id=?
+                    AND period=?
+                    ORDER BY earned_date DESC
+                """, (
+                    family_id,
+                    period
+                ))
+
+            else:
+
+                cur.execute("""
+                    SELECT *
+                    FROM achievements
+                    WHERE family_id=?
+                    ORDER BY earned_date DESC
+                """, (
+                    family_id,
+                ))
+
+            rows = cur.fetchall()
+
+            result = []
+
+            for row in rows:
+
+                result.append({
+                    "user_name": row["user_name"],
+                    "achievement_key": row["achievement_key"],
+                    "period": row["period"],
+                    "earned_date": row["earned_date"]
+                })
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "achievements": result
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 @app.route("/debug/members")
 def debug_members():
