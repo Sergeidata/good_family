@@ -252,46 +252,26 @@ def upload():
         top_apps_json = json.dumps(top_apps)
 
         if is_postgres():
-
             cur.execute("""
-                INSERT INTO screen_time (
-                    user_id,
-                    date,
-                    total_seconds,
-                    top_apps
-                )
+                INSERT INTO screen_time (user_id, date, total_seconds, top_apps)
                 VALUES (%s, %s, %s, %s)
                 ON CONFLICT (user_id, date)
                 DO UPDATE SET
                     total_seconds = EXCLUDED.total_seconds,
-                    top_apps = EXCLUDED.top_apps;
-            """, (
-                user_id,
-                date,
-                total_seconds,
-                top_apps_json
-            ))
+                    top_apps = EXCLUDED.top_apps,
+                    created_at = NOW()
+            """, (user_id, date, total_seconds, top_apps_json))
 
         else:
-
             cur.execute("""
-                INSERT INTO screen_time (
-                    user_id,
-                    date,
-                    total_seconds,
-                    top_apps
-                )
+                INSERT INTO screen_time (user_id, date, total_seconds, top_apps)
                 VALUES (?, ?, ?, ?)
                 ON CONFLICT(user_id, date)
                 DO UPDATE SET
-                    total_seconds=excluded.total_seconds,
-                    top_apps=excluded.top_apps
-            """, (
-                user_id,
-                date,
-                total_seconds,
-                top_apps_json
-            ))
+                    total_seconds = excluded.total_seconds,
+                    top_apps = excluded.top_apps,
+                    created_at = CURRENT_TIMESTAMP
+            """, (user_id, date, total_seconds, top_apps_json))
 
         conn.commit()
 
@@ -691,7 +671,7 @@ def family_member_status():
             cur.execute("""
                 SELECT
                     m.user_name,
-                    MAX(st.date) as last_sync
+                    MAX(st.created_at) as last_sync
                 FROM members m
                 LEFT JOIN screen_time st
                     ON m.user_name = st.user_id
@@ -722,7 +702,7 @@ def family_member_status():
             cur.execute("""
                 SELECT
                     m.user_name,
-                    MAX(st.date) as last_sync
+                    MAX(st.created_at) as last_sync
                 FROM members m
                 LEFT JOIN screen_time st
                     ON m.user_name = st.user_id
