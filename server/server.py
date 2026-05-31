@@ -1340,6 +1340,122 @@ def garden_levelup():
             "status": "error",
             "message": str(e)
         }), 500
+    
+@app.route("/weekly_events")
+def weekly_events():
+
+    try:
+
+        family_id = request.args.get(
+            "family_id"
+        )
+
+        if not family_id:
+
+            return jsonify({
+                "status": "error",
+                "message": "family_id required"
+            }), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # последние достижения семьи
+        if is_postgres():
+
+            cur.execute("""
+                SELECT
+                    achievement_key,
+                    earned_date
+                FROM achievements
+                WHERE family_id = %s
+                ORDER BY earned_date DESC
+                LIMIT 20
+            """, (
+                family_id,
+            ))
+
+        else:
+
+            cur.execute("""
+                SELECT
+                    achievement_key,
+                    earned_date
+                FROM achievements
+                WHERE family_id = ?
+                ORDER BY earned_date DESC
+                LIMIT 20
+            """, (
+                family_id,
+            ))
+
+        achievement_rows = cur.fetchall()
+
+        achievements = []
+
+        for row in achievement_rows:
+
+            if is_postgres():
+
+                achievements.append({
+                    "achievement_key": row[0],
+                    "earned_date": str(row[1])
+                })
+
+            else:
+
+                achievements.append({
+                    "achievement_key":
+                        row["achievement_key"],
+                    "earned_date":
+                        row["earned_date"]
+                })
+
+        # уровень сада
+
+        if is_postgres():
+
+            cur.execute("""
+                SELECT level
+                FROM garden
+                WHERE family_id = %s
+            """, (
+                family_id,
+            ))
+
+        else:
+
+            cur.execute("""
+                SELECT level
+                FROM garden
+                WHERE family_id = ?
+            """, (
+                family_id,
+            ))
+
+        garden_row = cur.fetchone()
+
+        garden_level = (
+            garden_row[0]
+            if garden_row
+            else 1
+        )
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "achievements": achievements,
+            "garden_level": garden_level
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
 @app.route("/debug/members")
