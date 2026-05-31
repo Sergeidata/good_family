@@ -666,6 +666,101 @@ def family_members():
         "members": members
     })
 
+@app.route("/family_member_status")
+def family_member_status():
+
+    try:
+
+        family_id = request.args.get(
+            "family_id"
+        )
+
+        if not family_id:
+
+            return jsonify({
+                "status": "error",
+                "message": "family_id required"
+            }), 400
+
+        conn = get_connection()
+
+        cur = conn.cursor()
+
+        if is_postgres():
+
+            cur.execute("""
+                SELECT
+                    m.user_name,
+                    MAX(st.date) as last_sync
+                FROM members m
+                LEFT JOIN screen_time st
+                    ON m.user_name = st.user_id
+                WHERE m.family_id = %s
+                GROUP BY m.user_name
+                ORDER BY m.user_name
+            """, (
+                family_id,
+            ))
+
+            rows = cur.fetchall()
+
+            members = []
+
+            for row in rows:
+
+                members.append({
+                    "user_name": row[0],
+                    "last_sync": (
+                        row[1].isoformat()
+                        if row[1]
+                        else None
+                    )
+                })
+
+        else:
+
+            cur.execute("""
+                SELECT
+                    m.user_name,
+                    MAX(st.date) as last_sync
+                FROM members m
+                LEFT JOIN screen_time st
+                    ON m.user_name = st.user_id
+                WHERE m.family_id = ?
+                GROUP BY m.user_name
+                ORDER BY m.user_name
+            """, (
+                family_id,
+            ))
+
+            rows = cur.fetchall()
+
+            members = []
+
+            for row in rows:
+
+                members.append({
+                    "user_name":
+                        row["user_name"],
+                    "last_sync":
+                        row["last_sync"]
+                })
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "members": members
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @app.route("/family_info")
 def family_info():
 
