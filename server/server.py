@@ -612,7 +612,7 @@ def family_members():
 
         cursor.execute(
             """
-            SELECT user_name, role, joined_at
+            SELECT user_name, role, joined_at, device_id
             FROM members
             WHERE family_id = %s
             ORDER BY joined_at ASC
@@ -628,14 +628,15 @@ def family_members():
             members.append({
                 "user_name": row[0],
                 "role": row[1],
-                "joined_at": str(row[2])
+                "joined_at": str(row[2]),
+                "device_id": row[3] or ""
             })
 
     else:
 
         cursor.execute(
             """
-            SELECT user_name, role, joined_at
+            SELECT user_name, role, joined_at, device_id
             FROM members
             WHERE family_id = ?
             ORDER BY joined_at ASC
@@ -651,7 +652,8 @@ def family_members():
             members.append({
                 "user_name": row["user_name"],
                 "role": row["role"],
-                "joined_at": str(row["joined_at"])
+                "joined_at": str(row["joined_at"]),
+                "device_id": row[3] or ""
             })
 
     conn.close()
