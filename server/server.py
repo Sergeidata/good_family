@@ -83,6 +83,10 @@ def init_db():
         """)
 
         cur.execute("""
+            ALTER TABLE members ADD COLUMN IF NOT EXISTS device_id TEXT
+        """)
+
+        cur.execute("""
             CREATE TABLE IF NOT EXISTS achievements (
                 id SERIAL PRIMARY KEY,
                 user_name TEXT NOT NULL,
@@ -137,6 +141,11 @@ def init_db():
                 joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+
+        try:
+            cur.execute("ALTER TABLE members ADD COLUMN device_id TEXT")
+        except:
+            pass
 
         cur.execute("""
             CREATE TABLE IF NOT EXISTS achievements (
@@ -467,29 +476,19 @@ def stats():
 # ---------------------------------
 @app.route("/create_family", methods=["POST"])
 def create_family():
-
     try:
-
         data = request.get_json()
-
         family_name = data.get("family_name", "").strip()
         user_name = data.get("user_name", "").strip()
+        device_id = data.get("device_id", "").strip()
 
         if not family_name:
-
-            return jsonify({
-                "status": "error",
-                "message": "family_name required"
-            }), 400
+            return jsonify({"status": "error", "message": "family_name required"}), 400
 
         family_id = str(uuid.uuid4())
-
-        invite_code = str(
-            random.randint(100000, 999999)
-        )
+        invite_code = str(random.randint(100000, 999999))
 
         conn = get_connection()
-
         cur = conn.cursor()
 
         if is_postgres():
@@ -499,9 +498,9 @@ def create_family():
             """, (family_id, family_name, invite_code))
             
             cur.execute("""
-                INSERT INTO members (family_id, user_name, role)
-                VALUES (%s, %s, 'admin')
-            """, (family_id, user_name))
+                INSERT INTO members (family_id, user_name, role, device_id)
+                VALUES (%s, %s, 'admin', %s)
+            """, (family_id, user_name, device_id))
         else:
             cur.execute("""
                 INSERT INTO families (family_id, family_name, invite_code)
@@ -509,12 +508,11 @@ def create_family():
             """, (family_id, family_name, invite_code))
             
             cur.execute("""
-                INSERT INTO members (family_id, user_name, role)
-                VALUES (?, ?, 'admin')
-            """, (family_id, user_name))
+                INSERT INTO members (family_id, user_name, role, device_id)
+                VALUES (?, ?, 'admin', ?)
+            """, (family_id, user_name, device_id))
 
-        conn.commit()       
-
+        conn.commit()
         cur.close()
         conn.close()
 
@@ -525,11 +523,7 @@ def create_family():
         })
 
     except Exception as e:
-
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 # ---------------------------------
@@ -541,6 +535,7 @@ def join_family():
         data = request.get_json()
         invite_code = data.get("invite_code", "").strip()
         user_name = data.get("user_name", "").strip()
+        device_id = data.get("device_id", "").strip()
 
         if not invite_code:
             return jsonify({"status": "error", "message": "invite_code required"}), 400
@@ -567,11 +562,32 @@ def join_family():
             family_id = row["family_id"]
             family_name = row["family_name"]
 
-        # Добавляем участника
+        # Проверка device_id
+        if device_id:
+            if is_postgres():
+                cur.execute("SELECT user_name FROM members WHERE family_id = %s AND device_id = %s", (family_id, device_id))
+            else:
+                cur.execute("SELECT user_name FROM members WHERE family_id = ? AND device_id = ?", (family_id, device_id))
+            
+            existing = cur.fetchone()
+            
+            if existing:
+                # Обновить имя существующего участника
+                if is_postgres():
+                    cur.execute("UPDATE members SET user_name = %s WHERE family_id = %s AND device_id = %s", (user_name, family_id, device_id))
+                else:
+                    cur.execute("UPDATE members SET user_name = ? WHERE family_id = ? AND device_id = ?", (user_name, family_id, device_id))
+                
+                conn.commit()
+                cur.close()
+                conn.close()
+                return jsonify({"status": "ok", "family_id": family_id, "family_name": family_name})
+
+        # Добавляем нового участника
         if is_postgres():
-            cur.execute("INSERT INTO members (family_id, user_name, role) VALUES (%s, %s, 'member')", (family_id, user_name))
+            cur.execute("INSERT INTO members (family_id, user_name, role, device_id) VALUES (%s, %s, 'member', %s)", (family_id, user_name, device_id))
         else:
-            cur.execute("INSERT INTO members (family_id, user_name, role) VALUES (?, ?, 'member')", (family_id, user_name))
+            cur.execute("INSERT INTO members (family_id, user_name, role, device_id) VALUES (?, ?, 'member', ?)", (family_id, user_name, device_id))
 
         conn.commit()
         cur.close()
