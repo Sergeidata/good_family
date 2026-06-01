@@ -660,6 +660,135 @@ def family_members():
         "members": members
     })
 
+@app.route(
+    "/remove_member",
+    methods=["POST"]
+)
+def remove_member():
+
+    try:
+
+        data = request.json
+
+        family_id = data.get(
+            "family_id"
+        )
+
+        user_name = data.get(
+            "user_name"
+        )
+
+        requester_device_id = data.get(
+            "requester_device_id"
+        )
+
+        if (
+            not family_id
+            or not user_name
+            or not requester_device_id
+        ):
+            return jsonify({
+                "status": "error",
+                "message": "missing fields"
+            }), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # проверяем что запросил админ
+
+        if is_postgres():
+
+            cur.execute("""
+                SELECT role
+                FROM members
+                WHERE family_id = %s
+                AND device_id = %s
+            """, (
+                family_id,
+                requester_device_id
+            ))
+
+        else:
+
+            cur.execute("""
+                SELECT role
+                FROM members
+                WHERE family_id = ?
+                AND device_id = ?
+            """, (
+                family_id,
+                requester_device_id
+            ))
+
+        admin_row = cur.fetchone()
+
+        if not admin_row:
+
+            cur.close()
+            conn.close()
+
+            return jsonify({
+                "status": "error",
+                "message": "not member"
+            }), 403
+
+        role = (
+            admin_row[0]
+            if is_postgres()
+            else admin_row["role"]
+        )
+
+        if role != "admin":
+
+            cur.close()
+            conn.close()
+
+            return jsonify({
+                "status": "error",
+                "message": "admin only"
+            }), 403
+
+        # удаляем участника
+
+        if is_postgres():
+
+            cur.execute("""
+                DELETE FROM members
+                WHERE family_id = %s
+                AND user_name = %s
+            """, (
+                family_id,
+                user_name
+            ))
+
+        else:
+
+            cur.execute("""
+                DELETE FROM members
+                WHERE family_id = ?
+                AND user_name = ?
+            """, (
+                family_id,
+                user_name
+            ))
+
+        conn.commit()
+
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok"
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 @app.route("/family_member_status")
 def family_member_status():
 
