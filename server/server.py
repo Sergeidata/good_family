@@ -171,33 +171,31 @@ init_db()
 # Helpers
 # ---------------------------------
 def get_period_dates(period):
-
     today = datetime.now().date()
 
     if period == "today":
-
         start_date = today
         end_date = today
 
     elif period == "yesterday":
-
         start_date = today - timedelta(days=1)
         end_date = start_date
 
     elif period == "week":
+        # С начала текущей недели (понедельник)
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
 
-        start_date = today - timedelta(days=6)
+    elif period == "month":
+        # С начала текущего месяца (1 число)
+        start_date = today.replace(day=1)
         end_date = today
 
     else:
-
         start_date = today
         end_date = today
 
-    return (
-        str(start_date),
-        str(end_date)
-    )
+    return (str(start_date), str(end_date))
 
 
 # ---------------------------------
