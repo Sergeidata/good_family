@@ -693,6 +693,9 @@ def remove_member():
                 "status": "error",
                 "message": "missing fields"
             }), 400
+        
+        if user_name == "admin" or role == "admin":
+            return jsonify({"status": "error", "message": "cannot remove admin"}), 403
 
         conn = get_connection()
         cur = conn.cursor()
