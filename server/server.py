@@ -1601,6 +1601,35 @@ def weekly_events():
             "status": "error",
             "message": str(e)
         }), 500
+    
+
+
+# временно
+
+@app.route("/debug/make_admin")
+def make_admin():
+    family_id = request.args.get("family_id")
+    user_name = request.args.get("user_name")
+    
+    if not family_id or not user_name:
+        return jsonify({"status": "error"})
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    
+    # Удалить дубликаты
+    if is_postgres():
+        cur.execute("DELETE FROM members WHERE family_id = %s AND user_name = %s AND role != 'admin'", (family_id, user_name))
+        cur.execute("UPDATE members SET role = 'admin' WHERE family_id = %s AND user_name = %s", (family_id, user_name))
+    else:
+        cur.execute("DELETE FROM members WHERE family_id = ? AND user_name = ? AND role != 'admin'", (family_id, user_name))
+        cur.execute("UPDATE members SET role = 'admin' WHERE family_id = ? AND user_name = ?", (family_id, user_name))
+    
+    conn.commit()
+    cur.close()
+    conn.close()
+    
+    return jsonify({"status": "ok"})
 
 
 @app.route("/debug/members")
