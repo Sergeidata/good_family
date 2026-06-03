@@ -724,6 +724,7 @@ def remove_member():
             """, (family_id, requester_device_id))
 
         admin_row = cur.fetchone()
+        print(f"DEBUG REMOVE ADMIN: admin_row={admin_row}")
 
         if not admin_row:
 
