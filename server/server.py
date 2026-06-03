@@ -756,7 +756,7 @@ def remove_member():
             }), 403
 
         # удаляем участника
-
+        print(f"DEBUG REMOVE: family_id={family_id}, requester_device_id={requester_device_id}, user_name={user_name}")
         if is_postgres():
 
             cur.execute("""
