@@ -710,22 +710,18 @@ def remove_member():
                 FROM members
                 WHERE family_id = %s
                 AND device_id = %s
-            """, (
-                family_id,
-                requester_device_id
-            ))
+                AND role = 'admin'
+            """, (family_id, requester_device_id))
 
         else:
 
             cur.execute("""
                 SELECT role
                 FROM members
-                WHERE family_id = ?
-                AND device_id = ?
-            """, (
-                family_id,
-                requester_device_id
-            ))
+                WHERE family_id = %s
+                AND device_id = %s
+                AND role = 'admin'
+            """, (family_id, requester_device_id))
 
         admin_row = cur.fetchone()
 
