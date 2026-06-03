@@ -600,22 +600,7 @@ def join_family():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     
-    #временный
-@app.route("/debug/fix_admin_device")
-def fix_admin_device():
-    family_id = request.args.get("family_id")
-    user_name = request.args.get("user_name")
-    device_id = request.args.get("device_id")
-    
-    conn = get_connection()
-    cur = conn.cursor()
-    if is_postgres():
-        cur.execute("DELETE FROM members WHERE family_id = %s AND user_name = %s AND role = 'member'", (family_id, user_name))
-        cur.execute("UPDATE members SET device_id = %s WHERE family_id = %s AND user_name = %s AND role = 'admin'", (device_id, family_id, user_name))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({"status": "ok"})
+   
 
 @app.route("/family_members", methods=["GET"])
 def family_members():
@@ -711,8 +696,7 @@ def remove_member():
                 "message": "missing fields"
             }), 400
         
-        if user_name == "admin" or role == "admin":
-            return jsonify({"status": "error", "message": "cannot remove admin"}), 403
+        
 
         conn = get_connection()
         cur = conn.cursor()
@@ -760,6 +744,10 @@ def remove_member():
         else:
             role = admin_row["role"]
         
+        if role == "admin":
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "cannot remove admin"}), 403
 
         if role != "admin":
 
