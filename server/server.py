@@ -727,34 +727,14 @@ def remove_member():
         print(f"DEBUG REMOVE ADMIN: admin_row={admin_row}")
 
         if not admin_row:
-
             cur.close()
             conn.close()
+            return jsonify({"status": "error", "message": "not member"}), 403
 
-            return jsonify({
-                "status": "error",
-                "message": "not member"
-            }), 403
-
-        if is_postgres():
-            role = admin_row[0]
-        else:
-            role = admin_row["role"]
+# Админ подтверждён — удаляем участника
         
-        if role == "admin":
-            cur.close()
-            conn.close()
-            return jsonify({"status": "error", "message": "cannot remove admin"}), 403
 
-        if role != "admin":
-
-            cur.close()
-            conn.close()
-
-            return jsonify({
-                "status": "error",
-                "message": "admin only"
-            }), 403
+        
 
         # удаляем участника
         print(f"DEBUG REMOVE: family_id={family_id}, requester_device_id={requester_device_id}, user_name={user_name}")
