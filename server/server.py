@@ -763,21 +763,17 @@ def remove_member():
                 DELETE FROM members
                 WHERE family_id = %s
                 AND user_name = %s
-            """, (
-                family_id,
-                user_name
-            ))
+                AND role != 'admin'
+            """, (family_id, user_name))
 
         else:
 
             cur.execute("""
                 DELETE FROM members
-                WHERE family_id = ?
-                AND user_name = ?
-            """, (
-                family_id,
-                user_name
-            ))
+                WHERE family_id = %s
+                AND user_name = %s
+                AND role != 'admin'
+            """, (family_id, user_name))
 
         conn.commit()
 
