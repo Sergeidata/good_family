@@ -574,13 +574,15 @@ def join_family():
             if existing:
                 # Обновить имя существующего участника
                 if is_postgres():
-                    cur.execute("UPDATE members SET user_name = %s WHERE family_id = %s AND device_id = %s", (user_name, family_id, device_id))
+                    cur.execute("UPDATE members SET device_id = %s WHERE family_id = %s AND user_name = %s AND role = 'admin' AND device_id = ''", (device_id, family_id, user_name))
                 else:
-                    cur.execute("UPDATE members SET user_name = ? WHERE family_id = ? AND device_id = ?", (user_name, family_id, device_id))
-                
+                    cur.execute("UPDATE members SET device_id = ? WHERE family_id = ? AND user_name = ? AND role = 'admin' AND device_id = ''", (device_id, family_id, user_name))
+                                
                 conn.commit()
                 cur.close()
                 conn.close()
+
+                
                 return jsonify({"status": "ok", "family_id": family_id, "family_name": family_name})
 
         # Добавляем нового участника
@@ -598,7 +600,21 @@ def join_family():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     
-
+@app.route("/debug/fix_admin_device")
+def fix_admin_device():
+    family_id = request.args.get("family_id")
+    user_name = request.args.get("user_name")
+    device_id = request.args.get("device_id")
+    
+    conn = get_connection()
+    cur = conn.cursor()
+    if is_postgres():
+        cur.execute("DELETE FROM members WHERE family_id = %s AND user_name = %s AND role = 'member'", (family_id, user_name))
+        cur.execute("UPDATE members SET device_id = %s WHERE family_id = %s AND user_name = %s AND role = 'admin'", (device_id, family_id, user_name))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({"status": "ok"})
 
 @app.route("/family_members", methods=["GET"])
 def family_members():
