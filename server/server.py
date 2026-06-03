@@ -600,6 +600,7 @@ def join_family():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
     
+    #временный
 @app.route("/debug/fix_admin_device")
 def fix_admin_device():
     family_id = request.args.get("family_id")
@@ -754,11 +755,11 @@ def remove_member():
                 "message": "not member"
             }), 403
 
-        role = (
-            admin_row[0]
-            if is_postgres()
-            else admin_row["role"]
-        )
+        if is_postgres():
+            role = admin_row[0]
+        else:
+            role = admin_row["role"]
+        
 
         if role != "admin":
 
