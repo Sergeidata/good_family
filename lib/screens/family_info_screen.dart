@@ -85,9 +85,9 @@ class _FamilyInfoScreenState
       );
       member['last_sync'] = match.isNotEmpty ? match['last_sync'] : null;
 
-      if (member["device_id"] == _deviceId && member["role"] == "admin") {
-        _isAdmin = true;
-      }
+      if (member["device_id"] == _deviceId && (member["role"] == "admin" || member["role"] == "admin_parent")) {
+          _isAdmin = true;
+        }
     }
 
     setState(() {
@@ -116,11 +116,7 @@ class _FamilyInfoScreenState
   
   {
 
-     print("MEMBER: ${member["user_name"]}, device_id=${member["device_id"]}");
-    final role =
-    member['role'] == 'admin'
-        ? 'Организатор'
-        : 'Участник';
+     final role = (member['role'] == 'admin' || member['role'] == 'admin_parent') ? 'Организатор' : (member['role'] == 'parent' ? 'Родитель' : 'Участник');
 
 
     return Card(
@@ -164,7 +160,7 @@ class _FamilyInfoScreenState
             
             // Кнопка удаления — только для организатора, не для себя
             
-            if (_isAdmin && member['role'] != 'admin')
+            if (_isAdmin && member['role'] != 'admin' && member['role'] != 'admin_parent')
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
@@ -277,9 +273,10 @@ Future<void>
   );
 
   if (!success) {
+  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ошибка удаления")));  
     return;
   }
-
+  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Участник удалён")));
   _loadData();
 }
 

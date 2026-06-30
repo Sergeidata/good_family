@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
-import '../services/session_storage.dart';
 import '../services/cache_storage.dart';
 
 class AchievementsScreen extends StatefulWidget {
@@ -729,12 +728,10 @@ class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   final Map<String, dynamic> _achievementInfo = {};
 
   int _countTotal() {
-  int count = 0;
-  for (final period in ["week", "month"]) {
-    final achievers = _data?["${period}Achievers"] as Map<String, dynamic>? ?? {};
-    count += achievers.length;
-  }
-  return count;
+  // Считаем все возможные личные достижения из тех же списков, что в _buildAchievementsList
+  const weekAchievements = ["3", "5", "7", "3p", "5p", "7p", "3s", "5s", "7s"];
+  const monthAchievements = ["10", "20", "25", "-1", "10p", "20p", "25p", "-1p", "10s", "20s", "25s", "-1s"];
+  return weekAchievements.length + monthAchievements.length;
 }
 
 int _countEarned() {
@@ -790,18 +787,30 @@ int _countEarned() {
     monthStats.sort((a, b) => (a["seconds"] as int).compareTo(b["seconds"] as int));
 
    // Получить личные ачивки с сервера
-    final personalData = await ApiService.getPersonalAchievements(familyId);
-    Map<String, List<String>> weekAchievers = {};
-    Map<String, List<String>> monthAchievers = {};
+    final allAchievements = await ApiService.getAchievements(familyId, "personal", null);
 
-    if (personalData != null) {
-      weekAchievers = (personalData["week"] as Map<String, dynamic>).map(
-        (k, v) => MapEntry(k.toString(), List<String>.from(v as List)),
-      );
-      monthAchievers = (personalData["month"] as Map<String, dynamic>).map(
-        (k, v) => MapEntry(k.toString(), List<String>.from(v as List)),
-      );
+Map<String, List<String>> weekAchievers = {};
+Map<String, List<String>> monthAchievers = {};
+
+// Группируем по ключам достижений (недельные: 3,5,7,3p,5p,7p,3s,5s,7s; месячные: 10,20,25,-1,10p,20p,25p,-1p,10s,20s,25s,-1s)
+for (final a in allAchievements) {
+  final key = a["achievement_key"].toString();
+  final userName = a["user_name"].toString();
+  
+  // Недельные ключи — короткие (3, 5, 7, 3p, 5p, 7p, 3s, 5s, 7s)
+  if (["3", "5", "7", "3p", "5p", "7p", "3s", "5s", "7s"].contains(key)) {
+    weekAchievers.putIfAbsent(key, () => []);
+    if (!weekAchievers[key]!.contains(userName)) {
+      weekAchievers[key]!.add(userName);
     }
+  } else {
+    // Месячные ключи
+    monthAchievers.putIfAbsent(key, () => []);
+    if (!monthAchievers[key]!.contains(userName)) {
+      monthAchievers[key]!.add(userName);
+    }
+  }
+}
 
     final achievementsData = await ApiService.getAchievements(familyId, "", null);
 
@@ -855,98 +864,7 @@ int _countEarned() {
   }
 }
 
- Map<String, dynamic> _calculateAchievers(List<Map<String, dynamic>> sessions, String period, {DateTime? minDate}) {
-    final now = DateTime.now();
-    DateTime start, end;
-    List<int> thresholds;
-    List<int> superThresholds;
-
-    if (period == "week") {
-      final currentMonday = now.subtract(Duration(days: now.weekday - 1));
-      final lastMonday = currentMonday.subtract(const Duration(days: 7));
-      final lastSunday = currentMonday.subtract(const Duration(days: 1));
-      start = lastMonday;
-      end = lastSunday;
-      thresholds = [3, 5, 7];
-      superThresholds = [3, 5, 7];
-    } else {
-      final firstDayCurrentMonth = DateTime(now.year, now.month, 1);
-      final lastMonthDate = firstDayCurrentMonth.subtract(const Duration(days: 1));
-      start = DateTime(lastMonthDate.year, lastMonthDate.month, 1);
-      end = DateTime(lastMonthDate.year, lastMonthDate.month + 1, 0);
-      thresholds = [10, 20, 25];
-      superThresholds = [10, 20, 25];
-    }
-
-    final Map<String, Map<String, Map<String, int>>> userDayTotals = {};
-
-    for (final session in sessions) {
-      final user = session["user_name"];
-      if (user == null) continue;
-      final dateStr = session["date"];
-      final date = DateTime.parse(dateStr);
-      if (minDate != null && date.isBefore(minDate)) continue;
-      if (date.isBefore(start) || date.isAfter(end)) continue;
-      final duration = session["duration_seconds"] ?? 0;
-      final social = session["social_seconds"] ?? 0;
-
-      userDayTotals.putIfAbsent(user, () => {});
-      userDayTotals[user]!.putIfAbsent(dateStr, () => {"total": 0, "social": 0});
-      userDayTotals[user]![dateStr]!["total"] = (userDayTotals[user]![dateStr]!["total"] ?? 0) + (duration as int);
-      userDayTotals[user]![dateStr]!["social"] = (userDayTotals[user]![dateStr]!["social"] ?? 0) + (social as int);
-    }
-
-    final Map<String, List<String>> result = {};
-    for (final t in thresholds) {
-      result[t.toString()] = [];
-    }
-    for (final t in superThresholds) {
-      result["${t}p"] = [];
-    }
-    for (final t in thresholds) {
-      result["${t}s"] = [];
-    }
-
-    for (final entry in userDayTotals.entries) {
-      int goodDays = 0;
-      int superGoodDays = 0;
-      int socialGoodDays = 0;
-      for (final dayData in entry.value.values) {
-        if ((dayData["total"] ?? 0) < 7200) goodDays++;
-        if ((dayData["total"] ?? 0) < 1200) superGoodDays++;
-        if ((dayData["social"] ?? 0) < 1800) socialGoodDays++;
-      }
-      for (final t in thresholds) {
-        if (goodDays >= t) result[t.toString()]!.add(entry.key);
-        if (socialGoodDays >= t) result["${t}s"]!.add(entry.key);
-      }
-      for (final t in superThresholds) {
-        if (superGoodDays >= t) result["${t}p"]!.add(entry.key);
-      }
-    }
-
-    if (period == "month") {
-      final totalDays = end.day;
-      result["-1"] = [];
-      result["-1p"] = [];
-      result["-1s"] = [];
-      for (final entry in userDayTotals.entries) {
-        int goodDays = 0;
-        int superGoodDays = 0;
-        int socialGoodDays = 0;
-        for (final dayData in entry.value.values) {
-          if ((dayData["total"] ?? 0) < 7200) goodDays++;
-          if ((dayData["total"] ?? 0) < 1200) superGoodDays++;
-          if ((dayData["social"] ?? 0) < 1800) socialGoodDays++;
-        }
-        if (goodDays >= totalDays) result["-1"]!.add(entry.key);
-        if (superGoodDays >= totalDays) result["-1p"]!.add(entry.key);
-        if (socialGoodDays >= totalDays) result["-1s"]!.add(entry.key);
-      }
-    }
-
-    return result;
-  }
+ 
 
   String formatHoursMinutes(int seconds) {
     final hours = seconds ~/ 3600;
@@ -963,6 +881,7 @@ int _countEarned() {
   required Color color,
   required IconData icon,
   required List<String> winners,
+  required String achievementKey,
   Map<String, int>? counts, 
   Map<String, dynamic>? achievementInfo,
 }) {
@@ -1144,7 +1063,7 @@ int _countEarned() {
         const Text("Получили:", style: TextStyle(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         ...winners.map((name) {
-          final info = achievementInfo;
+          final info = _achievementInfo["${achievementKey}_$name"];
           return Padding(
             padding: const EdgeInsets.only(bottom: 6),
             child: Column(
@@ -1251,15 +1170,16 @@ Widget _buildSectionTitle(
         [];
 
     return _buildAchievementCard(
-      title: a["title"] as String,
-      rarity: a["rarity"] as String,
-      color: a["color"] as Color,
-      icon: a["icon"] as IconData,
-      winners: winners,
-      description: a["description"] as String,
-      counts: null,
-      achievementInfo: winners.isNotEmpty ? _achievementInfo["${a["key"]}_${winners.first}"] : null,
-    );
+  title: a["title"] as String,
+  rarity: a["rarity"] as String,
+  color: a["color"] as Color,
+  icon: a["icon"] as IconData,
+  winners: winners,
+  description: a["description"] as String,
+  achievementKey: a["key"] as String,  // ← добавить
+  counts: null,
+  achievementInfo: winners.isNotEmpty ? _achievementInfo["${a["key"]}_${winners.first}"] : null,
+);
   }).toList();
   }
 

@@ -21,6 +21,8 @@ class _GardenScreen2State
 
   int _level = 1;
 
+  int _currentAchievements = 0;
+
   String _familyName = "Семья";
 
   DateTime? _lastUpdated;
@@ -34,106 +36,78 @@ class _GardenScreen2State
   }
 
   Future<void> _loadGarden() async {
-
-  final family =
-      await FamilyStorage.loadFamily();
-
-  final familyId =
-      family["family_id"];
-
-  _familyName =
-      family["family_name"] ?? "Семья";
+  final family = await FamilyStorage.loadFamily();
+  final familyId = family["family_id"];
+  _familyName = family["family_name"] ?? "Семья";
 
   try {
-
-    final garden =
-        await ApiService.getGarden(
-      familyId,
-    );
-
+    final garden = await ApiService.getGarden(familyId);
     if (garden != null) {
-
-      _level =
-          garden["level"] ?? 1;
-
-      await CacheStorage.save(
-        'garden_$familyId',
-        {
-          "level": _level,
-        },
-      );
-
-      _lastUpdated =
-          DateTime.now();
-
+      _level = garden["level"] ?? 1;
+      await CacheStorage.save('garden_$familyId', {"level": _level});
+      _lastUpdated = DateTime.now();
       _fromCache = false;
-
     } else {
-
-      throw Exception(
-        "Garden data is null",
-      );
+      throw Exception("Garden data is null");
     }
+
+    final allAchievements = await ApiService.getAchievements(familyId, "", null);
+    final personalKeys = allAchievements
+        .where((a) => a["user_name"] != _familyName && a["family_id"] == familyId)  // личные
+        .map((a) => a["achievement_key"].toString())
+        .toSet();
+    final groupKeys = allAchievements
+        .where((a) => a["user_name"] == _familyName && a["family_id"] == familyId)  // групповые
+        .map((a) => a["achievement_key"].toString())
+        .toSet();
+    _currentAchievements = personalKeys.length + groupKeys.length;
+
+    
+    
+    setState(() { _loading = false; });
 
   } catch (e) {
-
-    final cache =
-        await CacheStorage.load(
-      'garden_$familyId',
-    );
-
+    final cache = await CacheStorage.load('garden_$familyId');
     if (cache != null) {
-
-      _level =
-          cache["data"]["level"] ?? 1;
-
-      _lastUpdated =
-          DateTime.tryParse(
-        cache["updated_at"] ?? "",
-      );
-
+      _level = cache["data"]["level"] ?? 1;
+      _lastUpdated = DateTime.tryParse(cache["updated_at"] ?? "");
       _fromCache = true;
-
     } else {
-
       _level = 1;
-
       _lastUpdated = null;
-
       _fromCache = true;
     }
   }
 
-  if (mounted) {
-
-    setState(() {
-      _loading = false;
-    });
-  }
+  
+  
 }
 
-  Future<void> _checkLevelUp() async {
+Future<void> _checkLevelUp() async {
   final family = await FamilyStorage.loadFamily();
   final familyId = family["family_id"];
   if (familyId == null) return;
 
-  // Проверяем что сегодня понедельник
   if (DateTime.now().weekday != DateTime.monday) return;
 
-  // Проверяем что сегодня ещё не повышали
   final today = DateTime.now().toIso8601String().split("T")[0];
   final lastLevelUp = await CacheStorage.load('garden_levelup_$familyId');
   if (lastLevelUp != null && lastLevelUp["data"] != null && lastLevelUp["data"]["date"] == today) return;
 
-  final achievements = await ApiService.getAchievements(familyId, "", null);
-  if (achievements.isEmpty) return;
+  final allAchievements = await ApiService.getAchievements(familyId, "", null);
+  if (allAchievements.isEmpty) return;
 
-  final uniqueCount = achievements.map((e) => e["achievement_key"] as String).toSet().length;
+  final personalKeys = allAchievements
+    .where((a) => a["period"] == "personal")
+    .map((a) => a["achievement_key"].toString())
+    .toSet();
+final groupKeys = allAchievements
+    .where((a) => a["period"] == "group")
+    .map((a) => a["achievement_key"].toString())
+    .toSet();
+  final uniqueCount = personalKeys.length + groupKeys.length;
+  _currentAchievements = uniqueCount;
 
-
-
-
-  // Повышаем только если уникальных ачивок больше текущего уровня
   if (uniqueCount > _level) {
     final nextLevel = (_level + 1).clamp(1, 42);
     await ApiService.levelUpGarden(familyId, nextLevel);
@@ -165,29 +139,18 @@ class _GardenScreen2State
       case 7:
         return "Куст";
 
+      case 8:
+        return "Первый цветок";
+
+      case 9:
+        return "Распускающийся куст";
+
       default:
         return "Росток";
     }
   }
 
   
-
-  String _nextLevelRequirement() {
-
-  if (_level >= 42) {
-
-    return
-        "Сад достиг максимального уровня в текущей версии!";
-  }
-
-  final requiredAchievements =
-      _level;
-
-  return
-      "Для достижения следующего уровня сада всего должно быть заработано "
-      "$requiredAchievements уникальных достижений";
-}
-
   Future<void> _loadGardenAndCheckLevel() async {
     await _loadGarden();
     if (DateTime.now().weekday != 1) return;
@@ -221,8 +184,12 @@ class _GardenScreen2State
                       0.40,
               child: Lottie.asset(
                 _getAnimationPath(_level),
-                repeat: true,
+                repeat: false,
                 fit: BoxFit.cover,
+                animate: true,
+                onLoaded: (composition) {
+                  // Анимация проиграется один раз
+                },
               ),
             ),
 
@@ -258,7 +225,56 @@ class _GardenScreen2State
                         ],
                       ),
 
-                      child: Column(
+                      child: Stack(
+  children: [
+
+    Positioned(
+      top: 0,
+      right: 0,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          shape: BoxShape.circle,
+        ),
+        child: IconButton(
+          icon: const Icon(
+            Icons.info_outline_rounded,
+            size: 22,
+            color: Colors.grey,
+          ),
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => AlertDialog(
+                title: const Text(
+                  "Рост сада",
+                ),
+                content: const Text(
+                  "Сад растет только по понедельникам по одному уровню за раз.",
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pop(context),
+                    child: const Text(
+                      "Понятно",
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    ),
+
+    Column(
+      children: [
+                      
+                      
+                      
+                      
+                      Column(
                         children: [
 
                           const Icon(
@@ -413,21 +429,41 @@ class _GardenScreen2State
                                   16,
                                 ),
                               ),
-                              child: Text(
-                                _nextLevelRequirement(),
-                                textAlign:
-                                    TextAlign
-                                        .center,
-                                style:
-                                    const TextStyle(
-                                  fontSize:
-                                      16,
-                                  height:
-                                      1.4,
-                                ),
+                               child: Column(
+                                children: [
+                                  RichText(
+                                    textAlign: TextAlign.center,
+                                    text: TextSpan(
+                                      style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+                                      children: [
+                                        const TextSpan(text: "Для достижения следующего уровня всего необходимо заработать "),
+                                        TextSpan(
+                                          text: "$_level",
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.green.shade700),
+                                        ),
+                                        const TextSpan(text: " уникальных достижений."),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                  RichText(
+                                    textAlign: TextAlign.center,
+                                    text: TextSpan(
+                                      style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+                                      children: [
+                                        const TextSpan(text: "Сейчас у вас "),
+                                        TextSpan(
+                                          text: "$_currentAchievements",
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.blue.shade700),
+                                        ),
+                                        const TextSpan(text: " достижений."),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-
+                            )
+                            
                           ] else ...[
 
                             Container(
@@ -469,6 +505,7 @@ class _GardenScreen2State
                           ],
                         ],
                       ),
+      ]
                     ),
 
                     const SizedBox(
@@ -477,8 +514,10 @@ class _GardenScreen2State
                   ],
                 ),
               ),
+                  ]
             ),
-
+              ),
+            ),
             if (_lastUpdated != null)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -507,6 +546,8 @@ class _GardenScreen2State
     case 5: return 'assets/animations/lvl5.json';
     case 6: return 'assets/animations/lvl6.json';
     case 7: return 'assets/animations/lvl7.json';
+    case 8: return 'assets/animations/lvl8.json';
+    case 9: return 'assets/animations/lvl9.json';
     default: return 'assets/animations/lvl1.json';
   }
 }

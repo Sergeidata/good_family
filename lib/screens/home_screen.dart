@@ -23,6 +23,7 @@ import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:yaml/yaml.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'tasks_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -549,6 +550,8 @@ Future<int> _getCurrentVersionCode() async {
     final family = await FamilyStorage.loadFamily();
     final userId = family["user_name"];
     final familyId = family["family_id"];
+  
+
 
     if (!_serviceStarted && userId != null && familyId != null) {
       await SyncServiceHelper.start(userId, familyId);
@@ -934,6 +937,20 @@ Widget build(BuildContext context) {
                     MaterialPageRoute(
                       builder: (_) =>
                           GardenScreen2(),
+                    ),
+                  );
+                },
+              ),
+
+              _menuCard(
+                emoji: "✅",
+                title: "Хорошие дела",
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const TasksScreen(),
                     ),
                   );
                 },
