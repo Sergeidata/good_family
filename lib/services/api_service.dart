@@ -366,6 +366,25 @@ static Future<Map<String, dynamic>?> getPersonalAchievements(
   return null;
 }
 
+static Future<Map<String, dynamic>?> getDashboard(
+  String familyId,
+  String userName,
+) async {
+  try {
+    final response = await http.get(
+      Uri.parse("$baseUrl/dashboard?family_id=$familyId&user_name=$userName"),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 
 static Future<Map<String, dynamic>?> getLatestVersion() async {
 
@@ -393,29 +412,23 @@ static Future<Map<String, dynamic>?> getLatestVersion() async {
 static Future<bool> createTask({
   required String familyId,
   required String title,
-  required int rewardAmount,       // ← исправлено
-  required int rewardTypeId,
+  required int stars,
   required String createdBy,
   required String assignedTo,
   required String repeatMode,
 }) async {
-
   final response = await http.post(
     Uri.parse("$baseUrl/tasks/create"),
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: {"Content-Type": "application/json"},
     body: jsonEncode({
       "family_id": familyId,
       "title": title,
-      "reward_amount": rewardAmount,  // ← исправлено
-      "reward_type_id": rewardTypeId,
+      "stars": stars,
       "created_by": createdBy,
       "assigned_to": assignedTo,
       "repeat_mode": repeatMode,
     }),
   );
-
   return response.statusCode == 200;
 }
 

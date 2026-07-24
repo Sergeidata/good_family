@@ -112,7 +112,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                 inviteCode: _joinMode ? _inviteController.text.trim() : null,
                               )));
                             },
-                            child: Text(_joinMode ? "👨‍👩‍👧‍👦 Далее" : "🌱 Далее", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            child: Text(_joinMode ? "🙋 Далее" : "🌱 Далее", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                           ),
                         ),
                         const SizedBox(height: 12),

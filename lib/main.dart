@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-
-import 'screens/home_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/family_storage.dart';
+import 'screens/main_navigation_screen.dart';
 
 
 
@@ -70,7 +69,7 @@ class _StartupScreenState
     }
 
     if (_hasFamily) {
-      return const HomeScreen();
+      return const MainNavigationScreen();
     }
 
     return const WelcomeScreen();

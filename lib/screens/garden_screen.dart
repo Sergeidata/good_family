@@ -4,6 +4,8 @@ import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import 'package:lottie/lottie.dart';
 import '../services/cache_storage.dart';
+import '../widgets/main_bottom_bar.dart';
+import 'main_navigation_screen.dart';
 
 class GardenScreen2 extends StatefulWidget {
   const GardenScreen2({
@@ -20,6 +22,8 @@ class _GardenScreen2State
   bool _loading = true;
 
   int _level = 1;
+
+  double _achievementProgress = 0.0;
 
   int _currentAchievements = 0;
 
@@ -39,11 +43,14 @@ class _GardenScreen2State
   final family = await FamilyStorage.loadFamily();
   final familyId = family["family_id"];
   _familyName = family["family_name"] ?? "Семья";
+  
 
   try {
     final garden = await ApiService.getGarden(familyId);
     if (garden != null) {
       _level = garden["level"] ?? 1;
+
+      _achievementProgress = (garden["achievement_progress"] ?? 0.0).toDouble();
       await CacheStorage.save('garden_$familyId', {"level": _level});
       _lastUpdated = DateTime.now();
       _fromCache = false;
@@ -60,7 +67,7 @@ class _GardenScreen2State
         .where((a) => a["user_name"] == _familyName && a["family_id"] == familyId)  // групповые
         .map((a) => a["achievement_key"].toString())
         .toSet();
-    _currentAchievements = personalKeys.length + groupKeys.length;
+    _currentAchievements = garden["achievements_count"] ?? 0;
 
     
     
@@ -91,30 +98,36 @@ Future<void> _checkLevelUp() async {
   if (DateTime.now().weekday != DateTime.monday) return;
 
   final today = DateTime.now().toIso8601String().split("T")[0];
-  final lastLevelUp = await CacheStorage.load('garden_levelup_$familyId');
-  if (lastLevelUp != null && lastLevelUp["data"] != null && lastLevelUp["data"]["date"] == today) return;
 
-  final allAchievements = await ApiService.getAchievements(familyId, "", null);
-  if (allAchievements.isEmpty) return;
+  // Проверяем дату последнего повышения с сервера
+  final garden = await ApiService.getGarden(familyId);
+  final lastLevelup = garden?["last_levelup"];
+  if (lastLevelup != null && lastLevelup.toString().startsWith(today)) {
+    return; // Уже повышали сегодня
+  }
 
-  final personalKeys = allAchievements
-    .where((a) => a["period"] == "personal")
-    .map((a) => a["achievement_key"].toString())
-    .toSet();
-final groupKeys = allAchievements
-    .where((a) => a["period"] == "group")
-    .map((a) => a["achievement_key"].toString())
-    .toSet();
+  final personalAchievements = await ApiService.getAchievements(familyId, "personal", null);
+  final groupAchievements = await ApiService.getAchievements(familyId, "group", null);
+
+  final personalKeys = personalAchievements
+      .map((a) => a["achievement_key"].toString())
+      .toSet();
+  final groupKeys = groupAchievements
+      .map((a) => a["achievement_key"].toString())
+      .toSet();
   final uniqueCount = personalKeys.length + groupKeys.length;
-  _currentAchievements = uniqueCount;
 
-  if (uniqueCount > _level) {
-    final nextLevel = (_level + 1).clamp(1, 42);
+  final currentLevel = garden?["level"] ?? _level;
+  
+  if (uniqueCount > currentLevel) {
+    final nextLevel = (currentLevel + 1).clamp(1, 42);
     await ApiService.levelUpGarden(familyId, nextLevel);
-    await CacheStorage.save('garden_levelup_$familyId', {"date": today});
+    // После повышения перезагружаем сад
     await _loadGarden();
   }
 }
+
+
 
   String getStageName(
     int level,
@@ -145,6 +158,9 @@ final groupKeys = allAchievements
       case 9:
         return "Распускающийся куст";
 
+      case 10:
+        return "2 куста и бабочка";
+      
       default:
         return "Росток";
     }
@@ -152,10 +168,10 @@ final groupKeys = allAchievements
 
   
   Future<void> _loadGardenAndCheckLevel() async {
-    await _loadGarden();
-    if (DateTime.now().weekday != 1) return;
-    await _checkLevelUp();
-  }
+  await _loadGarden();
+  if (DateTime.now().weekday != DateTime.monday) return;
+  await _checkLevelUp();
+}
 
   @override
   Widget build(
@@ -430,38 +446,57 @@ final groupKeys = allAchievements
                                 ),
                               ),
                                child: Column(
-                                children: [
-                                  RichText(
-                                    textAlign: TextAlign.center,
-                                    text: TextSpan(
-                                      style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
-                                      children: [
-                                        const TextSpan(text: "Для достижения следующего уровня всего необходимо заработать "),
-                                        TextSpan(
-                                          text: "$_level",
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.green.shade700),
-                                        ),
-                                        const TextSpan(text: " уникальных достижений."),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  RichText(
-                                    textAlign: TextAlign.center,
-                                    text: TextSpan(
-                                      style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
-                                      children: [
-                                        const TextSpan(text: "Сейчас у вас "),
-                                        TextSpan(
-                                          text: "$_currentAchievements",
-                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.blue.shade700),
-                                        ),
-                                        const TextSpan(text: " достижений."),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+  children: [
+    RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+        children: [
+          const TextSpan(text: "Для достижения следующего уровня всего необходимо заработать "),
+          TextSpan(
+            text: "$_level",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.green.shade700),
+          ),
+          const TextSpan(text: " уникальных достижений."),
+        ],
+      ),
+    ),
+    const SizedBox(height: 12),
+    RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+        children: [
+          const TextSpan(text: "Сейчас у вас "),
+          TextSpan(
+            text: "$_currentAchievements",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.blue.shade700),
+          ),
+          const TextSpan(text: " достижений + "),
+          TextSpan(
+            text: _achievementProgress.toStringAsFixed(2),
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Colors.orange.shade700),
+          ),
+          const TextSpan(text: " от хороших дел."),
+        ],
+      ),
+    ),
+    const SizedBox(height: 12),
+    RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: const TextStyle(fontSize: 16, height: 1.5, color: Colors.black87),
+        children: [
+          const TextSpan(text: "Итого: "),
+          TextSpan(
+            text: "${(_currentAchievements + _achievementProgress).toStringAsFixed(2)}",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20, color: Colors.green.shade700),
+          ),
+        ],
+      ),
+    ),
+  ],
+),
                             )
                             
                           ] else ...[
@@ -534,6 +569,21 @@ final groupKeys = allAchievements
           ],
         ),
       ),
+
+      bottomNavigationBar: MainBottomBar(
+  currentIndex: null,
+  onTap: (index) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MainNavigationScreen(
+          initialIndex: index,
+        ),
+      ),
+      (_) => false,
+    );
+  },
+),
     );
   }
 
@@ -548,6 +598,7 @@ final groupKeys = allAchievements
     case 7: return 'assets/animations/lvl7.json';
     case 8: return 'assets/animations/lvl8.json';
     case 9: return 'assets/animations/lvl9.json';
+    case 10: return 'assets/animations/lvl10.json';
     default: return 'assets/animations/lvl1.json';
   }
 }

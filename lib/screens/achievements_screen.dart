@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../services/cache_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AchievementsScreen extends StatefulWidget {
   const AchievementsScreen({super.key});
@@ -19,25 +20,25 @@ class _AchievementsScreenState extends State<AchievementsScreen> {
         appBar: AppBar(
           title: const Text("Достижения"),
          bottom: const TabBar(
-          isScrollable: false,
-          tabs: [
-
-            Tab(
-              icon: Icon(Icons.emoji_events),
-              text: "Чемпионат",
-            ),
-
-            Tab(
-              icon: Icon(Icons.person),
-              text: "Личные",
-            ),
-
-            Tab(
-              icon: Icon(Icons.groups),
-              text: "Групповые",
-            ),
-          ],
-        ),
+  isScrollable: false,
+  labelColor: Colors.blue,
+  unselectedLabelColor: Colors.grey,
+  indicatorColor: Colors.blue,
+  tabs: [
+    Tab(
+      icon: Icon(Icons.emoji_events),
+      text: "Чемпионат",
+    ),
+    Tab(
+      icon: Icon(Icons.person),
+      text: "Личные",
+    ),
+    Tab(
+      icon: Icon(Icons.groups),
+      text: "Групповые",
+    ),
+  ],
+),
         ),
         body: TabBarView(
           children: [
@@ -212,22 +213,16 @@ class _ChampionsTabState
       );
 
       weekStats.add({
-        "name":
-            userName,
-        "seconds":
-            week?[
-                    "total_seconds"] ??
-                0,
-      });
+  "name": userName,
+  "seconds": week?["total_seconds"] ?? 0,
+  "avatar": member["avatar"] ?? "👤",
+});
 
       monthStats.add({
-        "name":
-            userName,
-        "seconds":
-            month?[
-                    "total_seconds"] ??
-                0,
-      });
+  "name": userName,
+  "seconds": month?["total_seconds"] ?? 0,
+  "avatar": member["avatar"] ?? "👤",
+});
     }
 
     weekStats.sort(
@@ -383,37 +378,60 @@ class _ChampionsTabState
               "1. Дата создания семьи должна быть не позднее 1–3 чисел прошлого месяца\n"
               "2. Все участники должны быть синхронизированы и иметь количество экранного времени > 0";
 
+    final praises = [
+    "🌟 Лучший результат семьи",
+    "👏 Отличная дисциплина",
+    "⭐ Продолжай в том же духе",
+    "💚 Семья гордится тобой",
+    "🌱 Настоящий пример для остальных",
+    "🎉 Так держать!",
+  ];
+
+  final praise = hasChampion
+      ? praises[champion!["name"].toString().hashCode.abs() % praises.length]
+      : "";
+
   return Container(
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(30),
       boxShadow: [
         BoxShadow(
           color: Colors.black.withValues(alpha: 0.08),
-          blurRadius: 20,
-          offset: const Offset(0, 8),
+          blurRadius: 24,
+          offset: const Offset(0, 10),
         ),
       ],
     ),
     child: Column(
       children: [
 
+        //--------------------------------------------------
+        // Верхняя строка
+        //--------------------------------------------------
+
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            0,
+          ),
           child: Row(
             children: [
 
               Container(
-                width: 52,
-                height: 52,
+                width: 56,
+                height: 56,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius:
+                      BorderRadius.circular(18),
                 ),
                 child: Icon(
                   icon,
                   color: color,
-                  size: 28,
+                  size: 30,
                 ),
               ),
 
@@ -423,168 +441,236 @@ class _ChampionsTabState
                 child: Text(
                   title,
                   style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    fontSize: 21,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
 
-              Container(
-  decoration: BoxDecoration(
-    color: Colors.grey.shade100,
-    shape: BoxShape.circle,
-  ),
-  child: IconButton(
-    icon: const Icon(
-      Icons.info_outline_rounded,
-      size: 20,
-      color: Colors.grey,
-    ),
-    onPressed: () {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text(
-            "Условия определения победителя",
-          ),
-          content: Text(infoText),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  Navigator.pop(context),
-              child: const Text(
-                "Понятно",
+              IconButton(
+                splashRadius: 22,
+                icon: const Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.grey,
+                ),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text(
+                        "Условия определения победителя",
+                      ),
+                      content: Text(infoText),
+                      actions: [
+                        TextButton(
+                          onPressed: () =>
+                              Navigator.pop(context),
+                          child:
+                              const Text("Понятно"),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
-            ),
-          ],
-        ),
-      );
-    },
-  ),
-),
             ],
           ),
         ),
 
-        const SizedBox(height: 24),
+        const SizedBox(height: 18),
+
+        //--------------------------------------------------
+        // Карточка победителя
+        //--------------------------------------------------
 
         Container(
-  width: double.infinity,
-  margin: const EdgeInsets.symmetric(
-    horizontal: 12,
-  ),
-  padding: const EdgeInsets.symmetric(
-    horizontal: 20,
-    vertical: 24,
-  ),
-  decoration: BoxDecoration(
-    color: hasChampion
-        ? color.withValues(alpha: 0.08)
-        : Colors.grey.shade100,
-    borderRadius: BorderRadius.circular(24),
-    border: Border.all(
-      color: hasChampion
-          ? color.withValues(alpha: 0.25)
-          : Colors.grey.shade300,
-      width: 1.5,
-    ),
-  ),
-  child: Column(
-    children: [
-
-      Container(
-        width: 72,
-        height: 72,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 40,
-          color: color,
-        ),
-      ),
-
-      const SizedBox(height: 16),
-
-      Text(
-        hasChampion
-            ? "Победитель"
-            : "Ожидание результатов",
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 16,
-        ),
-      ),
-
-      const SizedBox(height: 12),
-
-      Text(
-        hasChampion
-            ? champion["name"]
-            : "Ожидание синхронизации всех участников",
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          fontSize: 32,
-          fontWeight: FontWeight.bold,
-          color: Colors.black87,
-        ),
-      ),
-
-      if (hasChampion &&
-          champion["seconds"] != null) ...[
-
-        const SizedBox(height: 12),
-
-        Container(
-          padding: const EdgeInsets.symmetric(
+          margin: const EdgeInsets.symmetric(
             horizontal: 16,
-            vertical: 8,
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 28,
           ),
           decoration: BoxDecoration(
-            color: Colors.white,
             borderRadius:
-                BorderRadius.circular(20),
+                BorderRadius.circular(26),
+            color: hasChampion
+                ? color.withValues(alpha: 0.08)
+                : Colors.grey.shade100,
+            border: Border.all(
+              color: hasChampion
+                  ? color.withValues(alpha: 0.22)
+                  : Colors.grey.shade300,
+            ),
           ),
-          child: Text(
-            _formatTime(
-              champion["seconds"],
-            ),
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-            ),
+
+          child: Column(
+            children: [
+
+              //--------------------------------------------------
+              // Медаль
+              //--------------------------------------------------
+
+              Container(
+                width: 94,
+                height: 94,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color:
+                      color.withValues(alpha: 0.15),
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 5,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color:
+                          color.withValues(alpha: 0.30),
+                      blurRadius: 18,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 54,
+                ),
+              ),
+
+              const SizedBox(height: 18),
+
+              Text(
+                hasChampion
+                    ? "👑 Чемпион"
+                    : "🏆 Чемпион определяется",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+
+              const SizedBox(height: 14),
+
+           hasChampion
+    ? Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            champion["avatar"] ?? "👤",
+            style: const TextStyle(fontSize: 40),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            champion["name"],
+            style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
+          ),
+        ],
+      )
+    : const Text(
+        "Ожидаем результаты",
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
+      ),
+
+              if (hasChampion) ...[
+
+                const SizedBox(height: 16),
+
+                Text(
+                  praise,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey.shade700,
+                    fontSize: 16,
+                    fontWeight:
+                        FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius:
+                        BorderRadius.circular(30),
+                  ),
+                  child: Row(
+                    mainAxisSize:
+                        MainAxisSize.min,
+                    children: [
+
+                      Icon(
+                        Icons.schedule,
+                        size: 18,
+                        color: color,
+                      ),
+
+                      const SizedBox(width: 8),
+
+                      Text(
+                        _formatTime(
+                          champion["seconds"],
+                        ),
+                        style:
+                            const TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              ] else ...[
+
+                const SizedBox(height: 20),
+
+                const Text(
+                  "Все участники должны\nсинхронизировать данные,\nпосле чего появится победитель.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    height: 1.45,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
-      ],
-    ],
-  ),
-),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
 
         if (hasChampion)
-          TextButton.icon(
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor:
+                  color.withValues(alpha: 0.12),
+              foregroundColor: color,
+            ),
             onPressed: onTap,
             icon: Icon(
               expanded
                   ? Icons.keyboard_arrow_up
-                  : Icons.keyboard_arrow_down,
-              color: color,
+                  : Icons.emoji_events,
             ),
             label: Text(
               expanded
                   ? "Скрыть рейтинг"
-                  : "Посмотреть рейтинг",
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
+                  : "🥇 Таблица чемпионата",
             ),
           ),
+
+        const SizedBox(height: 12),
 
         AnimatedCrossFade(
           duration: const Duration(
@@ -659,43 +745,76 @@ class _ChampionsTabState
                         16,
                       ),
                     ),
-                    child: ListTile(
-                      leading:
-                          CircleAvatar(
-                        backgroundColor:
-                            placeColor.withValues(
-                          alpha: 0.15,
-                        ),
-                        child: Icon(
-                          placeIcon,
-                          color:
-                              placeColor,
-                        ),
-                      ),
+                    child: Padding(
+  padding: const EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 12,
+  ),
+  child: Row(
+    children: [
 
-                      title: Text(
-                        member["name"],
-                        style:
-                            const TextStyle(
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
+      CircleAvatar(
+        radius: 24,
+        backgroundColor: placeColor.withValues(alpha: 0.15),
+        child: Icon(
+          placeIcon,
+          color: placeColor,
+          size: 28,
+        ),
+      ),
 
-                      trailing: Text(
-                        _formatTime(
-                          member[
-                              "seconds"],
-                        ),
-                        style:
-                            const TextStyle(
-                          fontWeight:
-                              FontWeight.w600,
-                          color:
-                              Colors.black87,
-                        ),
-                      ),
-                    ),
+      const SizedBox(width: 14),
+
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+
+            Text(
+              member["name"],
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 17,
+              ),
+            ),
+
+            
+          ],
+        ),
+      ),
+
+      const SizedBox(width: 16),
+
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+
+          Text(
+            _formatTime(member["seconds"]),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+  index == 0
+      ? "Лидер"
+      : "+${_formatTime(member["seconds"] - ranking.first["seconds"])}",
+            style: TextStyle(
+              color: index == 0
+                  ? Colors.green
+                  : Colors.grey.shade600,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+),
                   );
                 },
               ).toList(),
@@ -762,14 +881,7 @@ int _countEarned() {
     final membersResponse = await ApiService.getMembers(familyId);
     final members = membersResponse?["members"] ?? [];
 
-    final myName = family["user_name"] ?? "";
-    DateTime joinedDate = DateTime(2000);
-    for (final member in members) {
-      if (member["user_name"] == myName) {
-        joinedDate = DateTime.parse(member["joined_at"]);
-        break;
-      }
-    }
+    
 
     List<Map<String, dynamic>> weekStats = [];
     List<Map<String, dynamic>> monthStats = [];
@@ -1693,13 +1805,42 @@ IconData _getIcon(String key) {
     _addAchievement(title: "25 дней минимум соцсетей", rarity: "легендарная", color: const Color(0xFFFFF3E0), earned: socialGoodMonthDays >= 25, key: "25s");
     _addAchievement(title: "Весь месяц минимум соцсетей", rarity: "божественная", color: const Color(0xFFFFFDE7), earned: socialGoodMonthDays >= totalDaysInMonth, key: "-1s");
 
-    // Проверка на сервере для заработанных
+   // Проверка на сервере — ТОЛЬКО по понедельникам и 1-го числа
+final isMonday = DateTime.now().weekday == DateTime.monday;
+final isFirstDay = DateTime.now().day == 1;
+final today = DateTime.now().toIso8601String().split("T")[0];
+final prefs = await SharedPreferences.getInstance();
+
+// Групповые достижения
+if (isMonday) {
+  final lastGroupCheck = prefs.getString('last_group_achievement_check');
+  if (lastGroupCheck != today) {
     for (final achievement in _achievements) {
       if (achievement["earned"] == true) {
         final count = await ApiService.checkAchievement(familyId, _familyName, achievement["key"], "group");
         _groupCounts[achievement["key"]] = count;
       }
     }
+    await prefs.setString('last_group_achievement_check', today);
+  }
+}
+
+// Личные достижения
+if (isMonday || isFirstDay) {
+  final lastPersonalCheck = prefs.getString('last_personal_achievement_check');
+  if (lastPersonalCheck != today) {
+    for (final member in members) {
+      final userName = member["user_name"];
+      if (userName == _familyName) continue;
+      for (final achievement in _achievements) {
+        if (achievement["earned"] == true) {
+          await ApiService.checkAchievement(familyId, userName, achievement["key"], "personal");
+        }
+      }
+    }
+    await prefs.setString('last_personal_achievement_check', today);
+  }
+}
 
     // Заполнить _weeklyAchievements и _monthlyAchievements для build
     if (goodWeekDays >= 3) _weeklyAchievements.add("3");

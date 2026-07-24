@@ -20,6 +20,7 @@ import android.app.usage.UsageStatsManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.app.NotificationManagerCompat
+import android.os.Handler
 
 class SyncService : Service() {
 
@@ -100,6 +101,8 @@ class SyncService : Service() {
                     "user_id",
                     null
                 ) ?: return
+            
+           
 
             val today =
                 SimpleDateFormat(
@@ -272,261 +275,186 @@ class SyncService : Service() {
                 .enqueue(
                     object : Callback {
 
-                        override fun onFailure(
-                            call: Call,
-                            e: IOException
-                        ) {
-
-                            android.util.Log.e(
-                                "SYNC_SERVICE",
-                                "Upload failed: ${e.message}"
-                            )
+                        override fun onFailure(call: Call, e: IOException) {
+                            android.util.Log.e("SYNC_SERVICE", "Upload failed: ${e.message}")
                         }
-
-                      override fun onResponse(
-                        call: Call,
-                        response: Response
-                    ) {
-                        android.util.Log.d("SYNC_SERVICE", "Upload success")
-                        
-                        val familyId = prefs.getString("family_id", null)
-                        
-                        if (familyId != null) {
-                            val calendar = Calendar.getInstance()
-                            val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                     override fun onResponse(call: Call, response: Response) {
+                            android.util.Log.d("SYNC_SERVICE", "Upload success")
                             
-                            // Недельные — по понедельникам
-                            if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) {
-                                val weekCheck = prefs.getString("achievement_check_week", null)
-                                if (weekCheck != today) {
-                                    checkWeeklyEvents(context, familyId)
-                                    prefs.edit().putString("achievement_check_week", today).apply()
+                            val familyId = prefs.getString("family_id", null)
+                            
+                            if (familyId != null) {
+                                val calendar = Calendar.getInstance()
+                                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+                                
+                                if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) {
+                                    val weekCheck = prefs.getString("achievement_check_week", null)
+                                    if (weekCheck != today) {
+                                        checkWeeklyEvents(context, familyId)
+                                        prefs.edit().putString("achievement_check_week", today).apply()
+                                    }
+                                }
+                                
+                                if (calendar.get(Calendar.DAY_OF_MONTH) == 1) {
+                                    val monthCheck = prefs.getString("achievement_check_month", null)
+                                    if (monthCheck != today) {
+                                        checkWeeklyEvents(context, familyId)
+                                        prefs.edit().putString("achievement_check_month", today).apply()
+                                    }
                                 }
                             }
                             
-                            // Месячные — 1-го числа
-                            if (calendar.get(Calendar.DAY_OF_MONTH) == 1) {
-                                val monthCheck = prefs.getString("achievement_check_month", null)
-                                if (monthCheck != today) {
-                                    checkWeeklyEvents(context, familyId)
-                                    prefs.edit().putString("achievement_check_month", today).apply()
-                                }
-                            }
-                        }
-                        
-                        response.close()
-                    }
-                    }
-                )
-        }
-
-        private fun checkWeeklyEvents(
-            context: Context,
-            familyId: String
-        ) {
-
-            val prefs =
-                context.getSharedPreferences(
-                    "family_focus",
-                    Context.MODE_PRIVATE
-                )
-
-            val today =
-                SimpleDateFormat(
-                    "yyyy-MM-dd",
-                    Locale.getDefault()
-                ).format(Date())
-
-            val lastNotificationDay =
-                prefs.getString(
-                    "events_notification_date",
-                    null
-                )
-
-            if (lastNotificationDay == today) {
-                return
-            }
-
-            val client =
-                OkHttpClient.Builder()
-                    .connectTimeout(
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                    .readTimeout(
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                    .build()
-
-            val request =
-                Request.Builder()
-                    .url("http://159.194.219.146:8000/weekly_events?family_id=$familyId")
-                    
-                    .get()
-                    .build()
-
-            client.newCall(request)
-                .enqueue(
-                    object : Callback {
-
-                        override fun onFailure(
-                            call: Call,
-                            e: IOException
-                        ) {
-                            e.printStackTrace()
-                        }
-
-                        override fun onResponse(
-                            call: Call,
-                            response: Response
-                        ) {
-
-                            try {
-
-                                val body =
-                                    response.body
-                                        ?.string()
-                                        ?: return
-
-                                val json =
-                                    JSONObject(body)
-
-                                if (
-                                    json.optString(
-                                        "status"
-                                    ) != "ok"
-                                ) {
-                                    return
-                                }
-
-                                val achievements =
-                                    json.optJSONArray(
-                                        "achievements"
-                                    )
-
-                                val gardenLevel =
-                                    json.optInt(
-                                        "garden_level",
-                                        1
-                                    )
-
-                                val lastAchievementDate =
-                                    prefs.getString(
-                                        "last_achievement_date",
-                                        null
-                                    )
-
-                                var newestAchievementDate:
-                                        String? = null
-
-                                var newestAchievementName:
-                                        String? = null
-
-                                if (
-                                    achievements != null &&
-                                    achievements.length() > 0
-                                ) {
-
-                                    val first =
-                                        achievements.getJSONObject(
-                                            0
-                                        )
-
-                                    newestAchievementDate =
-                                        first.optString(
-                                            "earned_date"
-                                        )
-
-                                    newestAchievementName =
-                                        achievementTitle(
-                                            first.optString(
-                                                "achievement_key"
-                                            )
-                                        )
-                                }
-
-                                var notificationShown =
-                                    false
-
-                                if (
-                                    newestAchievementDate != null &&
-                                    newestAchievementDate !=
-                                    lastAchievementDate
-                                ) {
-
-                                    showSimpleNotification(
-                                        context,
-                                        "Новые достижения!",
-                                        "Кто-то заработал ачивку «$newestAchievementName»"
-                                    )
-
-                                    prefs.edit()
-                                        .putString(
-                                            "last_achievement_date",
-                                            newestAchievementDate
-                                        )
-                                        .apply()
-
-                                    notificationShown = true
-                                }
-
-                                val savedGardenLevel =
-                                    prefs.getInt(
-                                        "last_garden_level",
-                                        1
-                                    )
-
-                                if (
-                                    gardenLevel >
-                                    savedGardenLevel
-                                ) {
-
-                                    showSimpleNotification(
-                                        context,
-                                        "Сад вырос!",
-                                        "Уровень $gardenLevel: ${
-                                            gardenLevelName(
-                                                gardenLevel
-                                            )
-                                        }"
-                                    )
-
-                                    prefs.edit()
-                                        .putInt(
-                                            "last_garden_level",
-                                            gardenLevel
-                                        )
-                                        .apply()
-
-                                    notificationShown = true
-                                }
-
-                                if (
-                                    notificationShown
-                                ) {
-
-                                    prefs.edit()
-                                        .putString(
-                                            "events_notification_date",
-                                            today
-                                        )
-                                        .apply()
-                                }
-
-                            } catch (
-                                e: Exception
-                            ) {
-
-                                e.printStackTrace()
-                            } finally {
-
+                                // Задания и проверки — каждый день
+                                familyId?.let { checkTasksNotifications(context, it) }
                                 response.close()
-                            }
                         }
                     }
                 )
         }
+
+
+        private fun checkTasksNotifications(context: Context, familyId: String) {
+    val prefs = context.getSharedPreferences("family_focus", Context.MODE_PRIVATE)
+    val userName = prefs.getString("user_name", null) ?: return
+    val role = prefs.getString("role", null) ?: "child"
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+    val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
+
+    val request = Request.Builder()
+        .url("http://159.194.219.146:8000/tasks?family_id=$familyId&user_name=$userName")
+        .get()
+        .build()
+    
+
+    client.newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            
+            android.util.Log.e("SYNC_SERVICE", "Upload failed: ${e.message}")
+        }
+        override fun onResponse(call: Call, response: Response) {
+            try {
+                val body = response.body?.string() ?: return
+                val json = JSONObject(body)
+                val tasks = json.optJSONArray("tasks") ?: return
+
+                var pendingCount = 0
+                var reviewCount = 0
+
+                for (i in 0 until tasks.length()) {
+                    val task = tasks.getJSONObject(i)
+                    val status = task.optString("status", "")
+                    when (status) {
+                        "pending" -> pendingCount++
+                        "done" -> reviewCount++
+                    }
+                }
+
+                if (role == "child" && pendingCount > 0) {
+                    val lastPendingNotif = prefs.getString("last_pending_notification", "")
+                    if (lastPendingNotif != today) {
+                        showSimpleNotification(
+                            context,
+                            "📝 Новые задания!",
+                            "У вас $pendingCount активных заданий от родителей."
+                        )
+                        prefs.edit().putString("last_pending_notification", today).apply()
+                    }
+                }
+
+                if (role in listOf("parent", "admin_parent") && reviewCount > 0) {
+                    val lastReviewNotif = prefs.getString("last_review_notification", "")
+                    if (lastReviewNotif != today) {
+                        showSimpleNotification(
+                            context,
+                            "✅ Задания на проверке",
+                            "$reviewCount заданий ожидают проверки."
+                        )
+                        prefs.edit().putString("last_review_notification", today).apply()
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                response.close()
+            }
+        }
+    })
+}
+
+        private fun checkWeeklyEvents(context: Context, familyId: String) {
+    val prefs = context.getSharedPreferences("family_focus", Context.MODE_PRIVATE)
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    val lastNotificationDay = prefs.getString("events_notification_date", null)
+
+    if (lastNotificationDay == today) return
+
+    val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
+
+    val request = Request.Builder()
+        .url("http://159.194.219.146:8000/weekly_events?family_id=$familyId")
+        .get()
+        .build()
+
+    client.newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {}
+
+        override fun onResponse(call: Call, response: Response) {
+            try {
+                val body = response.body?.string() ?: return
+                val json = JSONObject(body)
+
+                if (json.optString("status") != "ok") return
+
+                val achievements = json.optJSONArray("achievements")
+                val gardenLevel = json.optInt("garden_level", 1)
+                val lastAchievementDate = prefs.getString("last_achievement_date", null)
+
+                var newestAchievementDate: String? = null
+                var newestAchievementName: String? = null
+
+                if (achievements != null && achievements.length() > 0) {
+                    val first = achievements.getJSONObject(0)
+                    newestAchievementDate = first.optString("earned_date")
+                    newestAchievementName = achievementTitle(first.optString("achievement_key"))
+                }
+
+                var notificationShown = false
+
+                if (newestAchievementDate != null && newestAchievementDate != lastAchievementDate) {
+                    Handler(context.mainLooper).post {
+                        showSimpleNotification(context, "Новые достижения!", "Кто-то заработал ачивку «$newestAchievementName»")
+                    }
+                    prefs.edit().putString("last_achievement_date", newestAchievementDate).apply()
+                    notificationShown = true
+                }
+
+                val savedGardenLevel = prefs.getInt("last_garden_level", 1)
+                if (gardenLevel > savedGardenLevel) {
+                    Handler(context.mainLooper).post {
+                        showSimpleNotification(context, "Сад вырос!", "Уровень $gardenLevel: ${gardenLevelName(gardenLevel)}")
+                    }
+                    prefs.edit().putInt("last_garden_level", gardenLevel).apply()
+                    notificationShown = true
+                }
+
+                if (notificationShown) {
+                    prefs.edit().putString("events_notification_date", today).apply()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                response.close()
+            }
+        }
+    })
+}
         
 
         private fun showSimpleNotification(

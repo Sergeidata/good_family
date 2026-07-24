@@ -5,6 +5,10 @@ import '../services/session_storage.dart';
 import '../services/usage_stats_helper.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import '../widgets/main_bottom_bar.dart';
+import 'main_navigation_screen.dart';
+
+
 class StatsScreen extends StatefulWidget {
   const StatsScreen({super.key});
 
@@ -707,6 +711,21 @@ class _StatsScreenState
             
           ],
         ),
+
+        bottomNavigationBar: MainBottomBar(
+  currentIndex: null,
+  onTap: (index) {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MainNavigationScreen(
+          initialIndex: index,
+        ),
+      ),
+      (_) => false,
+    );
+  },
+),
       ),
     );
   }

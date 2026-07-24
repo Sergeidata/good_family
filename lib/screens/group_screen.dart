@@ -335,30 +335,37 @@ class _GroupScreenState
               children: [
                 Expanded(
                   child:
-                      DropdownButtonFormField<
-                          String>(
-                    initialValue:
-                        _selectedPeriod,
-                    items: const [
-                      DropdownMenuItem(
-                        value: "Сегодня",
-                        child:
-                            Text("Сегодня"),
-                      ),
-                      DropdownMenuItem(
-                        value: "Вчера",
-                        child:
-                            Text("Вчера"),
-                      ),
-                      DropdownMenuItem(
-                        value: "Неделя",
-                        child:
-                            Text("В среднем за эту неделю",style: TextStyle(fontSize: 14)),
-                      ),
-                      
-                      DropdownMenuItem(value: "Месяц", child: Text("В среднем за этот месяц",style: TextStyle(fontSize: 14)), 
-                      ),
-                    ],
+                      DropdownButtonFormField<String>(
+  initialValue: _selectedPeriod,
+  decoration: InputDecoration(
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: Colors.blue.shade300),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Colors.blue, width: 2),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  ),
+            items: const [
+            DropdownMenuItem(
+              value: "Сегодня",
+              child: Text("Сегодня", style: TextStyle(fontSize: 14)),
+            ),
+            DropdownMenuItem(
+              value: "Вчера",
+              child: Text("Вчера", style: TextStyle(fontSize: 14)),
+            ),
+            DropdownMenuItem(
+              value: "Неделя",
+              child: Text("За эту неделю", style: TextStyle(fontSize: 14)),
+            ),
+            DropdownMenuItem(
+              value: "Месяц",
+              child: Text("За этот месяц", style: TextStyle(fontSize: 14)),
+            ),
+          ],
                     onChanged: (value) {
                       if (value == null) return;
                       setState(() {
@@ -372,11 +379,18 @@ class _GroupScreenState
 
                 const SizedBox(width: 10),
 
-                ElevatedButton(
-                  onPressed:
-                      _refreshGroup,
-                  child: const Text(
-                    "Обновить",
+                ElevatedButton.icon(
+                  onPressed: _refreshGroup,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text("Обновить"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   ),
                 ),
               ],
@@ -428,11 +442,7 @@ class _GroupScreenState
                                 BorderRadius.circular(18),
                           ),
                           child: ListTile(
-                            contentPadding:
-                                const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 8,
-                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
 
                             leading: CircleAvatar(
                               backgroundColor:
@@ -503,21 +513,7 @@ class _GroupScreenState
                     )
             ),
 
-            const SizedBox(height: 12),
-
             
-
-            if (_lastUpdated != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  _fromCache
-                      ? "Последнее обновление: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}"
-                      : "Обновлено: ${_lastUpdated!.hour.toString().padLeft(2, '0')}:${_lastUpdated!.minute.toString().padLeft(2, '0')}",
-                  style: TextStyle(color: Colors.grey.shade600),
-                  textAlign: TextAlign.center,
-                ),
-              ),
 
            
           ],

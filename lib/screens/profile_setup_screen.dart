@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
-import 'home_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'main_navigation_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   final bool isCreator;
@@ -84,7 +84,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
 
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MainNavigationScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   Future<void> _joinGroup() async {
@@ -149,7 +155,13 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     );
 
     if (!mounted) return;
-    Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const HomeScreen()), (route) => false);
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MainNavigationScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   void _showError(String text) {
@@ -182,7 +194,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                         Text("Имя: ${widget.name}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500)),
                         const SizedBox(height: 20),
                         DropdownButtonFormField<String>(
-                          value: _selectedRole,
+                          initialValue: _selectedRole,
                           decoration: InputDecoration(
                             labelText: "Кто вы?",
                             prefixIcon: const Icon(Icons.people_outline),
@@ -190,8 +202,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                             filled: true, fillColor: Colors.grey.shade50,
                           ),
                           items: const [
-                            DropdownMenuItem(value: "parent", child: Text("👨‍👩‍👧 Родитель")),
-                            DropdownMenuItem(value: "child", child: Text("👦 Ребёнок")),
+                            DropdownMenuItem(value: "parent", child: Text("🙋 Родитель")),
+                            DropdownMenuItem(value: "child", child: Text("🧒 Ребёнок")),
                           ],
                           onChanged: widget.isCreator ? null : (value) {
                             if (value == null) return;

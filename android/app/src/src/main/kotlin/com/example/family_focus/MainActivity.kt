@@ -57,6 +57,12 @@ class MainActivity : FlutterActivity() {
                             call.argument<String>(
                                 "familyId"
                             )
+
+                        val role = call.argument<String>("role")
+                        if (role != null) {
+                            val prefs = getSharedPreferences("family_focus", Context.MODE_PRIVATE)
+                            prefs.edit().putString("role", role).apply()    
+                        }
                         if (userId == null) {
                             result.error("NO_USER_ID", "userId is null", null)
                             return@setMethodCallHandler
