@@ -599,6 +599,7 @@ Future<void> _checkLevelUp() async {
     case 8: return 'assets/animations/lvl8.json';
     case 9: return 'assets/animations/lvl9.json';
     case 10: return 'assets/animations/lvl10.json';
+    case 11: return 'assets/animations/lvl11.json';
     default: return 'assets/animations/lvl1.json';
   }
 }

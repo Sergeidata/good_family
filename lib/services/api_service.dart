@@ -676,58 +676,143 @@ static Future<bool> cancelPayout(
   return false;
 }
 
-static Future<List<dynamic>> getRewardTypes(
-    String familyId,
+static Future<List<dynamic>> getRewardShop(String familyId) async {
+  final response = await http.get(Uri.parse("$baseUrl/reward_shop?family_id=$familyId"));
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body)["items"] ?? [];
+  }
+  return [];
+}
+
+static Future<bool> createReward(String familyId, String title, String emoji, int costStars, {String colorHex = "#FFF4E5", String description = ""}) async {
+  final response = await http.post(
+    Uri.parse("$baseUrl/reward_shop/create"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "family_id": familyId, "title": title, "emoji": emoji,
+      "cost_stars": costStars, "color_hex": colorHex, "description": description,
+    }),
+  );
+  return response.statusCode == 200;
+}
+
+static Future<bool> updateReward(int id, String title, String emoji, int costStars, {String colorHex = "#FFF4E5", String description = ""}) async {
+  final response = await http.post(
+    Uri.parse("$baseUrl/reward_shop/update"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "id": id, "title": title, "emoji": emoji,
+      "cost_stars": costStars, "color_hex": colorHex, "description": description,
+    }),
+  );
+  return response.statusCode == 200;
+}
+
+static Future<bool> deleteReward(int rewardId) async {
+  final response = await http.post(
+    Uri.parse("$baseUrl/reward_shop/delete"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({"reward_id": rewardId}),
+  );
+  return response.statusCode == 200;
+}
+
+static Future<bool> buyReward(
+  String familyId,
+  String childName,
+  int rewardId,
+) async {
+  try {
+    final response = await http.post(
+      Uri.parse("$baseUrl/reward_shop/buy"),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: jsonEncode({
+        "family_id": familyId,
+        "child_name": childName,
+        "reward_id": rewardId,
+      }),
+    );
+
+    if (response.statusCode != 200) return false;
+
+final data = jsonDecode(response.body);
+
+if (data["status"] == "ok") {
+  return true;
+}
+
+return false;
+  } catch (e) {
+    return false;
+  }
+}
+
+
+
+
+static Future<List<dynamic>> getRewardRequests(
+  String familyId,
 ) async {
 
   final response = await http.get(
-
     Uri.parse(
-      "$baseUrl/reward_types?family_id=$familyId",
+      "$baseUrl/reward_requests?family_id=$familyId",
     ),
-
   );
 
-  if (response.statusCode != 200) {
+  if(response.statusCode!=200){
     return [];
   }
 
   return jsonDecode(
     response.body,
-  )["types"];
+  )["requests"];
 }
 
-static Future<int?> createRewardType(
-
-    String familyId,
-    String name,
-
+static Future<bool> approveReward(
+  int requestId,
 ) async {
 
-  final response=await http.post(
-
-    Uri.parse(
-      "$baseUrl/reward_types/create",
-    ),
-
+  final response = await http.post(
+    Uri.parse("$baseUrl/reward_requests/approve"),
     headers:{
       "Content-Type":"application/json",
     },
-
-    body:jsonEncode({
-
-      "family_id":familyId,
-      "name":name,
-
+    body: jsonEncode({
+      "request_id":requestId,
     }),
-
   );
 
-  if(response.statusCode!=200){
-    return null;
-  }
+  return response.statusCode==200;
+}
 
-  return jsonDecode(response.body)["reward_type_id"];
+
+static Future<bool> confirmReward(
+  int requestId,
+) async {
+
+  final response = await http.post(
+    Uri.parse("$baseUrl/reward_requests/confirm"),
+    headers:{
+      "Content-Type":"application/json",
+    },
+    body: jsonEncode({
+      "request_id":requestId,
+    }),
+  );
+
+  return response.statusCode==200;
+}
+
+static Future<bool> rejectReward(int requestId) async {
+  final response = await http.post(
+    Uri.parse("$baseUrl/reward_requests/reject"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({"request_id": requestId}),
+  );
+  return response.statusCode == 200;
 }
 
 

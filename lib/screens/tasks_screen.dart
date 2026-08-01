@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'tasks_create_screen.dart';
 import 'tasks_active_screen.dart';
 import 'tasks_review_screen.dart';
-import 'tasks_balances_screen.dart';
 import 'tasks_history_screen.dart';
 import '../services/family_storage.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
+import 'reward_shop_screen.dart';
+import 'reward_requests_screen.dart';
 
 class TasksScreen extends StatelessWidget {
   const TasksScreen({super.key});
@@ -94,53 +95,39 @@ Widget build(BuildContext context) {
       final isChild = role == 'child';
 
       if (isChild) {
-        return Scaffold(
-          appBar: AppBar(title: const Text('Хорошие дела')),
-          body: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              _menuCard(
-                context: context,
-                icon: Icons.assignment,
-                color: Colors.green,
-                title: 'Мои задания',
-                subtitle: 'Активные задания',
-                screen: TasksActiveScreen(),
-              ),
-              _menuCard(
-                context: context,
-                icon: Icons.account_balance_wallet,
-                color: Colors.teal,
-                title: 'Мой счёт',
-                subtitle: 'Накопленные награды',
-                screen: TasksBalancesScreen(),
-              ),
-              _menuCard(
-                context: context,
-                icon: Icons.history,
-                color: Colors.purple,
-                title: 'История',
-                subtitle: 'Последние 30 дней',
-                screen: TasksHistoryScreen(),
-              ),
-            ],
-          ),
-          bottomNavigationBar: MainBottomBar(
-  currentIndex: null,
-  onTap: (index) {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MainNavigationScreen(
-          initialIndex: index,
+  return Scaffold(
+    appBar: AppBar(title: const Text('Хорошие дела')),
+    body: ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _menuCard(
+          context: context,
+          icon: Icons.assignment,
+          color: Colors.green,
+          title: 'Мои задания',
+          subtitle: 'Активные задания',
+          screen: TasksActiveScreen(),
         ),
-      ),
-      (_) => false,
-    );
-  },
-),
-        );
-      }
+        _menuCard(
+          context: context,
+          icon: Icons.store,
+          color: Colors.amber,
+          title: '⭐ Магазин наград',
+          subtitle: 'Тратьте заработанные звёзды',
+          screen: RewardShopScreen(childMode: true),
+        ),
+        _menuCard(
+          context: context,
+          icon: Icons.history,
+          color: Colors.purple,
+          title: 'История',
+          subtitle: 'Последние 30 дней',
+          screen: TasksHistoryScreen(),
+        ),
+      ],
+    ),
+  );
+}
 
       // Родитель — полное меню
       return Scaffold(
@@ -172,13 +159,22 @@ Widget build(BuildContext context) {
               subtitle: 'Выполненные задания',
               screen: TasksReviewScreen(),
             ),
+           _menuCard(
+              context: context,
+              icon: Icons.store,
+              color: Colors.amber,
+              title: 'Магазин наград',
+              subtitle: 'Добавляйте и управляйте наградами',
+              screen: RewardShopScreen(),
+            ),
+
             _menuCard(
               context: context,
-              icon: Icons.account_balance_wallet,
-              color: Colors.teal,
-              title: 'Балансы',
-              subtitle: 'Накопленные награды',
-              screen: TasksBalancesScreen(),
+              icon: Icons.shopping_bag,
+              color: Colors.deepOrange,
+              title: 'Запросы на награды',
+              subtitle: 'Дети хотят получить',
+              screen: const RewardRequestsScreen(),
             ),
             _menuCard(
               context: context,
