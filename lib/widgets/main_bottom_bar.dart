@@ -45,7 +45,7 @@ class MainBottomBar extends StatelessWidget {
               _item(
                 index: 2,
                 icon: Icons.emoji_events_rounded,
-                label: "Награды",
+                label: "Ачивки",
               ),
 
               _item(

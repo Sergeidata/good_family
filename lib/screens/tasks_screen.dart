@@ -9,25 +9,70 @@ import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 import 'reward_shop_screen.dart';
 import 'reward_requests_screen.dart';
+import '../services/api_service.dart';
 
-class TasksScreen extends StatelessWidget {
+class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
 
-  Widget _menuCard({
-    required BuildContext context,
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String subtitle,
-    required Widget screen,
-  }) {
-    return Card(
-      elevation: 3,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+  @override
+  State<TasksScreen> createState() => _TasksScreenState();
+}
+
+class _TasksScreenState extends State<TasksScreen> {
+  String _familyId = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFamily();
+  }
+
+  Future<void> _loadFamily() async {
+    final family = await FamilyStorage.loadFamily();
+    setState(() => _familyId = family["family_id"] ?? '');
+  }
+
+  Widget _badge(int count) {
+    if (count <= 0) return const SizedBox();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(12),
       ),
+      child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+    );
+  }
+
+  Widget _menuCard({
+  required BuildContext context,
+  required IconData icon,
+  required Color color,
+  required String title,
+  required String subtitle,
+  required Widget screen,
+  Widget? trailing,
+}) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 14),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(
+        color: color.withOpacity(0.12),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.045),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    ),
+    child: Material(
+      color: Colors.transparent,
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         onTap: () {
           Navigator.push(
             context,
@@ -40,37 +85,42 @@ class TasksScreen extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           child: Row(
             children: [
-
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: color.withOpacity(.12),
+              // Иконка
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(18),
+                ),
                 child: Icon(
                   icon,
+                  size: 28,
                   color: color,
                 ),
               ),
 
-              const SizedBox(width: 18),
+              const SizedBox(width: 16),
 
+              // Текст
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     Text(
                       title,
                       style: const TextStyle(
-                        fontWeight: FontWeight.bold,
                         fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        height: 1.15,
                       ),
                     ),
-
-                    const SizedBox(height: 4),
-
+                    const SizedBox(height: 5),
                     Text(
                       subtitle,
                       style: TextStyle(
+                        fontSize: 14,
+                        height: 1.3,
                         color: Colors.grey.shade700,
                       ),
                     ),
@@ -78,13 +128,39 @@ class TasksScreen extends StatelessWidget {
                 ),
               ),
 
-              const Icon(Icons.chevron_right),
+              const SizedBox(width: 8),
+
+              // Стрелка + счётчик
+              if (trailing != null)
+                Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Colors.grey,
+                      size: 26,
+                    ),
+                    Positioned(
+                      right: -4,
+                      top: -18,
+                      child: trailing,
+                    ),
+                  ],
+                )
+              else
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.grey,
+                  size: 26,
+                ),
             ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
  @override
 Widget build(BuildContext context) {
@@ -100,20 +176,28 @@ Widget build(BuildContext context) {
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _menuCard(
+       _menuCard(
           context: context,
           icon: Icons.assignment,
           color: Colors.green,
           title: 'Мои задания',
-          subtitle: 'Активные задания',
+          subtitle: 'Выполняй задания и зарабатывай монеты!',
           screen: TasksActiveScreen(),
+          trailing: FutureBuilder<List<dynamic>>(
+            future: ApiService.getTasks(_familyId, null),
+            builder: (ctx, snap) {
+              final tasks = snap.data ?? [];
+              final count = tasks.where((t) => t["status"] == "pending" && t["assigned_to"] == snapshot.data?["user_name"]).length;
+              return _badge(count);
+            },
+          ),
         ),
         _menuCard(
           context: context,
           icon: Icons.store,
           color: Colors.amber,
-          title: '⭐ Магазин наград',
-          subtitle: 'Тратьте заработанные звёзды',
+          title: 'Магазин наград',
+          subtitle: 'Тратьте заработанные монеты на награды',
           screen: RewardShopScreen(childMode: true),
         ),
         _menuCard(
@@ -156,8 +240,15 @@ Widget build(BuildContext context) {
               icon: Icons.fact_check,
               color: Colors.orange,
               title: 'На проверке',
-              subtitle: 'Выполненные задания',
+              subtitle: 'Выполненные задания, которые нужно проверить',
               screen: TasksReviewScreen(),
+              trailing: FutureBuilder<List<dynamic>>(
+                future: ApiService.getTasks(_familyId, null),
+                builder: (ctx, snap) {
+                  final count = snap.data?.where((t) => t["status"] == "done").length ?? 0;
+                  return _badge(count);
+                },
+              ),
             ),
            _menuCard(
               context: context,
@@ -172,9 +263,16 @@ Widget build(BuildContext context) {
               context: context,
               icon: Icons.shopping_bag,
               color: Colors.deepOrange,
-              title: 'Запросы на награды',
-              subtitle: 'Дети хотят получить',
+              title: 'Балансы и запросы',
+              subtitle: 'Звёзды детей и запросы на награды',
               screen: const RewardRequestsScreen(),
+              trailing: FutureBuilder<List<dynamic>>(
+                future: ApiService.getRewardRequests(_familyId),
+                builder: (ctx, snap) {
+                  final count = snap.data?.where((r) => r["status"] == "pending").length ?? 0;
+                  return _badge(count);
+                },
+              ),
             ),
             _menuCard(
               context: context,

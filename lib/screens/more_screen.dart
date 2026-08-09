@@ -16,7 +16,7 @@ class MoreScreen extends StatelessWidget {
     final uri = Uri(
       scheme: "mailto",
       path: _email,
-      queryParameters: {
+      queryParameters: const {
         "subject": "Обратная связь Good Family",
       },
     );
@@ -39,7 +39,6 @@ class MoreScreen extends StatelessWidget {
           "serz9oodjob@gmail.com",
         ),
         actions: [
-
           TextButton(
             onPressed: () async {
               await Clipboard.setData(
@@ -58,11 +57,8 @@ class MoreScreen extends StatelessWidget {
             },
             child: const Text("Скопировать"),
           ),
-
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context),
             child: const Text("Закрыть"),
           ),
         ],
@@ -79,32 +75,29 @@ class MoreScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     final result = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Покинуть семью?"),
-        content: Text(
-          "Вы действительно хотите покинуть семейную группу «$familyName»?",
-        ),
-        actions: [
-
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context, false);
-            },
-            child: const Text("Отмена"),
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Покинуть семью?"),
+            content: Text(
+              "Вы действительно хотите покинуть семейную группу «$familyName»?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () =>
+                    Navigator.pop(context, false),
+                child: const Text("Отмена"),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.pop(context, true),
+                child: const Text("Покинуть"),
+              ),
+            ],
           ),
+        ) ??
+        false;
 
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(context, true);
-            },
-            child: const Text("Покинуть"),
-          ),
-        ],
-      ),
-    );
-
-    if (result != true) return;
+    if (!result) return;
 
     await FamilyStorage.saveFamily({});
 
@@ -115,124 +108,236 @@ class MoreScreen extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => WelcomeScreen(),
       ),
-      (route) => false,
+      (_) => false,
     );
   }
 
-  Widget _item({
+  Widget _menuCard({
     required BuildContext context,
     required IconData icon,
+    required Color color,
     required String title,
+    required String subtitle,
     required VoidCallback onTap,
-    Color? color,
   }) {
-    return Card(
-      elevation: 2,
-      margin: const EdgeInsets.only(bottom: 14),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(.05),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: ListTile(
-        leading: Icon(
-          icon,
-          color: color ?? Colors.blue,
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(.12),
+                  borderRadius:
+                      BorderRadius.circular(18),
+                ),
+                child: Icon(
+                  icon,
+                  color: color,
+                  size: 28,
+                ),
+              ),
+
+              const SizedBox(width: 18),
+
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
+
+                    const SizedBox(height: 4),
+
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color:
+                            Colors.grey.shade600,
+                        height: 1.3,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.grey.shade400,
+              ),
+            ],
           ),
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
-        ),
-        onTap: onTap,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
+      backgroundColor:
+          const Color(0xffF5F7FA),
 
       body: SafeArea(
-
-        child: Padding(
-
-          padding: const EdgeInsets.all(20),
-
-          child: Column(
-
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-
-            children: [
-
-              const SizedBox(height: 10),
-
-              const Text(
-                "Ещё",
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              _item(
-                context: context,
-                icon: Icons.info_outline,
-                title: "Полезная информация",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          const InfoScreen(),
-                    ),
-                  );
-                },
-              ),
-
-              _item(
-                context: context,
-                icon: Icons.mail_outline,
-                title: "Обратная связь",
-                onTap: () {
-                  _sendFeedback(context);
-                },
-              ),
-
-              _item(
-                context: context,
-                icon: Icons.verified_user_outlined,
-                title: "Разрешения",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          const PermissionsScreen(),
-                    ),
-                  );
-                },
-              ),
-
-              _item(
-                context: context,
-                icon: Icons.logout,
-                color: Colors.red,
-                title: "Выйти из группы",
-                onTap: () {
-                  _leaveFamily(context);
-                },
-              ),
-
-            ],
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            20,
+            18,
+            20,
+            24,
           ),
+          children: [
+
+            const Text(
+              "Ещё",
+              style: TextStyle(
+                fontSize: 31,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            Text(
+              "Настройки и дополнительная информация",
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 15,
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
+            _menuCard(
+              context: context,
+              icon: Icons.menu_book_rounded,
+              color: Colors.blue,
+              title: "Полезная информация",
+              subtitle:
+                  "Советы по использованию приложения",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const InfoScreen(),
+                  ),
+                );
+              },
+            ),
+
+            _menuCard(
+              context: context,
+              icon: Icons.mail_outline_rounded,
+              color: Colors.orange,
+              title: "Обратная связь",
+              subtitle:
+                  "Сообщить об ошибке или предложить идею",
+              onTap: () {
+                _sendFeedback(context);
+              },
+            ),
+
+            _menuCard(
+              context: context,
+              icon: Icons.verified_user_rounded,
+              color: Colors.green,
+              title: "Разрешения",
+              subtitle:
+                  "Проверить необходимые разрешения",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        const PermissionsScreen(),
+                  ),
+                );
+              },
+            ),
+
+            const SizedBox(height: 14),
+
+            
+
+            _menuCard(
+              context: context,
+              icon: Icons.logout_rounded,
+              color: Colors.red,
+              title: "Покинуть группу",
+              subtitle:
+                  "Выйти из текущей семейной группы",
+              onTap: () {
+                _leaveFamily(context);
+              },
+            ),
+
+            const SizedBox(height: 24),
+
+            Center(
+              child: Column(
+                children: [
+
+                  Text(
+                    "Good Family",
+                    style: TextStyle(
+                      color:
+                          Colors.grey.shade700,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 4),
+
+                  Text(
+                    "Версия 1.1.1",
+                    style: TextStyle(
+                      color:
+                          Colors.grey.shade500,
+                    ),
+                  ),
+
+                  const SizedBox(height: 2),
+
+                  Text(
+                    "© 2026",
+                    style: TextStyle(
+                      color:
+                          Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

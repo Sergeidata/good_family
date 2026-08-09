@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
@@ -9,20 +10,15 @@ class TasksCreateScreen extends StatefulWidget {
   const TasksCreateScreen({super.key});
 
   @override
-  State<TasksCreateScreen> createState() =>
-      _TasksCreateScreenState();
+  State<TasksCreateScreen> createState() => _TasksCreateScreenState();
 }
 
-class _TasksCreateScreenState
-    extends State<TasksCreateScreen> {
-  final _titleController =
-      TextEditingController();
-  final _starsController =
-      TextEditingController(text: '10');
+class _TasksCreateScreenState extends State<TasksCreateScreen> {
+  final _titleController = TextEditingController();
+  final _starsController = TextEditingController(text: '10');
 
   String _familyId = '';
   String _userName = '';
-  
 
   List<dynamic> _children = [];
 
@@ -31,7 +27,6 @@ class _TasksCreateScreenState
   String _repeatMode = 'none';
 
   int _selectedStars = 10;
-
   bool _loading = true;
 
   @override
@@ -52,7 +47,6 @@ class _TasksCreateScreenState
 
     _familyId = family['family_id'] ?? '';
     _userName = family['user_name'] ?? '';
-    
 
     final members = await ApiService.getMembers(_familyId);
 
@@ -61,8 +55,7 @@ class _TasksCreateScreenState
         .toList();
 
     if (_children.isNotEmpty) {
-      _selectedChild ??=
-          _children.first['user_name'];
+      _selectedChild ??= _children.first['user_name'];
     }
 
     if (mounted) {
@@ -81,10 +74,8 @@ class _TasksCreateScreenState
 
   Future<void> _createTask() async {
     final title = _titleController.text.trim();
-    final stars = int.tryParse(
-          _starsController.text.trim(),
-        ) ??
-        0;
+    final stars =
+        int.tryParse(_starsController.text.trim()) ?? 0;
 
     if (_children.isEmpty) {
       _showSnack('Сначала добавьте ребёнка в семью');
@@ -137,9 +128,10 @@ class _TasksCreateScreenState
       setState(() {
         _repeatMode = 'none';
         _allChildren = false;
-        _selectedChild = _children.isNotEmpty
-            ? _children.first['user_name']
-            : null;
+        _selectedChild =
+            _children.isNotEmpty
+                ? _children.first['user_name']
+                : null;
       });
     } catch (_) {
       _showSnack('Не удалось создать задание');
@@ -147,56 +139,60 @@ class _TasksCreateScreenState
   }
 
   void _showSnack(String msg) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg)),
     );
   }
 
- 
-
-  
-
-  Widget _sectionTitle(String title, {String? subtitle}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-            ),
+  Widget _sectionTitle(
+    String title,
+    IconData icon,
+    Color color,
+  ) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: color.withOpacity(.12),
+            borderRadius: BorderRadius.circular(12),
           ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: Colors.grey.shade700,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ],
-      ),
+          child: Icon(
+            icon,
+            color: color,
+            size: 20,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _sectionCard({required Widget child}) {
+  Widget _sectionCard({
+    required Widget child,
+  }) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: Colors.grey.shade200,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(.035),
             blurRadius: 16,
-            offset: const Offset(0, 8),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -204,44 +200,181 @@ class _TasksCreateScreenState
     );
   }
 
-  Widget _repeatChip(String mode, String label) {
-    final selected = _repeatMode == mode;
+  Widget _starPreset(
+    int stars,
+    String label,
+  ) {
+    final selected = _selectedStars == stars;
 
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) {
-        setState(() {
-          _repeatMode = mode;
-        });
-      },
-      selectedColor: Colors.blue.shade100,
-      labelStyle: TextStyle(
-        color: selected ? Colors.blue.shade900 : Colors.black87,
-        fontWeight: FontWeight.w600,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    return GestureDetector(
+      onTap: () => _setStars(stars),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 11,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.orange.shade50
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? Colors.orange.shade300
+                : Colors.grey.shade200,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          children: [
+            Text(
+              '$stars ⭐',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: selected
+                    ? Colors.deepOrange
+                    : Colors.grey.shade800,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _childChip({
-    required String label,
+  Widget _childChoice({
+    required String name,
+    required String avatar,
     required bool selected,
     required VoidCallback onTap,
   }) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) => onTap(),
-      selectedColor: Colors.green.shade100,
-      labelStyle: TextStyle(
-        color: selected ? Colors.green.shade900 : Colors.black87,
-        fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.green.shade50
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? Colors.green.shade300
+                : Colors.grey.shade200,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Text(
+              avatar,
+              style: const TextStyle(fontSize: 28),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            AnimatedContainer(
+              duration:
+                  const Duration(milliseconds: 180),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected
+                    ? Colors.green
+                    : Colors.transparent,
+                border: Border.all(
+                  color: selected
+                      ? Colors.green
+                      : Colors.grey.shade400,
+                  width: 2,
+                ),
+              ),
+              child: selected
+                  ? const Icon(
+                      Icons.check,
+                      size: 16,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+          ],
+        ),
       ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+    );
+  }
+
+  Widget _repeatChip(
+    String value,
+    String label,
+    IconData icon,
+  ) {
+    final selected = _repeatMode == value;
+
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _repeatMode = value;
+        });
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 11,
+        ),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.blue.shade50
+              : Colors.grey.shade50,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? Colors.blue.shade300
+                : Colors.grey.shade200,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected
+                  ? Colors.blue
+                  : Colors.grey.shade600,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: selected
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -250,104 +383,91 @@ class _TasksCreateScreenState
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Создать задание'),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        title: const Text('Новое задание'),
       ),
+
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(
+          16,
+          12,
+          16,
+          110,
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
           children: [
-           _sectionCard(
-  child: Row(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Colors.orange.shade400,
-              Colors.orange.shade600,
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: const Center(
-          child: Icon(
-            Icons.auto_awesome,
-            color: Colors.white,
-            size: 30,
-          ),
-        ),
-      ),
-      const SizedBox(width: 14),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Новое хорошее дело',
-              style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.bold,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Задайте количество звездочек за выполнение и выберите кому назначить задание.',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade600,
-                height: 1.35,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  ),
-),
 
-            const SizedBox(height: 16),
+            // ─────────────────────────
+            // НАЗВАНИЕ
+            // ─────────────────────────
 
-            _sectionTitle('Название'),
+            _sectionTitle(
+              'Что нужно сделать?',
+              Icons.edit_rounded,
+              Colors.blue,
+            ),
+
+            const SizedBox(height: 12),
+
             _sectionCard(
               child: TextField(
                 controller: _titleController,
+                textInputAction:
+                    TextInputAction.done,
                 decoration: InputDecoration(
-                  hintText: 'Например: Помыть посуду',
-                  prefixIcon: const Icon(Icons.edit_outlined),
+                  hintText:
+                      'Например: Помыть посуду',
+                  hintStyle: TextStyle(
+                    color: Colors.grey.shade400,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.check_circle_outline,
+                  ),
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius:
+                        BorderRadius.circular(18),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            _sectionTitle('Для кого'),
+            // ─────────────────────────
+            // ДЛЯ КОГО
+            // ─────────────────────────
+
+            _sectionTitle(
+              'Для кого?',
+              Icons.people_alt_outlined,
+              Colors.green,
+            ),
+
+            const SizedBox(height: 12),
+
             _sectionCard(
-              child: Wrap(
-                spacing: 10,
-                runSpacing: 10,
+              child: Column(
                 children: [
-                  _childChip(
-                    label: '👨‍👩‍👧 Всем детям',
+                  _childChoice(
+                    name: 'Всем детям',
+                    avatar: '👨‍👩‍👧‍👦',
                     selected: _allChildren,
                     onTap: () {
                       setState(() {
@@ -356,148 +476,244 @@ class _TasksCreateScreenState
                       });
                     },
                   ),
-                  ..._children.map((child) {
-                    final name = child['user_name'] ?? '';
-                    final avatar = child['avatar'] ?? '👦';
-                    final selected =
-                        !_allChildren && _selectedChild == name;
 
-                    return _childChip(
-                      label: '$avatar $name',
-                      selected: selected,
+                  ..._children.map(
+                    (child) => _childChoice(
+                      name: child['user_name'] ??
+                          'Ребёнок',
+                      avatar:
+                          child['avatar'] ?? '👦',
+                      selected:
+                          !_allChildren &&
+                          _selectedChild ==
+                              child['user_name'],
                       onTap: () {
                         setState(() {
                           _allChildren = false;
-                          _selectedChild = name;
+                          _selectedChild =
+                              child['user_name'];
                         });
                       },
-                    );
-                  }),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            _sectionTitle(
-              'Звёздочки',
-              subtitle:
-                  'Можно выбрать готовый вариант или ввести своё число',
-            ),
-            _sectionCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _starPresetChip(5, '⭐ Очень легко'),
-                      _starPresetChip(10, '⭐⭐ Легко'),
-                      _starPresetChip(20, '⭐⭐⭐ Обычно'),
-                      _starPresetChip(40, '⭐⭐⭐⭐ Сложно'),
-                      _starPresetChip(80, '⭐⭐⭐⭐⭐ Очень сложно'),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: _starsController,
-                    keyboardType: TextInputType.number,
-                    onChanged: (value) {
-                      final parsed = int.tryParse(value);
-                      if (parsed != null && parsed > 0) {
-                        _selectedStars = parsed;
-                      }
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Введите своё количество звёзд',
-                      prefixIcon: const Icon(Icons.star_rounded),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
 
-            _sectionTitle('Повторение'),
+            // ─────────────────────────
+            // НАГРАДА
+            // ─────────────────────────
+
+            _sectionTitle(
+              'Награда',
+              Icons.stars_rounded,
+              Colors.deepOrange,
+            ),
+
+            const SizedBox(height: 12),
+
             _sectionCard(
-              child: Wrap(
-                spacing: 10,
-                runSpacing: 10,
+              child: Column(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
-                  _repeatChip('none', 'Разовое'),
-                  _repeatChip('daily', 'Ежедневно'),
-                  _repeatChip('weekly', 'Еженедельно'),
-                  _repeatChip('weekdays', 'По будням'),
-                  _repeatChip('weekends', 'По выходным'),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Сколько звёзд дать?',
+                          style: TextStyle(
+                            fontSize: 15,
+                            color:
+                                Colors.grey.shade700,
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(
+                        width: 100,
+                        child: TextField(
+                          controller:
+                              _starsController,
+                          keyboardType:
+                              TextInputType.number,
+                          textAlign:
+                              TextAlign.center,
+                          onChanged: (value) {
+                            final stars =
+                                int.tryParse(value);
+
+                            if (stars != null &&
+                                stars > 0) {
+                              setState(() {
+                                _selectedStars =
+                                    stars;
+                              });
+                            }
+                          },
+                          decoration:
+                              InputDecoration(
+                            suffixText: '⭐',
+                            filled: true,
+                            fillColor:
+                                Colors.orange.shade50,
+                            border:
+                                OutlineInputBorder(
+                              borderRadius:
+                                  BorderRadius.circular(
+                                      16),
+                              borderSide:
+                                  BorderSide.none,
+                            ),
+                          ),
+                          style:
+                              const TextStyle(
+                            fontSize: 20,
+                            fontWeight:
+                                FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Text(
+                    'Быстрый выбор',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight:
+                          FontWeight.w600,
+                      color:
+                          Colors.grey.shade600,
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _starPreset(5, 'Легко'),
+                      _starPreset(10, 'Обычно'),
+                      _starPreset(20, 'Средне'),
+                      _starPreset(40, 'Сложно'),
+                      _starPreset(
+                        80,
+                        'Очень сложно',
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
 
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton.icon(
-                onPressed: _createTask,
-                icon: const Icon(Icons.add_circle_outline),
-                label: const Text(
-                  'Создать задание',
-                  style: TextStyle(fontSize: 16),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+            // ─────────────────────────
+            // ПОВТОРЕНИЕ
+            // ─────────────────────────
+
+            _sectionTitle(
+              'Повторение',
+              Icons.repeat_rounded,
+              Colors.blue,
+            ),
+
+            const SizedBox(height: 12),
+
+            _sectionCard(
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _repeatChip(
+                    'none',
+                    'Разовое',
+                    Icons.radio_button_checked,
                   ),
-                  elevation: 0,
-                ),
+                  _repeatChip(
+                    'daily',
+                    'Ежедневно',
+                    Icons.repeat,
+                  ),
+                  _repeatChip(
+                    'weekdays',
+                    'Будни',
+                    Icons.work_outline,
+                  ),
+                  _repeatChip(
+                    'weekends',
+                    'Выходные',
+                    Icons.weekend_outlined,
+                  ),
+                  _repeatChip(
+                    'weekly',
+                    'Еженедельно',
+                    Icons.calendar_month,
+                  ),
+                ],
               ),
             ),
 
-            const SizedBox(height: 18),
+            const SizedBox(height: 30),
+
+            // ─────────────────────────
+            // СОЗДАТЬ
+            // ─────────────────────────
+
+            SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: _createTask,
+                icon: const Icon(
+                  Icons.add_task_rounded,
+                ),
+                label: const Text(
+                  'Создать задание',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight:
+                        FontWeight.w700,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
+
       bottomNavigationBar: MainBottomBar(
         currentIndex: null,
         onTap: (index) {
           Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(
-              builder: (_) => MainNavigationScreen(
+              builder: (_) =>
+                  MainNavigationScreen(
                 initialIndex: index,
               ),
             ),
             (_) => false,
           );
         },
-      ),
-    );
-  }
-
-  Widget _starPresetChip(int stars, String label) {
-    final selected = _selectedStars == stars;
-
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      onSelected: (_) {
-        _setStars(stars);
-      },
-      selectedColor: Colors.amber.shade100,
-      labelStyle: TextStyle(
-        color: selected ? Colors.brown.shade900 : Colors.black87,
-        fontWeight: FontWeight.w600,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
       ),
     );
   }

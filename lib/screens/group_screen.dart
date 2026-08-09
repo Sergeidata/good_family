@@ -173,145 +173,123 @@ class _GroupScreenState
   
 
  Widget _buildMotivation() {
-
   if (_groupStats.isEmpty) {
     return const SizedBox();
   }
 
   final averageSeconds =
       _groupStats
-          .map((e) => e["seconds"] as int)
-          .reduce((a, b) => a + b) ~/
-      _groupStats.length;
+              .map((e) => e["seconds"] as int)
+              .reduce((a, b) => a + b) ~/
+          _groupStats.length;
 
-  Color cardColor;
-  Color accentColor;
-  IconData icon;
-  String subtitle;
+  late Color accentColor;
+  late Color backgroundColor;
+  late IconData icon;
+  late String title;
+  late String subtitle;
 
   if (averageSeconds < 7200) {
-
-    cardColor = const Color(0xFFE8F5E9);
-    accentColor = Colors.green;
-
-    icon = Icons.groups_rounded;
-
-    subtitle =
-        "Семья укладывается в рекомендуемое время";
-
-  } else if (averageSeconds < 10800) {
-
-    cardColor = const Color(0xFFFFF3E0);
-    accentColor = Colors.orange;
-
-    icon = Icons.family_restroom;
-
-    subtitle =
-        "Немного сократите использование для получения достижений";
-
+    accentColor = Colors.green.shade600;
+    backgroundColor = Colors.green.shade50;
+    icon = Icons.celebration_rounded;
+    title = "Отличный результат!";
+    subtitle = "В среднем семья проводит с экраном меньше 2 часов.";
+  } else if (averageSeconds < 14400) {
+    accentColor = Colors.orange.shade600;
+    backgroundColor = Colors.orange.shade50;
+    icon = Icons.balance_rounded;
+    title = "Неплохой баланс";
+    subtitle = "Есть куда стремиться, но ситуация пока под контролем.";
   } else {
-
-    cardColor = const Color(0xFFFFEBEE);
-    accentColor = Colors.red;
-
-    icon = Icons.access_time_filled;
-
-    subtitle =
-        "Для групповых достижений стоит проводить меньше времени в телефоне";
+    accentColor = Colors.red.shade500;
+    backgroundColor = Colors.red.shade50;
+    icon = Icons.schedule_rounded;
+    title = "Стоит немного сократить";
+    subtitle = "Среднее экранное время семьи уже довольно высокое.";
   }
 
-  return SizedBox(
+  final hours = averageSeconds ~/ 3600;
+  final minutes = (averageSeconds % 3600) ~/ 60;
+
+  return Container(
     width: double.infinity,
-
-    child: Card(
-      elevation: 6,
-
-      color: cardColor,
-
-      shape: RoundedRectangleBorder(
-        borderRadius:
-            BorderRadius.circular(24),
+    margin: const EdgeInsets.only(bottom: 4),
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(
+        color: accentColor.withValues(alpha: 0.12),
       ),
-
-      child: Padding(
-        padding:
-            const EdgeInsets.all(20),
-
-        child: Column(
-          children: [
-
-            Container(
-              width: 70,
-              height: 70,
-
-              decoration: BoxDecoration(
-                color:
-                    accentColor.withValues(
-                  alpha: 0.15,
-                ),
-
-                shape: BoxShape.circle,
-              ),
-
-              child: Icon(
-                icon,
-                size: 38,
-                color: accentColor,
-              ),
-            ),
-
-            const SizedBox(
-              height: 14,
-            ),
-
-            Text(
-              "Среднее время семьи",
-
-              style: TextStyle(
-                fontSize: 18,
-                color:
-                    const Color.fromARGB(255, 0, 0, 0),
-              ),
-            ),
-
-            const SizedBox(
-              height: 8,
-            ),
-
-            Text(
-              formatHoursMinutes(
-                averageSeconds,
-              ),
-
-              style: TextStyle(
-                fontSize: 34,
-                fontWeight:
-                    FontWeight.bold,
-
-                color: accentColor,
-              ),
-            ),
-
-            const SizedBox(
-              height: 12,
-            ),
-
-            Text(
-              subtitle,
-
-              textAlign:
-                  TextAlign.center,
-
-              style: TextStyle(
-                color:
-                    Colors.grey.shade700,
-
-                fontSize: 13,
-              ),
-            ),
-          ],
+    ),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(17),
+          ),
+          child: Icon(
+            icon,
+            color: accentColor,
+            size: 28,
+          ),
         ),
-      ),
+
+        const SizedBox(width: 14),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade900,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.3,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              Row(
+                children: [
+                  Icon(
+                    Icons.timer_outlined,
+                    size: 17,
+                    color: accentColor,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    "В среднем $hours ч $minutes мин",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: accentColor,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     ),
   );
 }
@@ -320,6 +298,7 @@ class _GroupScreenState
   Widget build(BuildContext context) {
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
         title: Text(
           "Семья: $_familyName",
@@ -432,83 +411,163 @@ class _GroupScreenState
                                         ? Colors.brown
                                         : Colors.blueGrey;
 
-                        return Card(
-                          elevation: isLeader ? 6 : 3,
-                          color: isLeader
-                              ? const Color(0xFFFFF8E1)
-                              : null,
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(18),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        return Container(
+  margin: const EdgeInsets.only(bottom: 12),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(22),
+    border: Border.all(
+      color: isLeader
+          ? Colors.orange.withValues(alpha: 0.25)
+          : Colors.grey.withValues(alpha: 0.10),
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(
+          alpha: isLeader ? 0.07 : 0.04,
+        ),
+        blurRadius: isLeader ? 16 : 10,
+        offset: const Offset(0, 5),
+      ),
+    ],
+  ),
+  child: Padding(
+    padding: const EdgeInsets.symmetric(
+      horizontal: 16,
+      vertical: 14,
+    ),
+    child: Row(
+      children: [
+        // Место в рейтинге
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: medalColor.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: Center(
+            child: isLeader
+                ? Icon(
+                    Icons.emoji_events_rounded,
+                    color: Colors.orange.shade600,
+                    size: 24,
+                  )
+                : Text(
+                    "${index + 1}",
+                    style: TextStyle(
+                      color: medalColor,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+          ),
+        ),
 
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  medalColor.withValues(alpha: 0.15),
-                              child: Text(
-                                "${index + 1}",
-                                style: TextStyle(
-                                  color: medalColor,
-                                  fontWeight:
-                                      FontWeight.bold,
-                                ),
-                              ),
-                            ),
+        const SizedBox(width: 14),
 
-                            title: Text(
-                              member["name"],
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: isLeader
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
-                              ),
-                            ),
+        // Имя + время
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      member["name"],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: isLeader
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                      ),
+                    ),
+                  ),
 
-                            subtitle: Text(
-                              formatHoursMinutes(
-                                seconds,
-                              ),
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                              ),
-                            ),
+                  if (isLeader) ...[
+                    const SizedBox(width: 7),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "Лидер",
+                        style: TextStyle(
+                          color: Colors.orange.shade700,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
 
-                            trailing: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: _statusColor(
-                                  seconds,
-                                  _currentPeriod,
-                                ).withValues(alpha: 0.12),
-                                borderRadius:
-                                    BorderRadius.circular(
-                                  12,
-                                ),
-                              ),
-                              child: Text(
-                                _statusText(
-                                  seconds,
-                                  _currentPeriod,
-                                ),
-                                style: TextStyle(
-                                  color: _statusColor(
-                                    seconds,
-                                    _currentPeriod,
-                                  ),
-                                  fontWeight:
-                                      FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
+              const SizedBox(height: 5),
+
+              Row(
+                children: [
+                  Icon(
+                    Icons.schedule_outlined,
+                    size: 15,
+                    color: Colors.grey.shade500,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    formatHoursMinutes(seconds),
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(width: 10),
+
+        // Статус
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 11,
+            vertical: 8,
+          ),
+          decoration: BoxDecoration(
+            color: _statusColor(
+              seconds,
+              _currentPeriod,
+            ).withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Text(
+            _statusText(
+              seconds,
+              _currentPeriod,
+            ),
+            style: TextStyle(
+              color: _statusColor(
+                seconds,
+                _currentPeriod,
+              ),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
                       },
                     )
             ),

@@ -4,6 +4,7 @@ import '../services/family_storage.dart';
 import '../widgets/emoji_picker.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
+import 'my_purchases_screen.dart';
 
 class RewardShopScreen extends StatefulWidget {
   final bool childMode;
@@ -511,69 +512,62 @@ Widget _buildChildHeader() {
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
       gradient: LinearGradient(
-        colors: [
-          Colors.green.shade400,
-          Colors.green.shade600,
-        ],
+        colors: [Colors.green.shade400, Colors.green.shade600],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(24),
       boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.08),
-          blurRadius: 16,
-          offset: const Offset(0, 8),
-        ),
+        BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 8)),
       ],
     ),
-    child: Row(
+    child: Column(
       children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.18),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: const Center(
-            child: Text(
-              "⭐",
-              style: TextStyle(fontSize: 30),
+        Row(
+          children: [
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.18),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: const Center(child: Text("⭐", style: TextStyle(fontSize: 30))),
             ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Мои звёзды: $_balance ⭐",
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Мои звёзды: $_balance ⭐",
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text("Выбирайте награды и копите на то, что нравится.",
+                    style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14, height: 1.35)),
+                ],
               ),
-              const SizedBox(height: 6),
-              Text(
-                "Выбирайте награды и копите на то, что нравится больше всего.",
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
-                  fontSize: 14,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: TextButton.icon(
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const MyPurchasesScreen()));
+            },
+            icon: const Icon(Icons.receipt_long, color: Colors.white, size: 18),
+            label: const Text('Мои покупки', style: TextStyle(color: Colors.white)),
+            style: TextButton.styleFrom(
+              backgroundColor: Colors.white.withOpacity(0.15),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+             ),
+        ),
+        
       ],
     ),
   );
 }
-
-
 
 
  @override
@@ -743,6 +737,8 @@ Widget build(BuildContext context) {
                                   ),
                                 ),
                               ],
+
+                              
                             ],
                           ),
                         ),

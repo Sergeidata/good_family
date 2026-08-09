@@ -1392,6 +1392,7 @@ class _GroupAchievementsTabState
   bool _loading = true;
 
   String _familyName = "Семья";
+  int _earnedGroupCount = 0;
 
   final List<Map<String, dynamic>>
       _achievements = [];
@@ -1866,6 +1867,11 @@ if (isMonday || isFirstDay) {
     if (socialGoodMonthDays >= 25) _monthlyAchievements.add("25s");
     if (socialGoodMonthDays >= totalDaysInMonth) _monthlyAchievements.add("-1s");
 
+
+// Считаем уникальные групповые ключи из уже загруженных данных
+final groupData = await ApiService.getAchievements(familyId, "group", null);
+_earnedGroupCount = groupData.map((a) => a["achievement_key"].toString()).toSet().length;
+
     final achievementsData = await ApiService.getAchievements(familyId, "", null);
     for (final achievement in achievementsData) {
       _achievementInfo[achievement["achievement_key"]] = {
@@ -2056,7 +2062,7 @@ Widget build(BuildContext context) {
     return const Center(child: CircularProgressIndicator());
   }
 
-  final earnedCount = _weeklyAchievements.length + _monthlyAchievements.length;
+  final earnedCount = _earnedGroupCount;
   const totalCount = 21;
 
   return ListView(

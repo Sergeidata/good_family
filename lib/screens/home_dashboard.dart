@@ -238,6 +238,7 @@ class _HomeDashboardState extends State<HomeDashboard>
   String _todayTitle = "💡 Совет дня";
 
   List<MapEntry<String, int>> _topApps = [];
+  String _role = "";
 
   Future<void> _startBackgroundService() async {
     final family =
@@ -624,6 +625,8 @@ Future<void> _loadHeader() async {
 
   final name = family["user_name"] ?? "";
 
+  _role = family["role"] ?? "";   // ← добавить эту строку
+
   final hour = DateTime.now().hour;
 
   String greeting;
@@ -957,47 +960,110 @@ Widget _buildTasksCard() {
 
 
 Widget _buildTodayCard() {
-  final isOffline = _gardenData == null && _tasksData == null;
+  final isOffline =
+      _gardenData == null && _tasksData == null;
 
   if (isOffline) {
-    _todayTitle = "Нет связи с сервером";
-    _todayMessage = "Проверьте подключение к интернету и обновите данные.";
+    _todayTitle = "Нет связи";
+    _todayMessage =
+        "Проверьте подключение к интернету и обновите данные.";
+  }
+
+  IconData icon = Icons.lightbulb_rounded;
+  Color iconColor = Colors.amber;
+
+  final title = _todayTitle.toLowerCase();
+
+  if (title.contains("проверк")) {
+    icon = Icons.task_alt_rounded;
+    iconColor = Colors.orange;
+  } else if (title.contains("чемпион")) {
+    icon = Icons.emoji_events_rounded;
+    iconColor = Colors.amber;
+  } else if (title.contains("синх")) {
+    icon = Icons.sync_rounded;
+    iconColor = Colors.blue;
+  } else if (title.contains("сад")) {
+    icon = Icons.park_rounded;
+    iconColor = Colors.green;
+  } else if (title.contains("экран")) {
+    icon = Icons.phone_android_rounded;
+    iconColor = Colors.deepPurple;
+  } else if (title.contains("связ")) {
+    icon = Icons.wifi_off_rounded;
+    iconColor = Colors.redAccent;
   }
 
   return Container(
     width: double.infinity,
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
-      color: Colors.blueGrey.shade50,
+      gradient: LinearGradient(
+        colors: [
+          const Color(0xFFEAF5FF),
+          const Color(0xFFF6FBFF),
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
       borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: Colors.blueGrey.shade100),
+      border: Border.all(
+        color: Colors.blue.shade100,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.blue.withOpacity(0.08),
+          blurRadius: 16,
+          offset: const Offset(0, 8),
+        ),
+      ],
     ),
     child: Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-       Container(
-  width: 44,
-  height: 44,
-  decoration: BoxDecoration(
-    color: Colors.red.shade50,
-    borderRadius: BorderRadius.circular(12),
-  ),
-  child: const Stack(
-    alignment: Alignment.center,
-    children: [
-      Icon(Icons.mail_outline, color: Colors.redAccent, size: 26),
-      Icon(Icons.favorite, color: Colors.redAccent, size: 12),
-    ],
-  ),
-),
-        const SizedBox(width: 14),
+        Container(
+          width: 54,
+          height: 54,
+          decoration: BoxDecoration(
+            color: iconColor.withOpacity(0.15),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: 30,
+          ),
+        ),
+
+        const SizedBox(width: 16),
+
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
-              Text(_todayTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _todayTitle,
+                  style: const TextStyle(
+                    fontSize: 19,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF263238),
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 8),
-              Text(_todayMessage, style: TextStyle(fontSize: 15, color: Colors.grey.shade800, height: 1.4)),
+
+              Text(
+                _todayMessage,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: Colors.grey.shade800,
+                  height: 1.45,
+                ),
+              ),
             ],
           ),
         ),
@@ -1008,18 +1074,25 @@ Widget _buildTodayCard() {
 
 
   void _updateTodayMessage() {
-    
-    // 1. Есть задания на проверке
-    final review = _tasksData?["review"] ?? 0;
-
-    
-
-    if (review > 0) {
-      _todayTitle = "📝 Требуется проверка";
-      _todayMessage =
-          "У вас $review ${review == 1 ? "задание ожидает" : "задания ожидают"} проверки.";
+  // 0. Для ребёнка — его задания
+  if (_role == "child") {
+    final active = _tasksData?["active"] ?? 0;
+    if (active > 0) {
+      _todayTitle = "📝 Твои задания";
+      _todayMessage = "У тебя $active ${active == 1 ? "задание ожидает" : "заданий ожидают"} выполнения.";
       return;
     }
+  }
+
+  // 1. Есть задания на проверке (только для родителя)
+  if (_role != "child") {
+    final review = _tasksData?["review"] ?? 0;
+    if (review > 0) {
+      _todayTitle = "📝 Требуется проверка";
+      _todayMessage = "У вас $review ${review == 1 ? "задание ожидает" : "задания ожидают"} проверки.";
+      return;
+    }
+  }
 
     // 2. Сегодня не синхронизировались
 final members = _dashboard?["members"] ?? [];
