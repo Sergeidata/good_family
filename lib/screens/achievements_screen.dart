@@ -79,6 +79,7 @@ class _ChampionsTabState
 
   bool _weekExpanded = false;
   bool _monthExpanded = false;
+  bool _showMonthChampion = false;
 
   Map<String, dynamic>? _weekChampion;
   Map<String, dynamic>? _monthChampion;
@@ -269,95 +270,170 @@ class _ChampionsTabState
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-
-    if (_loading) {
-
-      return const Center(
-        child:
-            CircularProgressIndicator(),
-      );
-    }
-
-    return ListView(
-      padding:
-          const EdgeInsets.all(
-        20,
-      ),
-      children: [
-
-        _buildChampionCard(
-          title:
-              "Чемпион прошлой недели",
-
-          champion:
-              _weekChampion,
-
-          ranking:
-              _weekRanking,
-
-          color:
-              const Color(
-            0xFFCD7F32,
-          ),
-
-          icon:
-              Icons.workspace_premium,
-
-          expanded:
-              _weekExpanded,
-
-          onTap: () {
-
-            setState(() {
-
-              _weekExpanded =
-                  !_weekExpanded;
-            });
-          },
-        ),
-
-        const SizedBox(
-          height: 24,
-        ),
-
-        _buildChampionCard(
-          title:
-              "Чемпион прошлого месяца",
-
-          champion:
-              _monthChampion,
-
-          ranking:
-              _monthRanking,
-
-          color:
-              const Color(
-            0xFFFFD700,
-          ),
-
-          icon:
-              Icons.emoji_events,
-
-          expanded:
-              _monthExpanded,
-
-          onTap: () {
-
-            setState(() {
-
-              _monthExpanded =
-                  !_monthExpanded;
-            });
-          },
-        ),
-      ],
+Widget build(BuildContext context) {
+  if (_loading) {
+    return const Center(
+      child: CircularProgressIndicator(),
     );
   }
 
+  final bool isMonth = _showMonthChampion;
+
+  return ListView(
+    padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+    children: [
+      // Переключатель периода
+      Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showMonthChampion = false;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: !_showMonthChampion
+                        ? Colors.white
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: !_showMonthChampion
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Неделя",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: !_showMonthChampion
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: !_showMonthChampion
+                            ? Colors.green.shade700
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _showMonthChampion = true;
+                  });
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _showMonthChampion
+                        ? Colors.white
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: _showMonthChampion
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.06),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      "Месяц",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: _showMonthChampion
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: _showMonthChampion
+                            ? Colors.orange.shade700
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      const SizedBox(height: 18),
+
+      
+
+      AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        transitionBuilder: (child, animation) {
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.03, 0),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: isMonth
+            ? _buildChampionCard(
+                key: const ValueKey("month_champion"),
+                title: "Чемпион прошлого месяца",
+                champion: _monthChampion,
+                ranking: _monthRanking,
+                color: Colors.orange.shade600,
+                icon: Icons.emoji_events_rounded,
+                expanded: _monthExpanded,
+                onTap: () {
+                  setState(() {
+                    _monthExpanded = !_monthExpanded;
+                  });
+                },
+              )
+            : _buildChampionCard(
+                key: const ValueKey("week_champion"),
+                title: "Чемпион прошлой недели",
+                champion: _weekChampion,
+                ranking: _weekRanking,
+                color: Colors.green.shade600,
+                icon: Icons.workspace_premium_rounded,
+                expanded: _weekExpanded,
+                onTap: () {
+                  setState(() {
+                    _weekExpanded = !_weekExpanded;
+                  });
+                },
+              ),
+      ),
+    ],
+  );
+}
+
   Widget _buildChampionCard({
+  Key? key,
   required String title,
   required Map<String, dynamic>? champion,
   required List<Map<String, dynamic>> ranking,
@@ -392,7 +468,8 @@ class _ChampionsTabState
       : "";
 
   return Container(
-    decoration: BoxDecoration(
+      key: key,
+      decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(30),
       boxShadow: [
@@ -411,71 +488,109 @@ class _ChampionsTabState
         //--------------------------------------------------
 
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            20,
-            20,
-            0,
-          ),
-          child: Row(
-            children: [
-
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(18),
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 30,
-                ),
-              ),
-
-              const SizedBox(width: 16),
-
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-
-              IconButton(
-                splashRadius: 22,
-                icon: const Icon(
-                  Icons.info_outline_rounded,
-                  color: Colors.grey,
-                ),
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => AlertDialog(
-                      title: const Text(
-                        "Условия определения победителя",
-                      ),
-                      content: Text(infoText),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context),
-                          child:
-                              const Text("Понятно"),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ],
+  padding: const EdgeInsets.fromLTRB(
+    20,
+    20,
+    20,
+    0,
+  ),
+  child: Row(
+    children: [
+      Expanded(
+        child: Text(
+          title,
+          style: const TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.bold,
           ),
         ),
+      ),
+
+      IconButton(
+        splashRadius: 22,
+        icon: const Icon(
+          Icons.info_outline_rounded,
+          color: Colors.grey,
+        ),
+        onPressed: () {
+         showDialog(
+  context: context,
+  builder: (_) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.emoji_events_rounded,
+            color: Colors.orange.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Условия определения победителя",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      infoText,
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.orange.shade600,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          child: const Text(
+            "Понятно",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
+        },
+      ),
+    ],
+  ),
+),
 
         const SizedBox(height: 18),
 
@@ -512,44 +627,36 @@ class _ChampionsTabState
               //--------------------------------------------------
 
               Container(
-                width: 94,
-                height: 94,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color:
-                      color.withValues(alpha: 0.15),
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color:
-                          color.withValues(alpha: 0.30),
-                      blurRadius: 18,
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 54,
-                ),
-              ),
+  width: 94, height: 94,
+  decoration: BoxDecoration(
+    shape: BoxShape.circle,
+    color: hasChampion ? color.withValues(alpha: 0.15) : Colors.grey.shade200,
+    border: Border.all(color: Colors.white, width: 5),
+    boxShadow: [
+      BoxShadow(
+        color: hasChampion ? color.withValues(alpha: 0.30) : Colors.transparent,
+        blurRadius: 18,
+      ),
+    ],
+  ),
+  child: Icon(
+    icon,
+    color: hasChampion ? color : Colors.grey.shade400,
+    size: 54,
+  ),
+),
 
               const SizedBox(height: 18),
 
               Text(
-                hasChampion
-                    ? "👑 Чемпион"
-                    : "🏆 Чемпион определяется",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
+              hasChampion ? "👑 Чемпион" : "🏆 Чемпион определяется",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: hasChampion ? color : Colors.grey.shade500,
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
               ),
+            ),
 
               const SizedBox(height: 14),
 
@@ -1104,32 +1211,79 @@ for (final a in allAchievements) {
                 ),
                 onPressed: () {
 
-                  showDialog(
-                    context: context,
-                    builder: (_) =>
-                        AlertDialog(
-                      title:
-                          Text(title),
-                      content:
-                          Text(
-                        description,
-                      ),
-                      actions: [
+                 showDialog(
+  context: context,
+  builder: (_) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
 
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(
-                              context,
-                            );
-                          },
-                          child:
-                              const Text(
-                            "Понятно",
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.emoji_events_rounded,
+            color: Colors.green.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      description,
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green.shade600,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          child: const Text(
+            "Понятно",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
                 },
               ),
             ],
@@ -1406,6 +1560,8 @@ class _GroupAchievementsTabState
       _monthlyAchievements = {};
 
   final Map<String, dynamic> _achievementInfo = {};
+
+  Set<String> _groupKeysFromServer = {};
 
 
   String _getTitle(String key) {
@@ -1870,7 +2026,8 @@ if (isMonday || isFirstDay) {
 
 // Считаем уникальные групповые ключи из уже загруженных данных
 final groupData = await ApiService.getAchievements(familyId, "group", null);
-_earnedGroupCount = groupData.map((a) => a["achievement_key"].toString()).toSet().length;
+_groupKeysFromServer = groupData.map((a) => a["achievement_key"].toString()).toSet();
+_earnedGroupCount = _groupKeysFromServer.length;
 
     final achievementsData = await ApiService.getAchievements(familyId, "", null);
     for (final achievement in achievementsData) {
@@ -1962,23 +2119,80 @@ Widget _buildGroupAchievementCard(Map<String, dynamic> data) {
         color: Colors.grey.shade700,
         onPressed: () {
           showDialog(
-            context: context,
-            builder: (_) => AlertDialog(
-              title: Text(title),
-              content: Text(
-                _getDescription(
-                  data["key"] as String,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () =>
-                      Navigator.pop(context),
-                  child: const Text("Понятно"),
-                ),
-              ],
+  context: context,
+  builder: (_) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.info_outline_rounded,
+            color: Colors.blue.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-          );
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      _getDescription(
+        data["key"] as String,
+      ),
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade600,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          child: const Text(
+            "Понятно",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
         },
       ),
     ],
@@ -2109,7 +2323,7 @@ Widget build(BuildContext context) {
           "title": _getTitle(key),
           "rarity": _getRarity(key),
           "color": _getColor(key),
-          "earned": _weeklyAchievements.contains(key),
+          "earned": _groupKeysFromServer.contains(key),
           "key": key,
           "achievementInfo": _achievementInfo[key],
         }),
@@ -2122,7 +2336,7 @@ Widget build(BuildContext context) {
           "title": _getTitle(key),
           "rarity": _getRarity(key),
           "color": _getColor(key),
-          "earned": _monthlyAchievements.contains(key),
+          "earned": _groupKeysFromServer.contains(key),
           "key": key,
           "achievementInfo": _achievementInfo[key],
         }),

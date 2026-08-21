@@ -199,76 +199,113 @@ class _PermissionsScreenState extends State<PermissionsScreen> {
 
       const SizedBox(height: 10),
 
-      Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+     Container(
+  width: double.infinity,
+  padding: const EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(22),
+    border: Border.all(
+      color: Colors.grey.withOpacity(.10),
+    ),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(.04),
+        blurRadius: 12,
+        offset: const Offset(0, 5),
+      ),
+    ],
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(.12),
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(.12),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Icon(
-                Icons.rocket_launch,
-                color: Colors.purple,
-              ),
+            child: const Icon(
+              Icons.rocket_launch,
+              color: Colors.purple,
             ),
+          ),
 
-            const SizedBox(width: 16),
+          const SizedBox(width: 16),
 
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-
-                  const Text(
-                    "Автозапуск",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                    ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Автозапуск",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 17,
                   ),
+                ),
 
-                  const SizedBox(height: 4),
+                const SizedBox(height: 4),
 
-                  Text(
-                    "Желательно, чтобы не приходилось открывать после перегазрузок",
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      height: 1.35,
-                    ),
+                Text(
+                  "Желательно, чтобы не приходилось открывать после перезагрузок",
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    height: 1.35,
                   ),
-                ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 14),
+
+      Align(
+        alignment: Alignment.center,
+        child: SizedBox(
+          height: 42,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              await const MethodChannel(
+                'family_focus/sync_service',
+              ).invokeMethod(
+                'openAutostartSettings',
+              );
+            },
+            icon: const Icon(
+              Icons.settings_outlined,
+              size: 18,
+            ),
+            label: const Text(
+              "Открыть настройки",
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
               ),
             ),
-
-            ElevatedButton(
-              onPressed: () async {
-                await const MethodChannel(
-                  'family_focus/sync_service',
-                ).invokeMethod(
-                  'openAutostartSettings',
-                );
-              },
-              child: const Text("Открыть"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green.shade600,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
             ),
-          ],
+          ),
         ),
       ),
+    ],
+  ),
+),
 
       const SizedBox(height: 24),
 

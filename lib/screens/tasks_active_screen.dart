@@ -25,48 +25,256 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   }
 
   Future<void> _loadData() async {
-    final family = await FamilyStorage.loadFamily();
-    _familyId = family['family_id'] ?? '';
-    _userName = family['user_name'] ?? '';
-    _role = family['role'] ?? '';
+  final family = await FamilyStorage.loadFamily();
+  _familyId = family['family_id'] ?? '';
+  _userName = family['user_name'] ?? '';
+  _role = family['role'] ?? '';
 
-    final tasks = await ApiService.getTasks(_familyId, null);
-    setState(() {
-      if (_role == 'child') {
-        _tasks = tasks.where((t) => t['status'] == 'pending' && t['assigned_to'] == _userName).toList();
-      } else {
-        _tasks = tasks.where((t) => t['status'] == 'pending').toList();
-      }
-      _loading = false;
-    });
-  }
+  final tasks = await ApiService.getTasks(_familyId, null);
+  final now = DateTime.now();
+  final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
 
-  Future<void> _markDone(int taskId) async {
-    await ApiService.markTaskDone(taskId, _userName);
-    _loadData();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Отлично! Задание выполнено ✅')),
-      );
+  setState(() {
+    if (_role == 'child') {
+      _tasks = tasks.where((t) {
+        if (t['status'] != 'pending' || t['assigned_to'] != _userName) return false;
+        final repeatMode = t['repeat_mode'] ?? 'none';
+        // По выходным — только в субботу/воскресенье
+        if (repeatMode == 'weekends' && !isWeekend) return false;
+        // По будням — только пн-пт
+        if (repeatMode == 'weekdays' && isWeekend) return false;
+        return true;
+      }).toList();
+    } else {
+      _tasks = tasks.where((t) {
+        if (t['status'] != 'pending') return false;
+        final repeatMode = t['repeat_mode'] ?? 'none';
+        if (repeatMode == 'weekends' && !isWeekend) return false;
+        if (repeatMode == 'weekdays' && isWeekend) return false;
+        return true;
+      }).toList();
     }
-  }
+    _loading = false;
+  });
+}
 
-  Future<void> _deleteTask(int taskId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить задание?'),
-        content: const Text('Это действие нельзя отменить.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-            child: const Text('Удалить'),
+ Future<void> _markDone(int taskId) async {
+ final confirmed = await showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.check_circle_outline_rounded,
+            color: Colors.green.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Отметить выполненным?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Ты уверен, что выполнил задание? Родитель проверит его.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Ещё нет",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Да, я сделал!",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
+    ],
+  ),
+);
+
+  if (confirmed != true) return;
+
+  await ApiService.markTaskDone(taskId, _userName);
+  _loadData();
+
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Отлично! Задание выполнено ✅')),
     );
+  }
+}
+
+  Future<void> _deleteTask(int taskId) async {
+  final confirmed = await showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.delete_outline_rounded,
+            color: Colors.red.shade500,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Удалить задание?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Это действие нельзя отменить.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade500,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Удалить",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
     if (confirmed != true) return;
 
     await ApiService.deleteTask(taskId, _userName);
@@ -180,35 +388,42 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
                                   ),
                                 const SizedBox(height: 6),
                                 Row(
-                                  children: [
-                                    Icon(Icons.card_giftcard, size: 16, color: Colors.orange.shade700),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      '⭐ ${task['stars'] ?? 10}',
-                                      style: TextStyle(color: Colors.orange.shade700, fontSize: 14, fontWeight: FontWeight.w600),
-                                    ),
-                                  ],
-                                ),
+  children: [
+    const Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(Icons.circle, size: 24, color: Colors.amber),
+        Icon(Icons.star, size: 13, color: Colors.white),
+      ],
+    ),
+    const SizedBox(width: 6),
+    Text(
+      '${task['stars'] ?? 10}',
+      style: TextStyle(color: Colors.orange.shade700, fontSize: 18, fontWeight: FontWeight.w600),
+    ),
+  ],
+),
                               ],
                             ),
                           ),
                         ),
                         // Кнопка: Я сделал (ребёнок) или Удалить (родитель)
-                        if (isChild)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 12),
-                            child: ElevatedButton.icon(
-                              onPressed: () => _markDone(task['id']),
-                              icon: const Icon(Icons.check, size: 18),
-                              label: const Text('Я сделал!'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              ),
-                            ),
-                          )
+                       if (isChild)
+  Padding(
+    padding: const EdgeInsets.only(right: 8),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _markDone(task['id']),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.green,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Icon(Icons.check, color: Colors.white, size: 20),
+      ),
+    ),
+  )
                         else
                           IconButton(
                             icon: const Icon(Icons.delete_outline, color: Colors.red),

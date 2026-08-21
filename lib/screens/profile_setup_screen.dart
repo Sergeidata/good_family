@@ -74,14 +74,81 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
     if (!mounted) return;
 
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Группа создана"),
-        content: Text("Код приглашения:\n\n${result["invite_code"]}\n\nОтправьте его членам семьи!"),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))],
+   await showDialog(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.family_restroom_rounded,
+            color: Colors.green.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Группа создана",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Код приглашения:\n\n"
+      "${result["invite_code"]}\n\n"
+      "Отправьте его членам семьи!",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
       ),
-    );
+    ),
+
+    actions: [
+      SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(ctx),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.green.shade600,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          child: const Text(
+            "Понятно",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
@@ -146,13 +213,78 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     if (!mounted) return;
 
     await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Успешно"),
-        content: Text("Вы присоединились\nк семье ${result["family_name"]}"),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("OK"))],
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.check_circle_outline_rounded,
+            color: Colors.blue.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Успешно",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Вы присоединились\nк семье ${result["family_name"]}",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
       ),
-    );
+    ),
+
+    actions: [
+      SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(ctx),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade600,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          child: const Text(
+            "Понятно",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
 
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(

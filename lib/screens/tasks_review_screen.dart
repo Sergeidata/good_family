@@ -36,19 +36,325 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
   }
 
   Future<void> _approve(int taskId) async {
-    await ApiService.approveTask(taskId, _userName);
-    _loadData();
-  }
+ final confirmed = await showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.check_circle_outline_rounded,
+            color: Colors.green.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Принять задание?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Задание будет одобрено, ребёнок получит монеты.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Принять",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+  if (confirmed != true) return;
+  await ApiService.approveTask(taskId, _userName);
+  _loadData();
+}
 
   Future<void> _retry(int taskId) async {
-    await ApiService.retryTask(taskId, _userName);
-    _loadData();
-  }
+ final confirmed = await showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.refresh_rounded,
+            color: Colors.orange.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Вернуть задание?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Задание вернётся ребёнку на выполнение.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Вернуть",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+  if (confirmed != true) return;
+  await ApiService.retryTask(taskId, _userName);
+  _loadData();
+}
 
   Future<void> _reject(int taskId) async {
-    await ApiService.rejectTask(taskId, _userName);
-    _loadData();
-  }
+  final confirmed = await showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.cancel_outlined,
+            color: Colors.red.shade500,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Отклонить задание?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Задание будет отклонено. Ребёнок не получит монеты.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade500,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Да",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+  if (confirmed != true) return;
+  await ApiService.rejectTask(taskId, _userName);
+  _loadData();
+}
 
   String _timeAgo(String? dateStr) {
   if (dateStr == null) return '';
@@ -135,8 +441,14 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
                             const SizedBox(width: 4),
                             Text(task['assigned_to'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 14)),
                             const SizedBox(width: 20),
-                            Icon(Icons.card_giftcard, size: 16, color: Colors.orange.shade700),
-                            const SizedBox(width: 4),
+                            const Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Icon(Icons.circle, size: 18, color: Colors.amber),
+                                Icon(Icons.star, size: 11, color: Colors.white),
+                              ],
+                            ),
+                            const SizedBox(width: 6),
                             Text(
                               '${task['stars'] ?? 10}',
                               style: TextStyle(color: Colors.orange.shade700, fontSize: 14, fontWeight: FontWeight.w600),

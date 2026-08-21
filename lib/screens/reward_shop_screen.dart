@@ -203,7 +203,7 @@ Color _colorFromHex(String hex) {
                         maxLength: 80,
                         decoration: InputDecoration(
                           labelText: "Описание (необязательно)",
-                          hintText: "Например: Только после уборки в комнате",
+                          hintText: "Например: Модель телефона",
                           prefixIcon: const Icon(Icons.info_outline),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
                           counterText: "",
@@ -219,10 +219,19 @@ Color _colorFromHex(String hex) {
 
                     decoration: InputDecoration(
                       labelText:
-                          "Стоимость (⭐)",
+                          "Стоимость",
 
-                      prefixIcon:
-                          const Icon(Icons.star),
+                      prefixIcon: Padding(
+  padding: const EdgeInsets.only(left: 12),
+  child: Stack(
+    alignment: Alignment.center,
+    children: const [
+      Icon(Icons.circle, size: 25, color: Colors.amber),
+      Icon(Icons.star, size: 13, color: Colors.white),
+    ],
+  ),
+),
+  
 
                       border: OutlineInputBorder(
                         borderRadius:
@@ -447,32 +456,113 @@ Future<void> _buyReward(Map<String, dynamic> item) async {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Не хватает звёзд"),
+        content: Text("Не хватает монет"),
       ),
     );
     return;
   }
 
   final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text("Купить награду?"),
-          content: Text(
-            "Купить «${item["title"]}» за $cost ⭐?",
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(16),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("Отмена"),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Купить"),
-            ),
-          ],
+          child: Icon(
+            Icons.shopping_bag_outlined,
+            color: Colors.orange.shade600,
+            size: 27,
+          ),
         ),
-      ) ??
-      false;
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Купить награду?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Купить «${item["title"]}» за $cost 🪙?",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Купить",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+) ?? false;
 
   if (!confirmed) return;
 
@@ -531,14 +621,14 @@ Widget _buildChildHeader() {
                 color: Colors.white.withOpacity(0.18),
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: const Center(child: Text("⭐", style: TextStyle(fontSize: 30))),
+              child: const Center(child: Text("🪙", style: TextStyle(fontSize: 30))),
             ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Мои звёзды: $_balance ⭐",
+                  Text("Мои монеты: $_balance 🪙",
                     style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 6),
                   Text("Выбирайте награды и копите на то, что нравится.",
@@ -576,7 +666,7 @@ Widget build(BuildContext context) {
 
   return Scaffold(
     appBar: AppBar(
-      title: Text(widget.childMode ? 'Магазин наград' : '⭐ Магазин наград'),
+      title: Text(widget.childMode ? 'Магазин наград' : 'Магазин наград'),
     ),
 
     
@@ -690,24 +780,113 @@ Widget build(BuildContext context) {
                                       color: Colors.white.withOpacity(0.75),
                                       borderRadius: BorderRadius.circular(22),
                                     ),
-                                    child: Text("$cost ⭐", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: const Color.fromARGB(202, 73, 73, 73))),
+                                    child: Text("$cost 🪙", style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: const Color.fromARGB(202, 73, 73, 73))),
                                   ),
                                   if (!widget.childMode)
                                     InkWell(
                                       borderRadius: BorderRadius.circular(16),
                                       onTap: () async {
                                         final ok = await showDialog<bool>(
-                                              context: context,
-                                              builder: (_) => AlertDialog(
-                                                title: const Text("Удалить награду?"),
-                                                content: Text("Удалить «${item["title"]}» из магазина?"),
-                                                actions: [
-                                                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Отмена")),
-                                                  ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text("Удалить")),
-                                                ],
-                                              ),
-                                            ) ??
-                                            false;
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.delete_outline_rounded,
+            color: Colors.red.shade500,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Удалить награду?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Удалить «${item["title"]}» из магазина?",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade500,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Удалить",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+) ?? false;
                                         if (!ok) return;
                                         await ApiService.deleteReward(item["id"]);
                                         _loadData();
@@ -729,7 +908,7 @@ Widget build(BuildContext context) {
                                       label: Text(
                                         cost <= _balance
                                             ? "Купить"
-                                            : "Не хватает звёзд",
+                                            : "Не хватает монет",
                                       ),
                                     style: ElevatedButton.styleFrom(
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),

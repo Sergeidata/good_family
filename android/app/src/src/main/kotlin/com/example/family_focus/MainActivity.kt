@@ -69,6 +69,12 @@ class MainActivity : FlutterActivity() {
                         }
                         val prefs = getSharedPreferences("family_focus", Context.MODE_PRIVATE)
                         prefs.edit().putString("user_id", userId).apply()
+
+                        val userName = call.argument<String>("userName")
+                        if (userName != null) {
+                            prefs.edit().putString("user_name", userName).apply()
+                        }
+
                         if (familyId != null) {
 
                             prefs.edit()

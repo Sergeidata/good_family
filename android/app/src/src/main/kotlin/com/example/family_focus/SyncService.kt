@@ -86,236 +86,115 @@ class SyncService : Service() {
             )
         }
 
-        fun syncNowStatic(
-            context: Context
-        ) {
+       fun syncNowStatic(context: Context) {
+    val prefs = context.getSharedPreferences("family_focus", Context.MODE_PRIVATE)
+    val userId = prefs.getString("user_id", null) ?: return
 
-            val prefs =
-                context.getSharedPreferences(
-                    "family_focus",
-                    Context.MODE_PRIVATE
-                )
+    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-            val userId =
-                prefs.getString(
-                    "user_id",
-                    null
-                ) ?: return
-            
-           
+    val savedDate = prefs.getString("notification_date", "")
+    if (savedDate != today) {
+        prefs.edit()
+            .putString("notification_date", today)
+            .putBoolean("notified_2h", false)
+            .putBoolean("notified_4h", false)
+            .apply()
+    }
 
-            val today =
-                SimpleDateFormat(
-                    "yyyy-MM-dd",
-                    Locale.getDefault()
-                ).format(Date())
+    val usageMap = getUsageStatsTodayStatic(context)
+    val totalSeconds = usageMap.values.sum()
 
-            val savedDate =
-                prefs.getString(
-                    "notification_date",
-                    ""
-                )
+    android.util.Log.d("SYNC_SERVICE", "totalSeconds=$totalSeconds")
 
-            if (savedDate != today) {
+    if (totalSeconds > 7200 && !prefs.getBoolean("notified_2h", false)) {
+        showUsageNotification(context, 2001, "2 часа в телефоне", "Не забывайте делать перерывы 🙂")
+        prefs.edit().putBoolean("notified_2h", true).apply()
+    }
 
-                prefs.edit()
-                    .putString(
-                        "notification_date",
-                        today
-                    )
-                    .putBoolean(
-                        "notified_2h",
-                        false
-                    )
-                    .putBoolean(
-                        "notified_4h",
-                        false
-                    )
-                    .apply()
-            }
+    if (totalSeconds > 14400 && !prefs.getBoolean("notified_4h", false)) {
+        showUsageNotification(context, 2002, "4 часа в телефоне!", "Пожалуй, хватит на сегодня 🤔")
+        prefs.edit().putBoolean("notified_4h", true).apply()
+    }
 
-            val usageMap =
-                getUsageStatsTodayStatic(
-                    context
-                )
+    val topApps = usageMap.entries
+        .sortedByDescending { it.value }
+        .take(10)
 
-            val totalSeconds =
-                usageMap.values.sum()
+    val appsArray = JSONArray()
+    for (entry in topApps) {
+        val obj = JSONObject()
+        obj.put("app", entry.key)
+        obj.put("minutes", entry.value / 60)
+        appsArray.put(obj)
+    }
 
+    val bodyJson = JSONObject()
+    bodyJson.put("user_id", userId)
+    bodyJson.put("total_seconds", totalSeconds)
+    bodyJson.put("top_apps", appsArray)
+    bodyJson.put("date", today)
 
-            android.util.Log.d("SYNC_SERVICE", "totalSeconds=$totalSeconds, notified_2h=${prefs.getBoolean("notified_2h", false)}, notified_4h=${prefs.getBoolean("notified_4h", false)}")
+    val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
+        .build()
 
-            if (
-                totalSeconds > 7200 &&
-                !prefs.getBoolean(
-                    "notified_2h",
-                    false
-                )
-            ) {
+    val body = bodyJson.toString().toRequestBody("application/json".toMediaTypeOrNull())
 
-                showUsageNotification(
-                    context,
-                    2001,
-                    "2 часа в телефоне",
-                    "Не забывайте делать перерывы 🙂"
-                )
+    val request = Request.Builder()
+        .url("http://159.194.219.146:8000/upload")
+        .post(body)
+        .build()
 
-                prefs.edit()
-                    .putBoolean(
-                        "notified_2h",
-                        true
-                    )
-                    .apply()
-            }
-
-            if (
-                totalSeconds > 14400 &&
-                !prefs.getBoolean(
-                    "notified_4h",
-                    false
-                )
-            ) {
-
-                showUsageNotification(
-                    context,
-                    2002,
-                    "4 часа в телефоне!",
-                    "Пожалуй, хватит на сегодня 🤔"
-                )
-
-                prefs.edit()
-                    .putBoolean(
-                        "notified_4h",
-                        true
-                    )
-                    .apply()
-            }
-
-            val topApps =
-                usageMap.entries
-                    .sortedByDescending {
-                        it.value
-                    }
-                    .take(10)
-
-            val appsArray =
-                JSONArray()
-
-            for (entry in topApps) {
-
-                val obj = JSONObject()
-
-                obj.put(
-                    "app",
-                    entry.key
-                )
-
-                obj.put(
-                    "minutes",
-                    entry.value / 60
-                )
-
-                appsArray.put(obj)
-            }
-
-            val bodyJson =
-                JSONObject()
-
-            bodyJson.put(
-                "user_id",
-                userId
-            )
-
-            bodyJson.put(
-                "total_seconds",
-                totalSeconds
-            )
-
-            bodyJson.put(
-                "top_apps",
-                appsArray
-            )
-
-            bodyJson.put(
-                "date",
-                today
-            )
-
-            val client =
-                OkHttpClient.Builder()
-                    .connectTimeout(
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                    .readTimeout(
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                    .writeTimeout(
-                        10,
-                        TimeUnit.SECONDS
-                    )
-                    .build()
-
-            val body =
-                bodyJson.toString()
-                    .toRequestBody(
-                        "application/json"
-                            .toMediaTypeOrNull()
-                    )
-
-            val request =
-                Request.Builder()
-                    .url("http://159.194.219.146:8000/upload")
-                    
-                    .post(body)
-                    .build()
-
-            client.newCall(request)
-                .enqueue(
-                    object : Callback {
-
-                        override fun onFailure(call: Call, e: IOException) {
-                            android.util.Log.e("SYNC_SERVICE", "Upload failed: ${e.message}")
-                        }
-                     override fun onResponse(call: Call, response: Response) {
-                            android.util.Log.d("SYNC_SERVICE", "Upload success")
-                            
-                            val familyId = prefs.getString("family_id", null)
-                            
-                            if (familyId != null) {
-                                val calendar = Calendar.getInstance()
-                                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                                
-                                if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) {
-                                    val weekCheck = prefs.getString("achievement_check_week", null)
-                                    if (weekCheck != today) {
-                                        checkWeeklyEvents(context, familyId)
-                                        prefs.edit().putString("achievement_check_week", today).apply()
-                                    }
-                                }
-                                
-                                if (calendar.get(Calendar.DAY_OF_MONTH) == 1) {
-                                    val monthCheck = prefs.getString("achievement_check_month", null)
-                                    if (monthCheck != today) {
-                                        checkWeeklyEvents(context, familyId)
-                                        prefs.edit().putString("achievement_check_month", today).apply()
-                                    }
-                                }
-                            }
-                            
-                                // Задания и проверки — каждый день
-                                familyId?.let { checkTasksNotifications(context, it) }
-                                response.close()
-                        }
-                    }
-                )
+    client.newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            android.util.Log.e("SYNC_SERVICE", "Upload failed: ${e.message}")
         }
 
+        override fun onResponse(call: Call, response: Response) {
+            android.util.Log.d("SYNC_SERVICE", "Upload success")
 
-        private fun checkTasksNotifications(context: Context, familyId: String) {
+            val familyId = prefs.getString("family_id", null)
+
+            
+
+            // Проверяем задания и отправляем уведомления
+            
+            familyId?.let { checkTasksNotifications(context, it) }
+
+            // Еженедельные события — по понедельникам
+            if (familyId != null) {
+                val calendar = Calendar.getInstance()
+                val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+
+                if (calendar.get(Calendar.DAY_OF_WEEK) == Calendar.MONDAY) {
+                    val weekCheck = prefs.getString("achievement_check_week", null)
+                    if (weekCheck != todayStr) {
+                        checkWeeklyEvents(context, familyId)
+                        prefs.edit().putString("achievement_check_week", todayStr).apply()
+                    }
+                }
+
+                if (calendar.get(Calendar.DAY_OF_MONTH) == 1) {
+                    val monthCheck = prefs.getString("achievement_check_month", null)
+                    if (monthCheck != todayStr) {
+                        checkWeeklyEvents(context, familyId)
+                        prefs.edit().putString("achievement_check_month", todayStr).apply()
+                    }
+                }
+            }
+
+            response.close()
+        }
+    })
+}
+
+
+     private fun checkTasksNotifications(context: Context, familyId: String) {
     val prefs = context.getSharedPreferences("family_focus", Context.MODE_PRIVATE)
-    val userName = prefs.getString("user_name", null) ?: return
+    val userName = prefs.getString("user_name", null) ?: ""
+        
     val role = prefs.getString("role", null) ?: "child"
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
@@ -328,13 +207,12 @@ class SyncService : Service() {
         .url("http://159.194.219.146:8000/tasks?family_id=$familyId&user_name=$userName")
         .get()
         .build()
-    
 
     client.newCall(request).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
-            
-            android.util.Log.e("SYNC_SERVICE", "Upload failed: ${e.message}")
+            android.util.Log.e("SYNC_SERVICE", "Tasks check failed: ${e.message}")
         }
+
         override fun onResponse(call: Call, response: Response) {
             try {
                 val body = response.body?.string() ?: return
@@ -343,39 +221,55 @@ class SyncService : Service() {
 
                 var pendingCount = 0
                 var reviewCount = 0
+                var firstChildName = ""
 
                 for (i in 0 until tasks.length()) {
                     val task = tasks.getJSONObject(i)
                     val status = task.optString("status", "")
                     when (status) {
                         "pending" -> pendingCount++
-                        "done" -> reviewCount++
+                        "done" -> {
+                            reviewCount++
+                            if (firstChildName.isEmpty()) {
+                                firstChildName = task.optString("assigned_to", "")
+                            }
+                        }
                     }
                 }
-
+                    
+                // Для ребёнка — новые задания
                 if (role == "child" && pendingCount > 0) {
                     val lastPendingNotif = prefs.getString("last_pending_notification", "")
                     if (lastPendingNotif != today) {
-                        showSimpleNotification(
-                            context,
-                            "📝 Новые задания!",
-                            "У вас $pendingCount активных заданий от родителей."
-                        )
+                        Handler(context.mainLooper).post {
+                            showSimpleNotification(
+                                context,
+                                "📝 Новые задания!",
+                                "У вас $pendingCount активных заданий от родителей."
+                            )
+                        }
                         prefs.edit().putString("last_pending_notification", today).apply()
                     }
                 }
 
+                // Для родителя — задания на проверке
                 if (role in listOf("parent", "admin_parent") && reviewCount > 0) {
-                    val lastReviewNotif = prefs.getString("last_review_notification", "")
-                    if (lastReviewNotif != today) {
-                        showSimpleNotification(
-                            context,
-                            "✅ Задания на проверке",
-                            "$reviewCount заданий ожидают проверки."
-                        )
-                        prefs.edit().putString("last_review_notification", today).apply()
+                    val lastReviewCount = prefs.getInt("last_review_count", 0)
+                    val message = if (firstChildName.isNotEmpty()) {
+                        "⭐ $firstChildName выполнил(а) задание!"
+                    } else {
+                        "$reviewCount заданий ожидают проверки"
                     }
-                }
+
+                    if (reviewCount > lastReviewCount) {
+                        Handler(context.mainLooper).post {
+                            showSimpleNotification(context, "✅ Задание выполнено", message)
+                        }
+                        prefs.edit().putInt("last_review_count", reviewCount).apply()
+                    } else if (reviewCount < lastReviewCount) {
+                        prefs.edit().putInt("last_review_count", reviewCount).apply()
+                    }
+}
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -406,41 +300,24 @@ class SyncService : Service() {
         override fun onFailure(call: Call, e: IOException) {}
 
         override fun onResponse(call: Call, response: Response) {
+            
             try {
                 val body = response.body?.string() ?: return
                 val json = JSONObject(body)
 
                 if (json.optString("status") != "ok") return
 
-                val achievements = json.optJSONArray("achievements")
                 val gardenLevel = json.optInt("garden_level", 1)
-                val lastAchievementDate = prefs.getString("last_achievement_date", null)
-
-                var newestAchievementDate: String? = null
-                var newestAchievementName: String? = null
-
-                if (achievements != null && achievements.length() > 0) {
-                    val first = achievements.getJSONObject(0)
-                    newestAchievementDate = first.optString("earned_date")
-                    newestAchievementName = achievementTitle(first.optString("achievement_key"))
-                }
+                val lastLevelup = json.optString("last_levelup", "")
+                val savedLevelupDate = prefs.getString("last_garden_levelup_date", null)
 
                 var notificationShown = false
 
-                if (newestAchievementDate != null && newestAchievementDate != lastAchievementDate) {
-                    Handler(context.mainLooper).post {
-                        showSimpleNotification(context, "Новые достижения!", "Кто-то заработал ачивку «$newestAchievementName»")
-                    }
-                    prefs.edit().putString("last_achievement_date", newestAchievementDate).apply()
-                    notificationShown = true
-                }
-
-                val savedGardenLevel = prefs.getInt("last_garden_level", 1)
-                if (gardenLevel > savedGardenLevel) {
+                if (lastLevelup.isNotEmpty() && lastLevelup != savedLevelupDate) {
                     Handler(context.mainLooper).post {
                         showSimpleNotification(context, "Сад вырос!", "Уровень $gardenLevel: ${gardenLevelName(gardenLevel)}")
                     }
-                    prefs.edit().putInt("last_garden_level", gardenLevel).apply()
+                    prefs.edit().putString("last_garden_levelup_date", lastLevelup).apply()
                     notificationShown = true
                 }
 

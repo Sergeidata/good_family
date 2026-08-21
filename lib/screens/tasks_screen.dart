@@ -143,7 +143,7 @@ class _TasksScreenState extends State<TasksScreen> {
                     ),
                     Positioned(
                       right: -4,
-                      top: -18,
+                      bottom : -32,
                       child: trailing,
                     ),
                   ],
@@ -184,13 +184,22 @@ Widget build(BuildContext context) {
           subtitle: 'Выполняй задания и зарабатывай монеты!',
           screen: TasksActiveScreen(),
           trailing: FutureBuilder<List<dynamic>>(
-            future: ApiService.getTasks(_familyId, null),
-            builder: (ctx, snap) {
-              final tasks = snap.data ?? [];
-              final count = tasks.where((t) => t["status"] == "pending" && t["assigned_to"] == snapshot.data?["user_name"]).length;
-              return _badge(count);
-            },
-          ),
+  future: ApiService.getTasks(_familyId, null),
+  builder: (ctx, snap) {
+    final tasks = snap.data ?? [];
+    final now = DateTime.now();
+    final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
+    final count = tasks.where((t) {
+      if (t["status"] != "pending") return false;
+      if (t["assigned_to"] != snapshot.data?["user_name"]) return false;
+      final repeatMode = t["repeat_mode"] ?? "none";
+      if (repeatMode == "weekends" && !isWeekend) return false;
+      if (repeatMode == "weekdays" && isWeekend) return false;
+      return true;
+    }).length;
+    return _badge(count);
+  },
+),
         ),
         _menuCard(
           context: context,
@@ -264,7 +273,7 @@ Widget build(BuildContext context) {
               icon: Icons.shopping_bag,
               color: Colors.deepOrange,
               title: 'Балансы и запросы',
-              subtitle: 'Звёзды детей и запросы на награды',
+              subtitle: 'Монеты детей и запросы на награды',
               screen: const RewardRequestsScreen(),
               trailing: FutureBuilder<List<dynamic>>(
                 future: ApiService.getRewardRequests(_familyId),

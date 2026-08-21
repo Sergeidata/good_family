@@ -7,64 +7,167 @@ import 'welcome_screen.dart';
 import 'permissions_screen.dart';
 import 'info_screen.dart';
 
+import 'dart:io';
+
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
   static const _email = "serz9oodjob@gmail.com";
 
   Future<void> _sendFeedback(BuildContext context) async {
-    final uri = Uri(
-      scheme: "mailto",
-      path: _email,
-      queryParameters: const {
-        "subject": "Обратная связь Good Family",
-      },
-    );
+  final family = await FamilyStorage.loadFamily();
+  final familyId = family["family_id"] ?? "неизвестно";
+  final userName = family["user_name"] ?? "неизвестно";
 
-    try {
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-        return;
-      }
-    } catch (_) {}
+  // Модель устройства
+ final deviceModel = "${Platform.operatingSystem} ${Platform.operatingSystemVersion}";
 
-    if (!context.mounted) return;
+  final body = """
+[Опишите вашу проблему или предложение здесь]
 
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Не удалось открыть почту"),
-        content: const Text(
-          "Отправить обратную связь можно по адресу:\n\n"
-          "serz9oodjob@gmail.com",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await Clipboard.setData(
-                const ClipboardData(text: _email),
-              );
 
-              if (context.mounted) {
-                Navigator.pop(context);
+---
+family_id: $familyId
+участник: $userName
+устройство: $deviceModel
+""";
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text("Почта скопирована"),
-                  ),
-                );
-              }
-            },
-            child: const Text("Скопировать"),
+
+
+ final uri = Uri.parse(
+  "mailto:$_email?subject=${Uri.encodeComponent('Обратная связь Good Family')}&body=${Uri.encodeComponent(body)}",
+);
+
+  
+
+  try {
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+      return;
+    }
+  } catch (_) {}
+
+  if (!context.mounted) return;
+
+ showDialog(
+  context: context,
+  builder: (_) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(16),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Закрыть"),
+          child: Icon(
+            Icons.mail_outline_rounded,
+            color: Colors.blue.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Не удалось открыть почту",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Отправить обратную связь можно по адресу:\n\n"
+      "serz9oodjob@gmail.com",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () async {
+                  await Clipboard.setData(
+                    const ClipboardData(
+                      text: _email,
+                    ),
+                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Почта скопирована"),
+                      ),
+                    );
+                  }
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.blue.shade600,
+                  side: BorderSide(
+                    color: Colors.blue.shade200,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Скопировать",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Закрыть",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-    );
-  }
+    ],
+  ),
+);
+}
 
   Future<void> _leaveFamily(BuildContext context) async {
     final family = await FamilyStorage.loadFamily();
@@ -75,26 +178,106 @@ class MoreScreen extends StatelessWidget {
     if (!context.mounted) return;
 
     final result = await showDialog<bool>(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Покинуть семью?"),
-            content: Text(
-              "Вы действительно хотите покинуть семейную группу «$familyName»?",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () =>
-                    Navigator.pop(context, false),
-                child: const Text("Отмена"),
-              ),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.pop(context, true),
-                child: const Text("Покинуть"),
-              ),
-            ],
+  context: context,
+  builder: (_) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(16),
           ),
-        ) ??
+          child: Icon(
+            Icons.exit_to_app_rounded,
+            color: Colors.red.shade500,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Выйти из группы?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Вы действительно хотите покинуть семейную группу «$familyName»?",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade500,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Да",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+) ??
         false;
 
     if (!result) return;

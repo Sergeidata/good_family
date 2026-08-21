@@ -252,6 +252,8 @@ class _HomeDashboardState extends State<HomeDashboard>
 
     final role = family["role"] ?? "";
 
+    final userName = family["user_name"] ?? "";
+
     if (
       userId == null ||
       familyId == null
@@ -263,6 +265,7 @@ class _HomeDashboardState extends State<HomeDashboard>
       userId,
       familyId,
       role: role,
+      userName: userName
     );
 
     _serviceStarted = true;
@@ -341,16 +344,106 @@ void dispose() {
     if (!hasStatsPermission) {
       if (!mounted) return;
       final result = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Доступ к статистике"),
-          content: const Text("Нужен доступ к статистике использования для подсчёта экранного времени."),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Нет")),
-            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Да")),
-          ],
+  context: context,
+  builder: (context) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.bar_chart_rounded,
+            color: Colors.orange.shade600,
+            size: 27,
+          ),
         ),
-      );
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Доступ к статистике",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Нужен доступ к статистике использования для подсчёта экранного времени.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Нет",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Да",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
       if (result == true && mounted) {
         UsageStatsHelper.requestPermission();
         return;
@@ -364,17 +457,107 @@ void dispose() {
     final prefs = await SharedPreferences.getInstance();
     final notificationAsked = prefs.getBool("notification_asked") ?? false;
     if (!notificationAsked) {
-      final result = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Уведомления"),
-          content: const Text("Разрешите уведомления, чтобы получать напоминания и результаты соревнований."),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Нет")),
-            TextButton(onPressed: () => Navigator.pop(context, true), child: const Text("Да")),
-          ],
+        final result = await showDialog<bool>(
+  context: context,
+  builder: (context) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.notifications_active_rounded,
+            color: Colors.orange.shade600,
+            size: 27,
+          ),
         ),
-      );
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Уведомления",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Разрешите уведомления, чтобы получать напоминания и результаты соревнований.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Нет",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Да",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
       await prefs.setBool("notification_asked", true);
       if (result == true && mounted) {
         final channel = const MethodChannel('family_focus/sync_service');
@@ -388,18 +571,79 @@ void dispose() {
       await prefs.setBool("permissions_info_shown", true);
       if (!mounted) return;
       showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text("Проверьте разрешения"),
-          content: const Text("Для корректной работы приложения убедитесь, что все разрешения выданы. Перейдите в «Проверить разрешения» на главном экране."),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("OK"),
-            ),
-          ],
+  context: context,
+  builder: (context) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.security_rounded,
+            color: Colors.blue.shade600,
+            size: 27,
+          ),
         ),
-      );
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Проверьте разрешения",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Для корректной работы приложения убедитесь, что все разрешения выданы. "
+      "Перейдите в «Проверить разрешения» на главном экране.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: ElevatedButton(
+          onPressed: () => Navigator.pop(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blue.shade600,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+          ),
+          child: const Text(
+            "Понятно",
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    ],
+  ),
+);
     }
   }
 
@@ -409,6 +653,7 @@ Future<void> _refreshDashboard() async {
 
   try {
     await Future.wait([
+      _loadHeader(), 
       _refreshStats(),
       _loadDashboard(),
       _loadGardenData(),
@@ -424,95 +669,218 @@ Future<void> _refreshDashboard() async {
 }
 
   Future<void> _checkForUpdate() async {
-
   try {
-
-    final prefs =
-        await SharedPreferences.getInstance();
-
-    final today =
-        DateTime.now()
-            .toIso8601String()
-            .split("T")
-            .first;
-
-    final lastShown =
-        prefs.getString(
-      "last_update_dialog_date",
-    );
-
-    if (lastShown == today) {
-      return;
-    }
-
     final currentVersionCode = await _getCurrentVersionCode();
+    final latest = await ApiService.getLatestVersion();
 
-    final latest =
-        await ApiService.getLatestVersion();
+    if (latest == null) return;
 
-    if (latest == null) {
-      return;
-    }
+    final serverVersionCode = latest["version_code"] ?? 0;
+    final updateUrl = latest["update_url"] ?? "";
+    final forceUpdate = latest["force_update"] ?? false;
 
-    final serverVersionCode =
-        latest["version_code"] ?? 0;
+   
 
-    final updateUrl =
-        latest["update_url"] ?? "";
-
-    if (serverVersionCode <=
-        currentVersionCode) {
-      return;
-    }
-
-    await prefs.setString(
-      "last_update_dialog_date",
-      today,
-    );
+    if (serverVersionCode <= currentVersionCode && !forceUpdate) return;
 
     if (!mounted) return;
 
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text(
-          "Доступно обновление",
-        ),
-        content: const Text(
-          "Новая версия приложения доступна в RuStore. Обновитесь, чтобы получить новые функции.",
-        ),
-        actions: [
-
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
-            child: const Text(
-              "Позже",
+    if (forceUpdate) {
+      // Принудительное — без "Позже"
+     showDialog(
+  context: context,
+  barrierDismissible: false,
+  builder: (_) => WillPopScope(
+    onWillPop: () async => false,
+    child: AlertDialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+      contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      title: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.blue.shade50,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              Icons.system_update_rounded,
+              color: Colors.blue.shade600,
+              size: 27,
             ),
           ),
-
-          ElevatedButton(
-            onPressed: () async {
-
-              Navigator.pop(context);
-
-              final uri =
-                  Uri.parse(updateUrl);
-
-              await launchUrl(
-                uri,
-                mode: LaunchMode.externalApplication,
-              );
-            },
-            child: const Text(
-              "Обновить",
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              "Требуется обновление",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
       ),
-    );
-
+      content: Text(
+        "Вышла новая версия приложения.\n\n"
+        "Чтобы продолжить использование, обновите приложение в RuStore.",
+        style: TextStyle(
+          fontSize: 15,
+          height: 1.45,
+          color: Colors.grey.shade700,
+        ),
+      ),
+      actions: [
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            onPressed: () async {
+              await launchUrl(
+                Uri.parse(updateUrl),
+                mode: LaunchMode.externalApplication,
+              );
+            },
+            icon: const Icon(
+              Icons.download_rounded,
+              size: 20,
+            ),
+            label: const Text(
+              "Обновить приложение",
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+);
+    } else {
+     showDialog(
+  context: context,
+  builder: (_) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.orange.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.system_update_rounded,
+            color: Colors.orange.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Доступно обновление",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+    content: Text(
+      "Новая версия приложения доступна в RuStore.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 48,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(context),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+                child: const Text(
+                  "Позже",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 48,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await launchUrl(
+                    Uri.parse(updateUrl),
+                    mode: LaunchMode.externalApplication,
+                  );
+                },
+                icon: const Icon(
+                  Icons.download_rounded,
+                  size: 19,
+                ),
+                label: const Text(
+                  "Обновить",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+    }
   } catch (_) {}
 }
 
@@ -539,23 +907,33 @@ Future<void> _loadGardenData() async {
 Future<void> _loadTasksData() async {
   final family = await FamilyStorage.loadFamily();
   final familyId = family["family_id"];
+  final userName = family["user_name"];
+  final role = family["role"] ?? "";
   if (familyId == null) return;
 
   final tasks = await ApiService.getTasks(familyId, null);
-  final active = tasks.where((t) => t["status"] == "pending").length;
-  final review = tasks.where((t) => t["status"] == "done").length;
+
+  final now = DateTime.now();
+  final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
+
+  final isChild = role == "child";
+  final filtered = (isChild
+      ? tasks.where((t) => t["assigned_to"] == userName)
+      : tasks).where((t) {
+    final repeatMode = t["repeat_mode"] ?? "none";
+    if (repeatMode == "weekends" && !isWeekend) return false;
+    if (repeatMode == "weekdays" && isWeekend) return false;
+    return true;
+  }).toList();
+
+  final active = filtered.where((t) => t["status"] == "pending").length;
+  final review = filtered.where((t) => t["status"] == "done").length;
 
   if (mounted) {
     setState(() {
       _tasksData = {"active": active, "review": review};
     });
   }
-
-  if (mounted) {
-  setState(() {
-    _updateTodayMessage();
-  });
-}
 }
 
 Future<void> _loadDashboard() async {
@@ -625,8 +1003,7 @@ Future<void> _loadHeader() async {
 
   final name = family["user_name"] ?? "";
 
-  _role = family["role"] ?? "";   // ← добавить эту строку
-
+  _role = family["role"] ?? "";   
   final hour = DateTime.now().hour;
 
   String greeting;
@@ -702,7 +1079,7 @@ Future<void> _loadHeader() async {
     if (!_serviceStarted && userId != null && familyId != null) {
       final family = await FamilyStorage.loadFamily();
       final role = family["role"] ?? "";
-      await SyncServiceHelper.start(userId, familyId, role: role);
+      await SyncServiceHelper.start(userId, familyId, role: role, userName: userId);
       _serviceStarted = true;
     }
 
@@ -1124,7 +1501,7 @@ final notSynced = members.where((m) {
     final taskPart = (_gardenData?["task_progress"] ?? 0.0).toDouble();
     final gardenLevel = (_gardenData?["level"] ?? 1).toDouble();
     final totalAchievements = achievements + taskPart;
-    final required = gardenLevel + 1;
+    final required = gardenLevel;
 
     if (totalAchievements < required) {
       final need = required - totalAchievements;

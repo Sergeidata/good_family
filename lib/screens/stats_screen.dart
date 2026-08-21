@@ -27,6 +27,34 @@ class _StatsScreenState
 
   bool _loadingApps = false;
 
+
+//   // ВРЕМЕННО ДЛЯ ДЕМО — УДАЛИТЬ ПОСЛЕ ЗАПИСИ
+// bool _demoMode = true;
+
+// List<Map<String, dynamic>> get _demoSessions => [
+//   {"date": "2026-08-01", "duration_seconds": 5400, "social_seconds": 800, "apps": {}},
+//   {"date": "2026-08-02", "duration_seconds": 7200, "social_seconds": 1200, "apps": {}},
+//   {"date": "2026-08-03", "duration_seconds": 8900, "social_seconds": 1500, "apps": {}},
+//   {"date": "2026-08-04", "duration_seconds": 6700, "social_seconds": 1100, "apps": {}},
+//   {"date": "2026-08-05", "duration_seconds": 10300, "social_seconds": 1900, "apps": {}},
+//   {"date": "2026-08-06", "duration_seconds": 9100, "social_seconds": 1400, "apps": {}},
+//   {"date": "2026-08-07", "duration_seconds": 11800, "social_seconds": 2200, "apps": {}},
+//   {"date": "2026-08-08", "duration_seconds": 7600, "social_seconds": 1000, "apps": {}},
+//   {"date": "2026-08-09", "duration_seconds": 12400, "social_seconds": 2400, "apps": {}},
+//   {"date": "2026-08-10", "duration_seconds": 6800, "social_seconds": 950, "apps": {}},
+//   {"date": "2026-08-11", "duration_seconds": 8400, "social_seconds": 1300, "apps": {}},
+//   {"date": "2026-08-12", "duration_seconds": 9200, "social_seconds": 1700, "apps": {}},
+//   {"date": "2026-08-13", "duration_seconds": 7100, "social_seconds": 1050, "apps": {}},
+//   {"date": "2026-08-14", "duration_seconds": 10600, "social_seconds": 2000, "apps": {}},
+//   {"date": "2026-08-15", "duration_seconds": 13200, "social_seconds": 2600, "apps": {}},
+//   {"date": "2026-08-16", "duration_seconds": 7800, "social_seconds": 1150, "apps": {}},
+//   {"date": "2026-08-17", "duration_seconds": 9800, "social_seconds": 1400, "apps": {}},
+//   {"date": "2026-08-18", "duration_seconds": 11200, "social_seconds": 2100, "apps": {}},
+//   {"date": "2026-08-19", "duration_seconds": 8700, "social_seconds": 1600, "apps": {}},
+//   {"date": "2026-08-20", "duration_seconds": 12400, "social_seconds": 2400, "apps": {}},
+//   {"date": "2026-08-21", "duration_seconds": 6400, "social_seconds": 900, "apps": {}},
+// ];
+
   @override
   void initState() {
     super.initState();
@@ -45,6 +73,20 @@ class _StatsScreenState
       _sessions = sessions;
     });
   }
+
+//   Future<void> _loadWeekStats() async {
+//   if (_demoMode) {
+//     setState(() {
+//       _sessions = _demoSessions;
+//     });
+//     return;
+//   }
+
+//   final sessions = await SessionStorage.loadSessions();
+//   setState(() {
+//     _sessions = sessions;
+//   });
+// }
 
   Future<void> _refreshApps() async {
     setState(() {
@@ -120,35 +162,45 @@ class _StatsScreenState
   }
 
   Future<Map<String, int>> _calculateWeekTotals() async {
-    final now = DateTime.now();
-    final monday = now.subtract(Duration(days: now.weekday - 1));
-    final Map<String, int> totals = {};
+  final now = DateTime.now();
+  final monday = now.subtract(Duration(days: now.weekday - 1));
+  final Map<String, int> totals = {};
 
-    final daysPassed =
-    now.weekday;
+  final daysPassed = now.weekday;
 
-    for (int i = 0; i < daysPassed; i++) {
-      final day = monday.add(Duration(days: i));
-      final key = DateFormat('yyyy-MM-dd').format(day);
-      totals[key] = 0;
-    }
+  for (int i = 0; i < daysPassed; i++) {
+    final day = monday.add(Duration(days: i));
+    final key = DateFormat('yyyy-MM-dd').format(day);
+    totals[key] = 0;
+  }
 
-    final today = DateFormat('yyyy-MM-dd').format(now);
-    
-    for (final date in totals.keys) {
-      if (date == today) {
-        totals[date] = await SessionStorage.getTodayTotal();
-      } else {
-        for (final session in _sessions) {
-          if (session["date"] == date) {
-            totals[date] = (totals[date] ?? 0) + ((session["duration_seconds"] as int?) ?? 0);
-          }
+  // ВРЕМЕННО ДЛЯ ДЕМО
+  // if (_demoMode) {
+  //   for (final session in _sessions) {
+  //     final date = session["date"];
+  //     if (totals.containsKey(date)) {
+  //       totals[date] = (totals[date]! + ((session["duration_seconds"] as int?) ?? 0));
+  //     }
+  //   }
+  //   return totals;
+  // }
+
+  final today = DateFormat('yyyy-MM-dd').format(now);
+
+  for (final date in totals.keys) {
+    if (date == today) {
+      totals[date] = await SessionStorage.getTodayTotal();
+    } else {
+      for (final session in _sessions) {
+        if (session["date"] == date) {
+          totals[date] = (totals[date] ?? 0) + ((session["duration_seconds"] as int?) ?? 0);
         }
       }
     }
-
-    return totals;
   }
+
+  return totals;
+}
 
  Widget _buildWeekTab() {
   return FutureBuilder<Map<String, int>>(

@@ -218,7 +218,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
                     children: [
                       Text(task['title'] ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                       const SizedBox(height: 4),
-                      Text('${task['assigned_to'] ?? ''} • ${_statusLabel(status)} • ⭐ ${task['stars'] ?? 10}',
+                      Text('${task['assigned_to'] ?? ''} • ${_statusLabel(status)} • 🪙 ${task['stars'] ?? 10}',
                         style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                     ],
                   ),
@@ -284,7 +284,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
                       Text('${req['emoji'] ?? "🎁"} ${req['title'] ?? ""}',
                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
                       const SizedBox(height: 4),
-                      Text('${req['child_name']} • $label • ${req['cost_stars']} ⭐',
+                      Text('${req['child_name']} • $label • ${req['cost_stars']} 🪙',
                         style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                     ],
                   ),

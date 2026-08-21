@@ -7,17 +7,20 @@ class SyncServiceHelper {
     'family_focus/sync_service',
   );
 
-  static Future<void> start(String userId, String familyId, {String role = ""}) async {
+  static Future<void> start(String userId, String familyId, {String role = "", String userName = ""}) async {
   try {
     await _channel.invokeMethod('startSyncService', {
       'userId': userId,
       'familyId': familyId,
       'role': role,
+      'userName': userName,
     });
   } catch (e) {
     print('START SYNC SERVICE ERROR: $e');
   }
 }
+
+
 
   
 

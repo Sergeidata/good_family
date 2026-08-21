@@ -50,14 +50,218 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
   }
 
   Future<void> _approve(int requestId) async {
-    await ApiService.approveReward(requestId);
-    _loadData();
-  }
+  final confirmed = await showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
 
-  Future<void> _reject(int requestId) async {
-    await ApiService.rejectReward(requestId);
-    _loadData();
-  }
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.green.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.card_giftcard_rounded,
+            color: Colors.green.shade600,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Выдать награду?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Ребёнок получит уведомление о том, что награда одобрена.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade600,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Выдать",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+  if (confirmed != true) return;
+  await ApiService.approveReward(requestId);
+  _loadData();
+}
+
+Future<void> _reject(int requestId) async {
+  final confirmed = await showDialog<bool>(
+  context: context,
+  builder: (ctx) => AlertDialog(
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(24),
+    ),
+    titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+    contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+    actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+
+    title: Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.red.shade50,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Icon(
+            Icons.cancel_outlined,
+            color: Colors.red.shade500,
+            size: 27,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Text(
+            "Отклонить запрос?",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    ),
+
+    content: Text(
+      "Монеты вернутся ребёнку на баланс.",
+      style: TextStyle(
+        fontSize: 15,
+        height: 1.45,
+        color: Colors.grey.shade700,
+      ),
+    ),
+
+    actions: [
+      Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: OutlinedButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Отмена",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: SizedBox(
+              height: 46,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red.shade500,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                ),
+                child: const Text(
+                  "Да",
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+);
+  if (confirmed != true) return;
+  await ApiService.rejectReward(requestId);
+  _loadData();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -88,8 +292,27 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
     final pending = _requests.where((r) => r["status"] == "pending").toList();
 
     if (pending.isEmpty) {
-      return const Center(child: Text('Нет новых запросов'));
-    }
+  return const Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.card_giftcard_outlined,
+          size: 72,
+          color: Colors.grey,
+        ),
+        SizedBox(height: 16),
+        Text(
+          'Нет новых запросов',
+          style: TextStyle(
+            fontSize: 18,
+            color: Colors.grey,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -113,7 +336,20 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
                       const SizedBox(height: 4),
                       Text('${req["child_name"]} хочет получить', style: TextStyle(color: Colors.grey.shade600)),
                       const SizedBox(height: 4),
-                      Text('${req["cost_stars"]} ⭐', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                     Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    const Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(Icons.circle, size: 22, color: Colors.amber),
+        Icon(Icons.star, size: 13, color: Colors.white),
+      ],
+    ),
+    const SizedBox(width: 4),
+    Text('${req["cost_stars"]}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+  ],
+),
                     ],
                   ),
                 ),
@@ -139,8 +375,35 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
 
   Widget _buildBalancesTab() {
     if (_balances.isEmpty) {
-      return const Center(child: Text('Нет детей'));
-    }
+  return const Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.account_balance_wallet_outlined,
+          size: 72,
+          color: Colors.grey,
+        ),
+        SizedBox(height: 16),
+        Text(
+          'Нет детей',
+          style: TextStyle(
+            fontSize: 18,
+            color: Colors.grey,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Добавьте ребёнка в семью',
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey,
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -159,7 +422,20 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
                 Expanded(
                   child: Text(b["name"], style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 ),
-                Text('${b["stars"]} ⭐', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.amber)),
+               Row(
+  mainAxisSize: MainAxisSize.min,
+  children: [
+    const Stack(
+      alignment: Alignment.center,
+      children: [
+        Icon(Icons.circle, size: 25, color: Colors.amber),
+        Icon(Icons.star, size: 13, color: Colors.white),
+      ],
+    ),
+    const SizedBox(width: 6),
+    Text('${b["stars"]}', style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.amber)),
+  ],
+),
               ],
             ),
           ),

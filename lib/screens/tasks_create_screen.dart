@@ -524,7 +524,7 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Сколько звёзд дать?',
+                          'Сколько монет дать? Введите значение',
                           style: TextStyle(
                             fontSize: 15,
                             color:
@@ -556,7 +556,15 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
                           },
                           decoration:
                               InputDecoration(
-                            suffixText: '⭐',
+                            suffixIcon: Padding(
+  padding: const EdgeInsets.only(right: 8),
+  child: Stack(
+    alignment: Alignment.center,
+    children: [
+      Icon(Icons.stars, color: Colors.amber, size: 28)
+    ],
+  ),
+),
                             filled: true,
                             fillColor:
                                 Colors.orange.shade50,
