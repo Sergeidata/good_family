@@ -1,0 +1,3 @@
+-keep class * extends androidx.work.impl.WorkDatabase
+-keep class androidx.work.** { *; }
+-dontwarn androidx.work.**
