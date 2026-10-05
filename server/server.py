@@ -167,35 +167,6 @@ def init_db():
     
 
 
-        # -----------------------------
-# TASKS
-# -----------------------------
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS tasks (
-            id SERIAL PRIMARY KEY,
-            family_id TEXT NOT NULL,
-            title TEXT NOT NULL,
-            reward_amount INTEGER DEFAULT 0,
-            created_by TEXT NOT NULL,
-            assigned_to TEXT NOT NULL,
-            status TEXT DEFAULT 'pending'
-                CHECK (
-                    status IN (
-                        'pending',
-                        'done',
-                        'approved',
-                        'rejected',
-                        'cancelled',
-                        'paid'
-                    )
-                ),
-            created_at TIMESTAMP DEFAULT NOW(),
-            done_at TIMESTAMP,
-            approved_at TIMESTAMP
-        )
-        """)
-        
     cur.execute("""
         CREATE TABLE IF NOT EXISTS reward_types (
             id SERIAL PRIMARY KEY,
@@ -206,16 +177,6 @@ def init_db():
         )
     """)
 
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS task_log (
-            id SERIAL PRIMARY KEY,
-            task_id INTEGER NOT NULL,
-            user_name TEXT NOT NULL,
-            action TEXT NOT NULL,
-            timestamp TIMESTAMP DEFAULT NOW()
-        )
-        """)
-        
     cur.execute("""
         CREATE TABLE IF NOT EXISTS payouts (
             id SERIAL PRIMARY KEY,
