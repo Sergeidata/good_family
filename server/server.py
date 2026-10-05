@@ -15,10 +15,6 @@ from flask import send_from_directory
 UPLOAD_FOLDER = "/opt/goodfamily/uploads/avatars"
 app = Flask(__name__)
 
-DATABASE_URL = (
-    "postgresql://familyfocus_user:CIVil456@localhost:5432/familyfocus"
-)
-
 
 # ---------------------------------
 # Database
@@ -31,9 +27,13 @@ def get_connection():
 
     if is_postgres():
 
-        return psycopg2.connect(
-            DATABASE_URL
+        # Продакшен: задавайте через systemd Environment= / EnvironmentFile=
+        DATABASE_URL = os.environ.get(
+            "DATABASE_URL",
+            "postgresql://familyfocus_user:CIVil456@localhost:5432/familyfocus",
         )
+
+        return psycopg2.connect(DATABASE_URL)
 
     else:
 
