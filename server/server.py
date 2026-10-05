@@ -643,10 +643,13 @@ def join_family():
 @app.route("/family_members", methods=["GET"])
 def family_members():
     family_id = request.args.get("family_id")
+    requester_device_id = request.args.get("requester_device_id", "")
 
     conn = get_connection()
     cursor = conn.cursor()
 
+    # device_id намеренно НЕ возвращается клиенту: он нужен только
+    # для вычисления is_me внутри сервера
     cursor.execute("""
         SELECT user_name, role, joined_at, avatar, device_id
         FROM members
@@ -658,12 +661,23 @@ def family_members():
     members = []
 
     for row in rows:
+        is_me = bool(
+            requester_device_id
+            and row[4]
+            and row[4] == requester_device_id
+        )
+
         members.append({
             "user_name": row[0],
             "role": row[1],
             "joined_at": str(row[2]),
             "avatar": row[3] or "",
             "device_id": row[4] or "",
+            "is_me": is_me,
+            "is_admin": (
+                is_me
+                and row[1] in ("admin", "admin_parent")
+            ),
         })
 
     conn.close()
@@ -672,6 +686,10 @@ def family_members():
 @app.route("/remove_member", methods=["POST"])
 def remove_member():
     try:
+        # ВНИМАНИЕ: device_id не является секретом — он отдаётся всем
+        # участникам семьи в /family_members. Эта проверка снижает
+        # поверхность атаки, но НЕ устраняет подделку. Полное решение —
+        # серверные сессии (см. вариант B).
         data = request.json
         family_id = data.get("family_id")
         user_name = data.get("user_name")
@@ -683,8 +701,9 @@ def remove_member():
         conn = get_connection()
         cur = conn.cursor()
 
+        # Запрашивающий должен быть админом ИМЕННО этой семьи
         cur.execute("""
-            SELECT role FROM members
+            SELECT user_name, role FROM members
             WHERE family_id = %s AND device_id = %s AND role IN ('admin', 'admin_parent')
         """, (family_id, requester_device_id))
 
@@ -692,12 +711,49 @@ def remove_member():
         if not admin_row:
             cur.close()
             conn.close()
-            return jsonify({"status": "error", "message": "not member"}), 403
+            return jsonify({"status": "error", "message": "not authorized"}), 403
 
+        admin_name = admin_row[0]
+
+        # Нельзя удалить самого себя
+        if admin_name == user_name:
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "cannot remove yourself"
+            }), 403
+
+        # Нельзя оставить семью без администратора
+        cur.execute("""
+            SELECT COUNT(*) FROM members
+            WHERE family_id = %s
+              AND role IN ('admin', 'admin_parent')
+              AND user_name <> %s
+        """, (family_id, user_name))
+
+        if cur.fetchone()[0] == 0:
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "cannot remove the last admin"
+            }), 403
+
+        # Удаляем только не-админа и проверяем, что строка реально была
         cur.execute("""
             DELETE FROM members
             WHERE family_id = %s AND user_name = %s AND role NOT IN ('admin', 'admin_parent')
         """, (family_id, user_name))
+
+        if cur.rowcount == 0:
+            conn.rollback()
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "member not found or is admin"
+            }), 404
 
         conn.commit()
         cur.close()
