@@ -141,14 +141,16 @@ class ApiService {
   // GET FAMILY MEMBERS
   // ---------------------------------
   static Future<Map<String, dynamic>?> getMembers(
-    String familyId,
-  ) async {
+    String familyId, [
+    String deviceId = "",
+  ]) async {
     try {
       final uri = Uri.parse(
         "$baseUrl/family_members",
       ).replace(
         queryParameters: {
           "family_id": familyId,
+          "requester_device_id": deviceId,
         },
       );
 
@@ -159,8 +161,6 @@ class ApiService {
       );
 
       final data = jsonDecode(response.body);
-
-      print("GET MEMBERS RAW: $data");
 
       return data;
     } catch (e) {
@@ -472,7 +472,7 @@ static Future<Map<String, dynamic>> getChildBalance(
     return jsonDecode(response.body);
   }
 
-  return {"balances": [], "pending_payouts": []};
+  return {"stars": 0};
 }
 
 static Future<bool> approveTask(

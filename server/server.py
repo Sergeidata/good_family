@@ -2331,51 +2331,6 @@ def child_balance():
         conn = get_connection()
         cur = conn.cursor()
 
-        # Балансы по типам (старые, для совместимости)
-        cur.execute("""
-            SELECT rt.id, rt.name, COALESCE(SUM(t.reward_amount), 0)
-            FROM tasks t
-            JOIN reward_types rt ON rt.id = t.reward_type_id
-            WHERE t.family_id = %s
-              AND t.assigned_to = %s
-              AND t.status = 'approved'
-              AND t.id NOT IN (
-                  SELECT pt.task_id
-                  FROM payout_tasks pt
-                  JOIN payouts p ON p.id = pt.payout_id
-                  WHERE p.status = 'pending'
-              )
-            GROUP BY rt.id, rt.name
-            ORDER BY rt.name
-        """, (family_id, user_name))
-
-        balances = []
-        for row in cur.fetchall():
-            balances.append({
-                "reward_type_id": row[0],
-                "type": row[1],
-                "amount": row[2]
-            })
-
-        # Неподтверждённые выплаты
-        cur.execute("""
-            SELECT p.id, p.reward_type_id, rt.name, p.amount_rub
-            FROM payouts p
-            JOIN reward_types rt ON rt.id = p.reward_type_id
-            WHERE p.family_id = %s
-              AND p.child_name = %s
-              AND p.status = 'pending'
-        """, (family_id, user_name))
-
-        pending_payouts = []
-        for row in cur.fetchall():
-            pending_payouts.append({
-                "payout_id": row[0],
-                "reward_type_id": row[1],
-                "type": row[2],
-                "amount": row[3]
-            })
-
         # ⭐ Звёзды: заработано - потрачено
         cur.execute("""
             SELECT COALESCE(SUM(stars), 0)
@@ -2398,8 +2353,6 @@ def child_balance():
 
         return jsonify({
             "status": "ok",
-            "balances": balances,
-            "pending_payouts": pending_payouts,
             "stars": total_stars
         })
 
