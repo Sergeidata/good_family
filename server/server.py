@@ -5,9 +5,7 @@ import sqlite3
 import json
 import uuid
 import random
-from flask import Response
-import csv
-import io, os
+import os
 from PIL import Image
 
 from flask import send_from_directory
@@ -1765,161 +1763,6 @@ def achievement_progress():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-@app.route("/admin/families", methods=["GET"])
-def admin_families():
-
-    try:
-
-        conn = get_connection()
-        cur = conn.cursor()
-
-        cur.execute("""
-            SELECT
-                f.family_id,
-                f.family_name,
-                f.created_at,
-
-                COUNT(DISTINCT m.user_name) AS members_count,
-
-                COUNT(
-                    DISTINCT CASE
-                        WHEN st.date >= CURRENT_DATE - INTERVAL '7 days'
-                        THEN m.user_name
-                    END
-                ) AS active_7d,
-
-                COUNT(
-                    DISTINCT CASE
-                        WHEN st.date >= CURRENT_DATE - INTERVAL '30 days'
-                        THEN m.user_name
-                    END
-                ) AS active_30d,
-
-                                COALESCE(
-                    COUNT(DISTINCT a.id) + COUNT(DISTINCT ga.id),
-                    0
-                ) AS total_achievements,
-
-                COALESCE(
-                    COUNT(DISTINCT CASE
-                        WHEN a.earned_date >= CURRENT_DATE - INTERVAL '7 days'
-                        THEN a.id
-                    END) +
-                    COUNT(DISTINCT CASE
-                        WHEN ga.earned_date >= CURRENT_DATE - INTERVAL '7 days'
-                        THEN ga.id
-                    END),
-                    0
-                ) AS weekly_achievements,
-
-                COALESCE(
-                    COUNT(DISTINCT CASE
-                        WHEN a.earned_date >= DATE_TRUNC('month', CURRENT_DATE)
-                        THEN a.id
-                    END) +
-                    COUNT(DISTINCT CASE
-                        WHEN ga.earned_date >= DATE_TRUNC('month', CURRENT_DATE)
-                        THEN ga.id
-                    END),
-                    0
-                ) AS monthly_achievements,
-
-                COALESCE(
-                    MAX(g.level),
-                    1
-                ) AS garden_level,
-
-                MAX(st.created_at) AS last_sync
-
-            FROM families f
-
-            LEFT JOIN members m
-                ON f.family_id = m.family_id
-
-            LEFT JOIN screen_time st
-                ON m.user_name = st.user_id
-                    
-            LEFT JOIN achievements a ON a.user_name = m.user_name AND a.family_id = f.family_id
-            LEFT JOIN achievements ga ON ga.user_name = f.family_name AND ga.period = 'group' AND ga.family_id = f.family_id
-
-            LEFT JOIN garden g
-                ON f.family_id = g.family_id
-
-            GROUP BY
-                f.family_id,
-                f.family_name,
-                f.created_at
-
-            ORDER BY
-                f.created_at DESC
-        """)
-
-        rows = cur.fetchall()
-
-        output = io.StringIO()
-        output.write('\ufeff')
-        writer = csv.writer(
-            output,
-            delimiter=';'
-        )
-
-        writer.writerow([
-            "family_id",
-            "family_name",
-            "created_at",
-            "members_count",
-            "active_7d",
-            "active_30d",
-            "total_achievements",
-            "weekly_achievements",
-            "monthly_achievements",
-            "garden_level",
-            "last_sync"
-        ])
-
-        for row in rows:
-
-            writer.writerow([
-                row[0],
-                row[1],
-                row[2].strftime("%Y-%m-%d")
-                if row[2]
-                else "",
-
-                row[3],
-                row[4],
-                row[5],
-                row[6],
-                row[7],
-                row[8],
-                row[9],
-
-                row[10].strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
-                if row[10]
-                else ""
-            ])
-
-        cur.close()
-        conn.close()
-
-        return Response(
-            output.getvalue(),
-            mimetype="text/csv",
-            headers={
-                "Content-Disposition":
-                    "attachment; filename=families_report.csv"
-            }
-        )
-
-    except Exception as e:
-
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
-    
 
 @app.route("/tasks/create", methods=["POST"])
 def create_task():
@@ -2772,10 +2615,10 @@ def latest_version():
     try:
         # Версия приложения (обновлять вручную при выпуске)
         current_version_name = "1.2.1"
-        current_version_code = 10
+        current_version_code = 9
 
         # Минимальная версия для принудительного обновления
-        min_version_code = 9  # ← МЕНЯЙТЕ ВРУЧНУЮ
+        min_version_code = 8  # ← МЕНЯЙТЕ ВРУЧНУЮ
 
         return jsonify({
             "status": "ok",
@@ -2790,6 +2633,16 @@ def latest_version():
 @app.route("/export_stats")
 def export_stats():
     try:
+
+        # ---------------------------------
+        # Проверка секретного токена
+        # ---------------------------------
+        secret = request.args.get("secret", "")
+        expected = os.environ.get("EXPORT_STATS_SECRET", "")
+
+        if not expected or secret != expected:
+            return jsonify({"status": "error", "message": "unauthorized"}), 403
+
         conn = get_connection()
         cur = conn.cursor()
 

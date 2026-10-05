@@ -560,20 +560,6 @@ static Future<bool> rejectTask(
 }
 
 
-static Future<List<dynamic>> getPayouts(String familyId, String childName) async {
-  try {
-    final response = await http.get(
-      Uri.parse("$baseUrl/payouts?family_id=$familyId&child_name=${Uri.encodeComponent(childName)}"),
-    ).timeout(const Duration(seconds: 10));
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data["payouts"] ?? [];
-    }
-  } catch (e) {
-    print("GET PAYOUTS ERROR: $e");
-  }
-  return [];
-}
 
 static Future<Map<String, dynamic>?> getAchievementProgress(
   String familyId,
