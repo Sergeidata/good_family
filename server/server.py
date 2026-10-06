@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 import psycopg2
-import sqlite3
 import json
 import uuid
 import random
@@ -19,31 +18,15 @@ app = Flask(__name__)
 # ---------------------------------
 # Database
 # ---------------------------------
-def is_postgres():
-    return True
-
-
 def get_connection():
 
-    if is_postgres():
+    # Продакшен: задавайте через systemd Environment= / EnvironmentFile=
+    DATABASE_URL = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://familyfocus_user:CIVil456@localhost:5432/familyfocus",
+    )
 
-        # Продакшен: задавайте через systemd Environment= / EnvironmentFile=
-        DATABASE_URL = os.environ.get(
-            "DATABASE_URL",
-            "postgresql://familyfocus_user:CIVil456@localhost:5432/familyfocus",
-        )
-
-        return psycopg2.connect(DATABASE_URL)
-
-    else:
-
-        conn = sqlite3.connect(
-            "familyfocus.db"
-        )
-
-        conn.row_factory = sqlite3.Row
-
-        return conn
+    return psycopg2.connect(DATABASE_URL)
 
 
 def init_db():
@@ -344,35 +327,18 @@ def stats():
 
         cur = conn.cursor()
 
-        if is_postgres():
-
-            cur.execute("""
-                SELECT
-                    total_seconds,
-                    top_apps
-                FROM screen_time
-                WHERE user_id = %s
-                AND date BETWEEN %s AND %s
-            """, (
-                user_id,
-                start_date,
-                end_date
-            ))
-
-        else:
-
-            cur.execute("""
-                SELECT
-                    total_seconds,
-                    top_apps
-                FROM screen_time
-                WHERE user_id = ?
-                AND date BETWEEN ? AND ?
-            """, (
-                user_id,
-                start_date,
-                end_date
-            ))
+        cur.execute("""
+            SELECT
+                total_seconds,
+                top_apps
+            FROM screen_time
+            WHERE user_id = %s
+            AND date BETWEEN %s AND %s
+        """, (
+            user_id,
+            start_date,
+            end_date
+        ))
 
         rows = cur.fetchall()
 
@@ -382,23 +348,8 @@ def stats():
 
         for row in rows:
 
-            if is_postgres():
-
-                total = row[0]
-                top_apps = row[1]
-
-            else:
-
-                total = row["total_seconds"]
-
-                top_apps_raw = row["top_apps"]
-
-                try:
-                    top_apps = json.loads(
-                        top_apps_raw
-                    )
-                except Exception:
-                    top_apps = []
+            total = row[0]
+            top_apps = row[1]
 
             total_seconds += total
 
@@ -794,65 +745,34 @@ def family_member_status():
 
         cur = conn.cursor()
 
-        if is_postgres():
+        cur.execute("""
+            SELECT
+                m.user_name,
+                MAX(st.created_at) as last_sync
+            FROM members m
+            LEFT JOIN screen_time st
+                ON m.user_name = st.user_id
+            WHERE m.family_id = %s
+            GROUP BY m.user_name
+            ORDER BY m.user_name
+        """, (
+            family_id,
+        ))
 
-            cur.execute("""
-                SELECT
-                    m.user_name,
-                    MAX(st.created_at) as last_sync
-                FROM members m
-                LEFT JOIN screen_time st
-                    ON m.user_name = st.user_id
-                WHERE m.family_id = %s
-                GROUP BY m.user_name
-                ORDER BY m.user_name
-            """, (
-                family_id,
-            ))
+        rows = cur.fetchall()
 
-            rows = cur.fetchall()
+        members = []
 
-            members = []
+        for row in rows:
 
-            for row in rows:
-
-                members.append({
-                    "user_name": row[0],
-                    "last_sync": (
-                        row[1].isoformat()
-                        if row[1]
-                        else None
-                    )
-                })
-
-        else:
-
-            cur.execute("""
-                SELECT
-                    m.user_name,
-                    MAX(st.created_at) as last_sync
-                FROM members m
-                LEFT JOIN screen_time st
-                    ON m.user_name = st.user_id
-                WHERE m.family_id = ?
-                GROUP BY m.user_name
-                ORDER BY m.user_name
-            """, (
-                family_id,
-            ))
-
-            rows = cur.fetchall()
-
-            members = []
-
-            for row in rows:
-
-                members.append({
-                    "user_name":
-                        row["user_name"],
-                    "last_sync":
-                        row["last_sync"]
-                })
+            members.append({
+                "user_name": row[0],
+                "last_sync": (
+                    row[1].isoformat()
+                    if row[1]
+                    else None
+                )
+            })
 
         cur.close()
         conn.close()
@@ -886,57 +806,29 @@ def family_info():
     conn = get_connection()
     cur = conn.cursor()
 
-    if is_postgres():
+    cur.execute("""
+        SELECT
+            family_name,
+            invite_code,
+            created_at
+        FROM families
+        WHERE family_id = %s
+    """, (
+        family_id,
+    ))
 
-        cur.execute("""
-            SELECT
-                family_name,
-                invite_code,
-                created_at
-            FROM families
-            WHERE family_id = %s
-        """, (
-            family_id,
-        ))
+    row = cur.fetchone()
 
-        row = cur.fetchone()
+    if not row:
+        return jsonify({
+            "status": "error"
+        }), 404
 
-        if not row:
-            return jsonify({
-                "status": "error"
-            }), 404
-
-        result = {
-            "family_name": row[0],
-            "invite_code": row[1],
-            "created_at": str(row[2])
-        }
-
-    else:
-
-        cur.execute("""
-            SELECT
-                family_name,
-                invite_code,
-                created_at
-            FROM families
-            WHERE family_id = ?
-        """, (
-            family_id,
-        ))
-
-        row = cur.fetchone()
-
-        if not row:
-            return jsonify({
-                "status": "error"
-            }), 404
-
-        result = {
-            "family_name": row["family_name"],
-            "invite_code": row["invite_code"],
-            "created_at": row["created_at"]
-        }
+    result = {
+        "family_name": row[0],
+        "invite_code": row[1],
+        "created_at": str(row[2])
+    }
 
     cur.close()
     conn.close()
