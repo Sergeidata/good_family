@@ -75,6 +75,35 @@ class ApiService {
       return null;
     }
   }
+
+  // ---------------------------------
+  // LEAVE FAMILY
+  // ---------------------------------
+  static Future<Map<String, dynamic>?> leaveFamily(
+    String familyId,
+    String userName,
+    String deviceId,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/leave_family"),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          "family_id": familyId,
+          "user_name": userName,
+          "requester_device_id": deviceId,
+        }),
+      ).timeout(
+        const Duration(seconds: 10),
+      );
+
+      return jsonDecode(response.body);
+    } catch (_) {
+      return null;
+    }
+  }
   // удаление членов
   static Future<bool> removeMember(
     String familyId,

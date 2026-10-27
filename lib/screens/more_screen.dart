@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../services/sync_service_helper.dart';
 import 'welcome_screen.dart';
 import 'permissions_screen.dart';
 import 'info_screen.dart';
@@ -281,6 +284,98 @@ family_id: $familyId
         false;
 
     if (!result) return;
+
+    // Выход только через сервер: без подтверждения сервера семью не чистим.
+    final familyId = (family["family_id"] ?? "").toString();
+    final userName = (family["user_name"] ?? "").toString();
+
+    final prefs = await SharedPreferences.getInstance();
+    final deviceId = prefs.getString("device_id") ?? "";
+
+    final res = await ApiService.leaveFamily(
+      familyId,
+      userName,
+      deviceId,
+    );
+
+    if (!context.mounted) return;
+
+    // Нет связи с сервером — остаёмся в семье, локальные данные не трогаем.
+    if (res == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Нет связи с сервером"),
+        ),
+      );
+      return;
+    }
+
+    if (res["status"]?.toString() != "ok") {
+      if (res["message"]?.toString() == "cannot leave as last admin") {
+        await showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+            contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+            actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+            title: const Text(
+              "Нельзя выйти",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Text(
+              "Вы последний администратор, сначала назначьте другого или удалите семью",
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.45,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            actions: [
+              SizedBox(
+                width: double.infinity,
+                height: 46,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                  ),
+                  child: const Text(
+                    "Понятно",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            res["message"]?.toString() ?? "Не удалось выйти из семьи",
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Нативный сервис не должен продолжать синк со старым family_id.
+    await SyncServiceHelper.stop();
 
     await FamilyStorage.saveFamily({});
 
