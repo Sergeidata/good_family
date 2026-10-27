@@ -36,7 +36,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
     _role = family['role'] ?? '';
 
     // История заданий
-    final tasks = await ApiService.getTasks(_familyId, _role == 'child' ? _userName : null);
+    final tasks = (await ApiService.getTasks(_familyId, _role == 'child' ? _userName : null)) ?? [];
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
 

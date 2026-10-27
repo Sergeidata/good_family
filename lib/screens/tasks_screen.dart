@@ -183,7 +183,7 @@ Widget build(BuildContext context) {
           title: 'Мои задания',
           subtitle: 'Выполняй задания и зарабатывай монеты!',
           screen: TasksActiveScreen(),
-          trailing: FutureBuilder<List<dynamic>>(
+          trailing: FutureBuilder<List<dynamic>?>(
   future: ApiService.getTasks(_familyId, null),
   builder: (ctx, snap) {
     final tasks = snap.data ?? [];
@@ -251,7 +251,7 @@ Widget build(BuildContext context) {
               title: 'На проверке',
               subtitle: 'Выполненные задания, которые нужно проверить',
               screen: TasksReviewScreen(),
-              trailing: FutureBuilder<List<dynamic>>(
+              trailing: FutureBuilder<List<dynamic>?>(
                 future: ApiService.getTasks(_familyId, null),
                 builder: (ctx, snap) {
                   final count = snap.data?.where((t) => t["status"] == "done").length ?? 0;

@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../widgets/loading_dots.dart';
 import '../utils/app_utils.dart';
+import '../widgets/error_state.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 
@@ -18,6 +19,7 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
   String _userName = '';
   List<dynamic> _tasks = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -26,14 +28,31 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     final family = await FamilyStorage.loadFamily();
     _familyId = family['family_id'] ?? '';
     _userName = family['user_name'] ?? '';
 
     final tasks = await ApiService.getTasks(_familyId, null);
+
+    if (!mounted) return;
+
+    if (tasks == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет связи с сервером';
+      });
+      return;
+    }
+
     setState(() {
       _tasks = tasks.where((t) => t['status'] == 'done').toList();
       _loading = false;
+      _error = null;
     });
   }
 
@@ -382,18 +401,23 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
       return const Scaffold(body: Center(child: LoadingDots()));
     }
 
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('На проверке')),
+        body: ErrorState(
+          message: _error!,
+          onRetry: _loadData,
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('На проверке')),
       body: _tasks.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.fact_check_outlined, size: 72, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Нет заданий на проверке', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                ],
-              ),
+          ? const EmptyState(
+              icon: Icons.fact_check_outlined,
+              title: 'Нет заданий на проверке',
+              subtitle: 'Здесь появятся выполненные задания детей',
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),

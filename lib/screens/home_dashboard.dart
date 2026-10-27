@@ -739,7 +739,7 @@ Future<void> _loadTasksData() async {
   final role = family["role"] ?? "";
   if (familyId == null) return;
 
-  final tasks = await ApiService.getTasks(familyId, null);
+  final tasks = (await ApiService.getTasks(familyId, null)) ?? [];
 
   final now = DateTime.now();
   final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;

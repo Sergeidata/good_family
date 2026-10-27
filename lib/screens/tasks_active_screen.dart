@@ -3,8 +3,10 @@ import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
+import 'tasks_create_screen.dart';
 import '../utils/app_utils.dart';
 import '../widgets/loading_dots.dart';
+import '../widgets/error_state.dart';
 
 class TasksActiveScreen extends StatefulWidget {
   const TasksActiveScreen({super.key});
@@ -19,6 +21,7 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   String _role = '';
   List<dynamic> _tasks = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -27,12 +30,28 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   }
 
   Future<void> _loadData() async {
+  setState(() {
+    _loading = true;
+    _error = null;
+  });
+
   final family = await FamilyStorage.loadFamily();
   _familyId = family['family_id'] ?? '';
   _userName = family['user_name'] ?? '';
   _role = family['role'] ?? '';
 
   final tasks = await ApiService.getTasks(_familyId, null);
+
+  if (!mounted) return;
+
+  if (tasks == null) {
+    setState(() {
+      _loading = false;
+      _error = 'Нет связи с сервером';
+    });
+    return;
+  }
+
   final now = DateTime.now();
   final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
 
@@ -57,6 +76,7 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
       }).toList();
     }
     _loading = false;
+    _error = null;
   });
 }
 
@@ -311,24 +331,42 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isChild = _role == 'child';
+
     if (_loading) {
       return const Scaffold(body: Center(child: LoadingDots()));
     }
 
-    final isChild = _role == 'child';
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(isChild ? 'Мои задания' : 'Активные задания')),
+        body: ErrorState(
+          message: _error!,
+          onRetry: _loadData,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: Text(isChild ? 'Мои задания' : 'Активные задания')),
       body: _tasks.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle_outline, size: 72, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text('Нет активных заданий', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                ],
-              ),
+          ? EmptyState(
+              icon: Icons.check_circle_outline,
+              title: 'Нет активных заданий',
+              subtitle: isChild
+                  ? 'Выполни задание и заработай монеты'
+                  : 'Создай первое задание для семьи',
+              actionText: isChild ? null : 'Создать задание',
+              onAction: isChild
+                  ? null
+                  : () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const TasksCreateScreen(),
+                        ),
+                      ).then((_) => _loadData());
+                    },
             )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
