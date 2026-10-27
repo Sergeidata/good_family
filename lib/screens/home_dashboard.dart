@@ -27,198 +27,8 @@ class HomeDashboard extends StatefulWidget {
   State<HomeDashboard> createState() => _HomeDashboardState();
 }
 
-class TimeCirclePainter
-    extends CustomPainter {
-
-  final double progress;
-
-  TimeCirclePainter(
-    this.progress,
-  );
-
-  @override
-  void paint(
-    Canvas canvas,
-    Size size,
-  ) {
-
-    final center =
-        Offset(
-      size.width / 2,
-      size.height / 2,
-    );
-
-    final radius =
-        size.width / 2 - 12;
-
-    final backgroundPaint =
-        Paint()
-          ..color =
-              Colors.grey.shade300
-          ..strokeWidth = 12
-          ..style =
-              PaintingStyle.stroke;
-
-    canvas.drawCircle(
-      center,
-      radius,
-      backgroundPaint,
-    );
-
-    final progressPaint =
-        Paint()
-          ..color =
-              progress <= 7200 / 43200
-                  ? Colors.green
-                  : progress <=
-                          14400 /
-                              43200
-                      ? Colors.orange
-                      : Colors.red
-          ..strokeWidth = 12
-          ..style =
-              PaintingStyle.stroke
-          ..strokeCap =
-              StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(
-        center: center,
-        radius: radius,
-      ),
-      -math.pi / 2,
-      progress *
-          math.pi *
-          2,
-      false,
-      progressPaint,
-    );
-
-    void tick(
-      double angle,
-      String label,
-      Color color,
-    ) {
-
-      final outer =
-          Offset(
-        center.dx +
-            math.cos(angle) *
-                radius,
-        center.dy +
-            math.sin(angle) *
-                radius,
-      );
-
-      final inner =
-          Offset(
-        center.dx +
-            math.cos(angle) *
-                (radius - 15),
-        center.dy +
-            math.sin(angle) *
-                (radius - 15),
-      );
-
-      canvas.drawLine(
-        inner,
-        outer,
-        Paint()
-          ..color = color
-          ..strokeWidth = 3,
-      );
-
-      final textPainter =
-          TextPainter(
-        text: TextSpan(
-          text: label,
-          style:
-              const TextStyle(
-            color:
-                Colors.black,
-            fontSize: 14,
-            fontWeight:
-                FontWeight.bold,
-          ),
-        ),
-        textDirection:
-            TextDirection.ltr,
-      );
-
-      textPainter.layout();
-
-      final labelPos =
-          Offset(
-        center.dx +
-                math.cos(
-                    angle) *
-                    (radius +
-                        18) -
-            textPainter.width /
-                2,
-        center.dy +
-                math.sin(
-                    angle) *
-                    (radius +
-                        18) -
-            textPainter.height /
-                2,
-      );
-
-      textPainter.paint(
-        canvas,
-        labelPos,
-      );
-    }
-
-    tick(
-      -math.pi / 2,
-      "0ч",
-      Colors.black,
-    );
-
-    tick(
-      -math.pi / 6,
-      "2ч",
-      Colors.green,
-    );
-
-    tick(
-      math.pi / 6,
-      "4ч",
-      Colors.red,
-    );
-
-    tick(
-      math.pi / 2,
-      "6ч",
-      Colors.black,
-    );
-
-    tick(
-      5 * math.pi / 6,
-      "8ч",
-      Colors.black,
-    );
-
-    tick(
-      7 * math.pi / 6,
-      "10ч",
-      Colors.black,
-    );
-  }
-
-  @override
-  bool shouldRepaint(
-    covariant CustomPainter
-        oldDelegate,
-  ) {
-    return true;
-  }
-}
-
 class _HomeDashboardState extends State<HomeDashboard>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _screenSeconds = 0;
 
   Map<String, dynamic>? _dashboard;
@@ -231,9 +41,9 @@ class _HomeDashboardState extends State<HomeDashboard>
   String _userName = "";
   String _greeting = "";
 
-  Timer? _timer;
-
   Timer? _syncTimer;
+
+  Timer? _statsTimer;
 
   bool _serviceStarted = false;
 
@@ -277,6 +87,8 @@ class _HomeDashboardState extends State<HomeDashboard>
 void initState() {
   super.initState();
 
+  WidgetsBinding.instance.addObserver(this);
+
   _refreshController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
@@ -299,8 +111,6 @@ void initState() {
 
     _updateTodayMessage();        
 
-    _startCounter();
-
     _refreshStats();
 
     _startBackgroundService();
@@ -313,28 +123,30 @@ void initState() {
         _syncToServer();
       },
     );
+
+    _statsTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) {
+        _refreshStats(syncToServer: false);
+      },
+    );
   }
 
   @override
 void dispose() {
-  _timer?.cancel();
+  WidgetsBinding.instance.removeObserver(this);
   _syncTimer?.cancel();
+  _statsTimer?.cancel();
   _refreshController.dispose();
   super.dispose();
 }
 
-  void _startCounter() {
-  _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-    final now = DateTime.now();
-    // Сброс в полночь
-    if (now.hour == 0 && now.minute == 0 && now.second == 0) {
-      _screenSeconds = 0;
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshStats();
     }
-    setState(() {
-      _screenSeconds++;
-    });
-  });
-}
+  }
 
   Future<void> _checkPermission() async {
     // Статистика
@@ -1041,7 +853,7 @@ Future<void> _loadHeader() async {
 }
 
 
-  Future<void> _refreshStats() async {
+  Future<void> _refreshStats({bool syncToServer = true}) async {
     final stats =
         await UsageStatsHelper
             .getScreenTimeToday();
@@ -1067,6 +879,8 @@ Future<void> _loadHeader() async {
   },
 );
 
+    if (!mounted) return;
+
     setState(() {
       _screenSeconds =
           totalSeconds;
@@ -1074,7 +888,9 @@ Future<void> _loadHeader() async {
       _topApps = sorted.take(10).toList();
     });
 
-    await _syncToServer();
+    if (syncToServer) {
+      await _syncToServer();
+    }
 
     if (mounted) {
       setState(() {
