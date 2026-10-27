@@ -34,15 +34,20 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
     // Балансы детей
     final members = await ApiService.getMembers(_familyId);
     final children = (members?["members"] ?? []).where((m) => m["role"] == "child").toList();
-    List<Map<String, dynamic>> balances = [];
-    for (final child in children) {
-      final data = await ApiService.getChildBalance(_familyId, child["user_name"]);
-      balances.add({
-        "name": child["user_name"],
-        "avatar": child["avatar"] ?? "👦",
-        "stars": data["stars"] ?? 0,
-      });
-    }
+
+    // Балансы детей — параллельно, без N+1.
+    final List<Map<String, dynamic>> balances = await Future.wait(
+      children.map(
+        (child) async {
+          final data = await ApiService.getChildBalance(_familyId, child["user_name"]);
+          return <String, dynamic>{
+            "name": child["user_name"],
+            "avatar": child["avatar"] ?? "👦",
+            "stars": data["stars"] ?? 0,
+          };
+        },
+      ),
+    );
 
     setState(() {
       _requests = requests;

@@ -186,50 +186,52 @@ class _ChampionsTabState
       return;
     }
 
-    final members =
+    final List<dynamic> members =
         membersResponse[
                 "members"] ??
             [];
 
-    List<Map<String, dynamic>>
-        weekStats = [];
+    // week + month по каждому участнику — параллельно, без N+1.
+    final results = await Future.wait<Map<String, dynamic>>(
+      members.map(
+        (member) async {
+          final userName = member["user_name"];
+          final avatar = member["avatar"] ?? "👤";
 
-    List<Map<String, dynamic>>
-        monthStats = [];
+          final responses = await Future.wait([
+            ApiService.getStats(userName, "week"),
+            ApiService.getStats(userName, "month"),
+          ]);
 
-    for (final member
-        in members) {
+          return <String, dynamic>{
+            "name": userName,
+            "avatar": avatar,
+            "week": responses[0]?["total_seconds"] ?? 0,
+            "month": responses[1]?["total_seconds"] ?? 0,
+          };
+        },
+      ),
+    );
 
-      final userName =
-          member[
-              "user_name"];
+    final List<Map<String, dynamic>> weekStats = results
+        .map<Map<String, dynamic>>(
+          (row) => <String, dynamic>{
+            "name": row["name"],
+            "seconds": row["week"],
+            "avatar": row["avatar"],
+          },
+        )
+        .toList();
 
-      final week =
-          await ApiService
-              .getStats(
-        userName,
-        "week",
-      );
-
-      final month =
-          await ApiService
-              .getStats(
-        userName,
-        "month",
-      );
-
-      weekStats.add({
-  "name": userName,
-  "seconds": week?["total_seconds"] ?? 0,
-  "avatar": member["avatar"] ?? "👤",
-});
-
-      monthStats.add({
-  "name": userName,
-  "seconds": month?["total_seconds"] ?? 0,
-  "avatar": member["avatar"] ?? "👤",
-});
-    }
+    final List<Map<String, dynamic>> monthStats = results
+        .map<Map<String, dynamic>>(
+          (row) => <String, dynamic>{
+            "name": row["name"],
+            "seconds": row["month"],
+            "avatar": row["avatar"],
+          },
+        )
+        .toList();
 
     weekStats.sort(
       (a, b) =>
@@ -1033,21 +1035,47 @@ int _countEarned() {
 
   try {
     final membersResponse = await ApiService.getMembers(familyId);
-    final members = membersResponse?["members"] ?? [];
+    final List<dynamic> members = membersResponse?["members"] ?? [];
 
     
 
-    List<Map<String, dynamic>> weekStats = [];
-    List<Map<String, dynamic>> monthStats = [];
+    // week + month по каждому участнику — параллельно, без N+1.
+    final results = await Future.wait<Map<String, dynamic>>(
+      members.map(
+        (member) async {
+          final userName = member["user_name"];
 
-    for (final member in members) {
-      final userName = member["user_name"];
-      final weekResponse = await ApiService.getStats(userName, "week");
-      final monthResponse = await ApiService.getStats(userName, "month");
+          final responses = await Future.wait([
+            ApiService.getStats(userName, "week"),
+            ApiService.getStats(userName, "month"),
+          ]);
 
-      weekStats.add({"name": userName, "seconds": weekResponse?["total_seconds"] ?? 0});
-      monthStats.add({"name": userName, "seconds": monthResponse?["total_seconds"] ?? 0});
-    }
+          return <String, dynamic>{
+            "name": userName,
+            "week": responses[0]?["total_seconds"] ?? 0,
+            "month": responses[1]?["total_seconds"] ?? 0,
+          };
+        },
+      ),
+    );
+
+    List<Map<String, dynamic>> weekStats = results
+        .map<Map<String, dynamic>>(
+          (row) => <String, dynamic>{
+            "name": row["name"],
+            "seconds": row["week"],
+          },
+        )
+        .toList();
+
+    List<Map<String, dynamic>> monthStats = results
+        .map<Map<String, dynamic>>(
+          (row) => <String, dynamic>{
+            "name": row["name"],
+            "seconds": row["month"],
+          },
+        )
+        .toList();
 
     weekStats.sort((a, b) => (a["seconds"] as int).compareTo(b["seconds"] as int));
     monthStats.sort((a, b) => (a["seconds"] as int).compareTo(b["seconds"] as int));

@@ -83,7 +83,7 @@ class _GroupScreenState
       return;
     }
 
-    final members =
+    final List<dynamic> members =
         membersResponse["members"] ?? [];
 
     final periodMap = {
@@ -97,28 +97,26 @@ class _GroupScreenState
         periodMap[_selectedPeriod] ??
             "today";
 
-    List<Map<String, dynamic>>
-        stats = [];
+    // Запросы по участникам — параллельно, чтобы не ждать таймауты по очереди.
+    final results = await Future.wait<Map<String, dynamic>>(
+      members.map(
+        (member) async {
+          final userName = member["user_name"];
 
-    for (final member in members) {
+          final response = await ApiService.getStats(
+            userName,
+            apiPeriod,
+          );
 
-      final userName =
-          member["user_name"];
+          return <String, dynamic>{
+            "name": userName,
+            "seconds": response?["total_seconds"] ?? 0,
+          };
+        },
+      ),
+    );
 
-      final response =
-          await ApiService.getStats(
-        userName,
-        apiPeriod,
-      );
-
-      int totalSeconds =
-          response?["total_seconds"] ?? 0;
-
-      stats.add({
-        "name": userName,
-        "seconds": totalSeconds,
-      });
-    }
+    final List<Map<String, dynamic>> stats = results;
 
     stats.sort(
       (a, b) => (a["seconds"] as int)
