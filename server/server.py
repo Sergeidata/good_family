@@ -666,6 +666,78 @@ def remove_member():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+# Выход из семьи: удаляем только свою запись, найденную по device_id.
+@app.route("/leave_family", methods=["POST"])
+def leave_family():
+    try:
+        data = request.json
+        family_id = data.get("family_id")
+        user_name = data.get("user_name")
+        requester_device_id = data.get("requester_device_id")
+
+        if not family_id or not user_name or not requester_device_id:
+            return jsonify({"status": "error", "message": "missing fields"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Имя может дублироваться — берём все записи с этим именем в семье
+        cur.execute("""
+            SELECT id, device_id, role FROM members
+            WHERE family_id = %s AND user_name = %s
+        """, (family_id, user_name))
+
+        rows = cur.fetchall()
+        if not rows:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "not found"}), 404
+
+        member = None
+        for row in rows:
+            if (row[1] or "") == requester_device_id:
+                member = row
+                break
+
+        if not member:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "not your account"}), 403
+
+        member_id = member[0]
+
+        # Последний админ не может выйти, иначе семья останется без управления.
+        # Проверка только для админа: обычный участник выходит без ограничений.
+        if member[2] in ("admin", "admin_parent"):
+            cur.execute("""
+                SELECT COUNT(*) FROM members
+                WHERE family_id = %s
+                  AND role IN ('admin', 'admin_parent')
+                  AND id <> %s
+            """, (family_id, member_id))
+
+            if cur.fetchone()[0] == 0:
+                cur.close()
+                conn.close()
+                return jsonify({
+                    "status": "error",
+                    "message": "cannot leave as last admin"
+                }), 403
+
+        cur.execute("""
+            DELETE FROM members
+            WHERE id = %s AND family_id = %s
+        """, (member_id, family_id))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+        return jsonify({"status": "ok"})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route(
     "/update_member",
     methods=["POST"]
