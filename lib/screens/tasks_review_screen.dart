@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../widgets/loading_dots.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 
@@ -119,14 +120,18 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
                   backgroundColor: Colors.green.shade600,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                child: const Text(
-                  "Принять",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    "Принять",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -373,7 +378,7 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: LoadingDots()));
     }
 
     return Scaffold(

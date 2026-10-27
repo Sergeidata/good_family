@@ -78,7 +78,7 @@ class ApiService {
   // удаление членов
   static Future<bool> removeMember(
     String familyId,
-    String userName,
+    int memberId,
     String deviceId,
   ) async {
     try {
@@ -93,7 +93,7 @@ class ApiService {
         },
         body: jsonEncode({
           'family_id': familyId,
-          'user_name': userName,
+          'member_id': memberId,
           'requester_device_id':
               deviceId,
         }),

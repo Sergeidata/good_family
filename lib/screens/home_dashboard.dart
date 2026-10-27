@@ -18,6 +18,7 @@ import 'package:yaml/yaml.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'tasks_screen.dart';
 import 'main_navigation_screen.dart';
+import '../widgets/loading_dots.dart';
 
 class HomeDashboard extends StatefulWidget {
   const HomeDashboard({super.key});
@@ -223,6 +224,7 @@ class _HomeDashboardState extends State<HomeDashboard>
   Map<String, dynamic>? _dashboard;
   Map<String, dynamic>? _gardenData;
   Map<String, dynamic>? _tasksData;
+  bool _loading = true;
 
   late final AnimationController _refreshController;
 
@@ -286,11 +288,7 @@ void initState() {
 
     _checkForUpdate();
 
-    _loadDashboard();
-
-    _loadGardenData();
-
-    _loadTasksData();
+    _loadAllData();
 
     _loadHeader();
 
@@ -858,16 +856,20 @@ Future<void> _refreshDashboard() async {
                   Icons.download_rounded,
                   size: 19,
                 ),
-                label: const Text(
-                  "Обновить",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    "Обновить",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange.shade600,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -883,6 +885,20 @@ Future<void> _refreshDashboard() async {
     }
   } catch (_) {}
 }
+
+  Future<void> _loadAllData() async {
+    await Future.wait([
+      _loadGardenData(),
+      _loadTasksData(),
+      _loadDashboard(),
+    ]);
+
+    if (mounted) {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
 
 Future<void> _loadGardenData() async {
   final family = await FamilyStorage.loadFamily();
@@ -1653,17 +1669,24 @@ Widget build(BuildContext context) {
 
 const SizedBox(height: 24),
 
-Row(
-  children: [
-    Expanded(child: _buildGardenCard()),
-    const SizedBox(width: 16),
-    Expanded(child: _buildTasksCard()),
-  ],
-),
+if (_loading)
+  const Padding(
+    padding: EdgeInsets.symmetric(vertical: 40),
+    child: Center(child: LoadingDots()),
+  )
+else ...[
+  Row(
+    children: [
+      Expanded(child: _buildGardenCard()),
+      const SizedBox(width: 16),
+      Expanded(child: _buildTasksCard()),
+    ],
+  ),
 
-const SizedBox(height: 20),
+  const SizedBox(height: 20),
 
-_buildTodayCard(),
+  _buildTodayCard(),
+],
 
 
 

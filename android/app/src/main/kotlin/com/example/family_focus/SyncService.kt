@@ -29,7 +29,7 @@ class SyncService : Service() {
     companion object {
 
         private const val CHANNEL_ID =
-            "family_focus_sync"
+            "family_focus_sync_v2"
 
         private const val NOTIFICATION_ID = 1001
 
@@ -346,7 +346,7 @@ class SyncService : Service() {
                     CHANNEL_ID
                 )
                     .setSmallIcon(
-                        android.R.drawable.ic_dialog_info
+                        R.mipmap.ic_launcher
                     )
                     .setContentTitle(
                         title
@@ -432,7 +432,7 @@ class SyncService : Service() {
                     CHANNEL_ID
                 )
                     .setSmallIcon(
-                        android.R.drawable.ic_dialog_info
+                        R.mipmap.ic_launcher
                     )
                     .setContentTitle(
                         "Новые достижения!"
@@ -472,7 +472,7 @@ class SyncService : Service() {
             CHANNEL_ID
         )
             .setSmallIcon(
-                android.R.drawable.ic_dialog_info
+                R.mipmap.ic_launcher
             )
             .setContentTitle(
                 "Сад вырос!"
@@ -505,7 +505,7 @@ class SyncService : Service() {
                     CHANNEL_ID
                 )
                     .setSmallIcon(
-                        android.R.drawable.ic_dialog_info
+                        R.mipmap.ic_launcher
                     )
                     .setContentTitle(
                         title
@@ -780,7 +780,7 @@ class SyncService : Service() {
                 "Good Family работает в фоне"
             )
             .setSmallIcon(
-                android.R.drawable.ic_dialog_info
+                R.mipmap.ic_launcher
             )
             .setOngoing(true)
             .build()

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../utils/app_utils.dart';
+import '../widgets/loading_dots.dart';
 
 class RewardRequestsScreen extends StatefulWidget {
   const RewardRequestsScreen({super.key});
@@ -266,7 +267,7 @@ Future<void> _reject(int requestId) async {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
 
     return Scaffold(
       appBar: AppBar(

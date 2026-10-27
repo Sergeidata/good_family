@@ -501,7 +501,7 @@ family_id: $familyId
                   const SizedBox(height: 4),
 
                   Text(
-                    "Версия 1.1.1",
+                    "Версия 1.3.0",
                     style: TextStyle(
                       color:
                           Colors.grey.shade500,

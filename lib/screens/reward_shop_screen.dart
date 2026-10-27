@@ -5,6 +5,7 @@ import '../widgets/emoji_picker.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 import 'my_purchases_screen.dart';
+import '../widgets/loading_dots.dart';
 
 class RewardShopScreen extends StatefulWidget {
   final bool childMode;
@@ -545,14 +546,18 @@ Future<void> _buyReward(Map<String, dynamic> item) async {
                   backgroundColor: Colors.orange.shade600,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                child: const Text(
-                  "Купить",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    "Купить",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -662,7 +667,7 @@ Widget _buildChildHeader() {
 
  @override
 Widget build(BuildContext context) {
-  if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
 
   return Scaffold(
     appBar: AppBar(
@@ -869,14 +874,18 @@ Widget build(BuildContext context) {
                   backgroundColor: Colors.red.shade500,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                child: const Text(
-                  "Удалить",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    "Удалить",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),

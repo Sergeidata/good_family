@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../utils/app_utils.dart';
 import '../services/cache_storage.dart';
+import '../widgets/loading_dots.dart';
 
 class GroupScreen extends StatefulWidget {
   const GroupScreen({super.key});
@@ -388,10 +389,7 @@ class _GroupScreenState
 
             Expanded(
               child: _loading
-                  ? const Center(
-                      child:
-                          CircularProgressIndicator(),
-                    )
+                  ? const Center(child: LoadingDots())
                   : ListView.builder(
                       itemCount: _groupStats.length,
                       itemBuilder: (context, index) {

@@ -4,6 +4,7 @@ import '../services/family_storage.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 import '../utils/app_utils.dart';
+import '../widgets/loading_dots.dart';
 
 class TasksActiveScreen extends StatefulWidget {
   const TasksActiveScreen({super.key});
@@ -143,14 +144,18 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
                   backgroundColor: Colors.green.shade600,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                child: const Text(
-                  "Да, я сделал!",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    "Да, я сделал!",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -256,14 +261,18 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
                   backgroundColor: Colors.red.shade500,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                child: const Text(
-                  "Удалить",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    "Удалить",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -303,7 +312,7 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: LoadingDots()));
     }
 
     final isChild = _role == 'child';

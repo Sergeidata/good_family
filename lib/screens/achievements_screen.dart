@@ -4,6 +4,7 @@ import '../services/family_storage.dart';
 import '../services/cache_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/achievement_progress_sheet.dart';
+import '../widgets/loading_dots.dart';
 
 
 class AchievementsScreen extends StatefulWidget {
@@ -276,9 +277,7 @@ class _ChampionsTabState
   @override
 Widget build(BuildContext context) {
   if (_loading) {
-    return const Center(
-      child: CircularProgressIndicator(),
-    );
+    return const Center(child: LoadingDots());
   }
 
   final bool isMonth = _showMonthChampion;
@@ -1513,7 +1512,7 @@ Widget _buildSectionTitle(
   @override
   Widget build(BuildContext context) {
     if (_data == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: LoadingDots());
     }
 
     
@@ -2302,7 +2301,7 @@ Color _badgeColor(String rarity) {
  @override
 Widget build(BuildContext context) {
   if (_loading) {
-    return const Center(child: CircularProgressIndicator());
+    return const Center(child: LoadingDots());
   }
 
   final earnedCount = _earnedGroupCount;

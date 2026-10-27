@@ -134,14 +134,18 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
                   backgroundColor: Colors.red.shade500,
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                child: const Text(
-                  "Удалить",
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    "Удалить",
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ),
@@ -158,7 +162,7 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
   final family = await FamilyStorage.loadFamily();
   final ok = await ApiService.removeMember(
     family["family_id"],
-    member["user_name"],
+    member["id"] as int,
     _deviceId,
   );
 
@@ -187,7 +191,7 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
     try {
       final results = await Future.wait([
         ApiService.getFamilyInfo(familyId),
-        ApiService.getMembers(familyId),
+        ApiService.getMembers(familyId, _deviceId),
         ApiService.getFamilyMemberStatus(familyId),
       ]);
 
@@ -207,9 +211,7 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
         member['last_sync'] =
             match.isNotEmpty ? match['last_sync'] : null;
 
-        if (member["device_id"] == _deviceId &&
-            (member["role"] == "admin" ||
-                member["role"] == "admin_parent")) {
+        if (member["is_admin"] == true) {
           _isAdmin = true;
         }
       }
@@ -442,7 +444,7 @@ Future<void> _changeAvatar() async {
         ? 'Организатор'
         : (roleRaw == 'parent' ? 'Родитель' : 'Участник');
 
-    final isMe = member["device_id"] == _deviceId;
+    final isMe = member["is_me"] == true;
     
 
     return Container(

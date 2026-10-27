@@ -563,7 +563,7 @@ def family_members():
     # device_id намеренно НЕ возвращается клиенту: он нужен только
     # для вычисления is_me внутри сервера
     cursor.execute("""
-        SELECT user_name, role, joined_at, avatar, device_id
+        SELECT id, user_name, role, joined_at, avatar, device_id
         FROM members
         WHERE family_id = %s
         ORDER BY joined_at ASC
@@ -575,20 +575,21 @@ def family_members():
     for row in rows:
         is_me = bool(
             requester_device_id
-            and row[4]
-            and row[4] == requester_device_id
+            and row[5]
+            and row[5] == requester_device_id
         )
 
         members.append({
-            "user_name": row[0],
-            "role": row[1],
-            "joined_at": str(row[2]),
-            "avatar": row[3] or "",
-            "device_id": row[4] or "",
+            "id": row[0],
+            "user_name": row[1],
+            "role": row[2],
+            "joined_at": str(row[3]),
+            "avatar": row[4] or "",
+            "device_id": row[5] or "",
             "is_me": is_me,
             "is_admin": (
                 is_me
-                and row[1] in ("admin", "admin_parent")
+                and row[2] in ("admin", "admin_parent")
             ),
         })
 
@@ -604,10 +605,10 @@ def remove_member():
         # серверные сессии (см. вариант B).
         data = request.json
         family_id = data.get("family_id")
-        user_name = data.get("user_name")
+        member_id = data.get("member_id")
         requester_device_id = data.get("requester_device_id")
 
-        if not family_id or not user_name or not requester_device_id:
+        if not family_id or not member_id or not requester_device_id:
             return jsonify({"status": "error", "message": "missing fields"}), 400
 
         conn = get_connection()
@@ -615,7 +616,7 @@ def remove_member():
 
         # Запрашивающий должен быть админом ИМЕННО этой семьи
         cur.execute("""
-            SELECT user_name, role FROM members
+            SELECT 1 FROM members
             WHERE family_id = %s AND device_id = %s AND role IN ('admin', 'admin_parent')
         """, (family_id, requester_device_id))
 
@@ -625,24 +626,13 @@ def remove_member():
             conn.close()
             return jsonify({"status": "error", "message": "not authorized"}), 403
 
-        admin_name = admin_row[0]
-
-        # Нельзя удалить самого себя
-        if admin_name == user_name:
-            cur.close()
-            conn.close()
-            return jsonify({
-                "status": "error",
-                "message": "cannot remove yourself"
-            }), 403
-
         # Нельзя оставить семью без администратора
         cur.execute("""
             SELECT COUNT(*) FROM members
             WHERE family_id = %s
               AND role IN ('admin', 'admin_parent')
-              AND user_name <> %s
-        """, (family_id, user_name))
+              AND id <> %s
+        """, (family_id, member_id))
 
         if cur.fetchone()[0] == 0:
             cur.close()
@@ -652,11 +642,11 @@ def remove_member():
                 "message": "cannot remove the last admin"
             }), 403
 
-        # Удаляем только не-админа и проверяем, что строка реально была
+        # Удаляем ровно одну запись и проверяем, что она реально была
         cur.execute("""
             DELETE FROM members
-            WHERE family_id = %s AND user_name = %s AND role NOT IN ('admin', 'admin_parent')
-        """, (family_id, user_name))
+            WHERE family_id = %s AND id = %s
+        """, (family_id, member_id))
 
         if cur.rowcount == 0:
             conn.rollback()
@@ -664,7 +654,7 @@ def remove_member():
             conn.close()
             return jsonify({
                 "status": "error",
-                "message": "member not found or is admin"
+                "message": "member not found"
             }), 404
 
         conn.commit()
@@ -1030,113 +1020,57 @@ def garden_levelup():
         conn = get_connection()
         cur = conn.cursor()
 
-        if is_postgres():
+        cur.execute("""
+            SELECT level
+            FROM garden
+            WHERE family_id = %s
+        """, (
+            family_id,
+        ))
+
+        row = cur.fetchone()
+
+        if not row:
 
             cur.execute("""
-                SELECT level
-                FROM garden
-                WHERE family_id = %s
+                INSERT INTO garden (
+                    family_id,
+                    level
+                )
+                VALUES (%s, %s)
             """, (
                 family_id,
-            ))
-
-            row = cur.fetchone()
-
-            if not row:
-
-                cur.execute("""
-                    INSERT INTO garden (
-                        family_id,
-                        level
-                    )
-                    VALUES (%s, %s)
-                """, (
-                    family_id,
-                    max(
-                        1,
-                        new_level
-                    )
-                ))
-
-                final_level = max(
+                max(
                     1,
                     new_level
                 )
+            ))
 
-            else:
-
-                current_level = row[0]
-
-                final_level = current_level
-
-                if new_level > current_level:
-
-                    cur.execute("""
-                        UPDATE garden
-                        SET
-                            level = %s,
-                            updated_at = NOW()
-                        WHERE family_id = %s
-                    """, (
-                        new_level,
-                        family_id
-                    ))
-
-                    final_level = new_level
+            final_level = max(
+                1,
+                new_level
+            )
 
         else:
 
-            cur.execute("""
-                SELECT level
-                FROM garden
-                WHERE family_id = ?
-            """, (
-                family_id,
-            ))
+            current_level = row[0]
 
-            row = cur.fetchone()
+            final_level = current_level
 
-            if not row:
+            if new_level > current_level:
 
                 cur.execute("""
-                    INSERT INTO garden (
-                        family_id,
-                        level
-                    )
-                    VALUES (?, ?)
+                    UPDATE garden
+                    SET
+                        level = %s,
+                        updated_at = NOW()
+                    WHERE family_id = %s
                 """, (
-                    family_id,
-                    max(
-                        1,
-                        new_level
-                    )
+                    new_level,
+                    family_id
                 ))
 
-                final_level = max(
-                    1,
-                    new_level
-                )
-
-            else:
-
-                current_level = row["level"]
-
-                final_level = current_level
-
-                if new_level > current_level:
-
-                    cur.execute("""
-                        UPDATE garden
-                        SET
-                            level = ?,
-                            updated_at = CURRENT_TIMESTAMP
-                        WHERE family_id = ?
-                    """, (
-                        new_level,
-                        family_id
-                    ))
-
-                    final_level = new_level
+                final_level = new_level
 
         conn.commit()
 
@@ -2476,11 +2410,11 @@ def upload_avatar():
 def latest_version():
     try:
         # Версия приложения (обновлять вручную при выпуске)
-        current_version_name = "1.2.1"
-        current_version_code = 9
+        current_version_name = "1.3.0"
+        current_version_code = 11
 
         # Минимальная версия для принудительного обновления
-        min_version_code = 8  # ← МЕНЯЙТЕ ВРУЧНУЮ
+        min_version_code = 10  # ← МЕНЯЙТЕ ВРУЧНУЮ
 
         return jsonify({
             "status": "ok",

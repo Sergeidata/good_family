@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../widgets/loading_dots.dart';
 
 class TasksHistoryScreen extends StatefulWidget {
   const TasksHistoryScreen({super.key});
@@ -125,7 +126,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
 
     return Scaffold(
       appBar: AppBar(

@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import 'package:lottie/lottie.dart';
 import '../services/cache_storage.dart';
+import '../widgets/loading_dots.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 
@@ -197,9 +198,7 @@ Future<void> _checkLevelUp() async {
         ),
       ),
      body: _loading
-    ? const Center(
-        child: CircularProgressIndicator(),
-      )
+    ? const Center(child: LoadingDots())
     : SafeArea(
         child: Column(
           children: [
