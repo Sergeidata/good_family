@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../widgets/loading_dots.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -572,7 +573,7 @@ if (_isAdmin && !isMe)
       backgroundColor: const Color(0xFFF6F7FB),
 
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: LoadingDots())
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(20),

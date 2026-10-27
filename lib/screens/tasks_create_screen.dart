@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../widgets/loading_dots.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 import '../utils/app_utils.dart';
@@ -348,7 +349,7 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
     if (_loading) {
       return const Scaffold(
         body: Center(
-          child: CircularProgressIndicator(),
+          child: LoadingDots(),
         ),
       );
     }

@@ -5,6 +5,7 @@ import '../services/session_storage.dart';
 import '../services/usage_stats_helper.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import '../widgets/loading_dots.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 
@@ -208,7 +209,7 @@ class _StatsScreenState
     builder: (context, snapshot) {
       if (!snapshot.hasData) {
         return const Center(
-          child: CircularProgressIndicator(),
+          child: LoadingDots(),
         );
       }
 
@@ -746,7 +747,7 @@ class _StatsScreenState
       Expanded(
         child: _loadingApps
             ? const Center(
-                child: CircularProgressIndicator(),
+                child: LoadingDots(),
               )
             : _topApps.isEmpty
                 ? Center(

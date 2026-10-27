@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../widgets/loading_dots.dart';
 
 class MyPurchasesScreen extends StatefulWidget {
   const MyPurchasesScreen({super.key});
@@ -40,7 +41,7 @@ class _MyPurchasesScreenState extends State<MyPurchasesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
 
     final pending = _purchases.where((r) => r["status"] == "approved").toList();
     final completed = _purchases.where((r) => r["status"] == "completed" || r["status"] == "rejected").toList();
