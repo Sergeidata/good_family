@@ -204,14 +204,14 @@ class ApiService {
   static Future<Map<String, dynamic>?> getStats(String userId, String period) async {
   final url = Uri.parse("$baseUrl/stats?user_id=${Uri.encodeComponent(userId)}&period=$period");
   
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 2; i++) {
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 15));
+      final response = await http.get(url).timeout(const Duration(seconds: 8));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       }
     } catch (e) {
-      if (i == 2) return null;
+      if (i == 1) return null;
       await Future.delayed(const Duration(seconds: 2));
     }
   }
@@ -443,26 +443,24 @@ static Future<bool> createTask({
   return response.statusCode == 200;
 }
 
-static Future<List<dynamic>> getTasks(
+static Future<List<dynamic>?> getTasks(
   String familyId,
   String? userName,
 ) async {
+  try {
+    String url = "$baseUrl/tasks?family_id=$familyId";
+    if (userName != null) {
+      url += "&user_name=${Uri.encodeComponent(userName)}";
+    }
 
-  String url =
-      "$baseUrl/tasks?family_id=$familyId";
-
-  if (userName != null) {
-    url += "&user_name=${Uri.encodeComponent(userName)}";
+    final response = await http.get(Uri.parse(url));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)["tasks"] ?? [];
+    }
+    return null;
+  } catch (_) {
+    return null;
   }
-
-  final response =
-      await http.get(Uri.parse(url));
-
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body)["tasks"] ?? [];
-  }
-
-  return [];
 }
 
 static Future<bool> markTaskDone(
