@@ -100,15 +100,6 @@ class _GroupScreenState
     List<Map<String, dynamic>>
         stats = [];
 
-    final now = DateTime.now();
-
-    int passedDays =
-        now.weekday;
-
-    if (passedDays < 1) {
-      passedDays = 1;
-    }
-
     for (final member in members) {
 
       final userName =
@@ -122,13 +113,6 @@ class _GroupScreenState
 
       int totalSeconds =
           response?["total_seconds"] ?? 0;
-
-      if (_selectedPeriod == "Неделя") {
-
-        totalSeconds =
-            (totalSeconds / passedDays)
-                .round();
-      }
 
       stats.add({
         "name": userName,
@@ -153,23 +137,22 @@ class _GroupScreenState
     });
   }
 
-  Color _statusColor(int seconds, String period) {
-    int threshold2h = period == "Неделя" ? 7200 * 7 : period == "Месяц" ? 7200 * 30 : 7200;
-    int threshold4h = period == "Неделя" ? 14400 * 7 : period == "Месяц" ? 14400 * 30 : 14400;
-
-    if (seconds < threshold2h) return Colors.green;
-    if (seconds < threshold4h) return Colors.orange;
+  Color _statusColor(int seconds) {
+    if (seconds < 7200) return Colors.green;
+    if (seconds < 14400) return Colors.orange;
     return Colors.red;
   }
 
-  String _statusText(int seconds, String period) {
-    int threshold2h = period == "Неделя" ? 7200 * 7 : period == "Месяц" ? 7200 * 30 : 7200;
-    int threshold4h = period == "Неделя" ? 14400 * 7 : period == "Месяц" ? 14400 * 30 : 14400;
-
-    if (seconds < threshold2h) return "Отлично";
-    if (seconds < threshold4h) return "Норма";
+  String _statusText(int seconds) {
+    if (seconds < 7200) return "Отлично";
+    if (seconds < 14400) return "Норма";
     return "Многовато";
   }
+
+  // Сервер отдаёт среднесуточное значение для всех периодов.
+  bool get _isAveragePeriod =>
+      _currentPeriod == "Неделя" ||
+      _currentPeriod == "Месяц";
 
   
 
@@ -528,6 +511,17 @@ class _GroupScreenState
                   ),
                 ],
               ),
+
+              if (_isAveragePeriod) ...[
+                const SizedBox(height: 2),
+                Text(
+                  "в среднем в день",
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -541,22 +535,13 @@ class _GroupScreenState
             vertical: 8,
           ),
           decoration: BoxDecoration(
-            color: _statusColor(
-              seconds,
-              _currentPeriod,
-            ).withValues(alpha: 0.10),
+            color: _statusColor(seconds).withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(14),
           ),
           child: Text(
-            _statusText(
-              seconds,
-              _currentPeriod,
-            ),
+            _statusText(seconds),
             style: TextStyle(
-              color: _statusColor(
-                seconds,
-                _currentPeriod,
-              ),
+              color: _statusColor(seconds),
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
