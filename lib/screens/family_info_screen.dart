@@ -43,7 +43,7 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
   String _formatDate(dynamic value) {
     if (value == null) return "-";
     try {
-      final dt = DateTime.parse(value.toString()).add(const Duration(hours: 3));
+      final dt = parseServerDate(value.toString());
       return DateFormat('dd.MM.yyyy HH:mm').format(dt);
     } catch (_) {
       return value.toString();

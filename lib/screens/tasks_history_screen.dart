@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../widgets/loading_dots.dart';
+import '../utils/app_utils.dart';
 
 class TasksHistoryScreen extends StatefulWidget {
   const TasksHistoryScreen({super.key});
@@ -103,7 +104,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
   String _formatDate(String? dateStr) {
     if (dateStr == null) return '';
     try {
-      final dt = DateTime.parse(dateStr).add(const Duration(hours: 3));
+      final dt = parseServerDate(dateStr);
       return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return '';

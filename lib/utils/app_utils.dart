@@ -121,3 +121,12 @@ String avatarUrl(String path) {
   final base = 'http://159.194.219.146:8000$path';
   return avatarVersion > 0 ? '$base?t=$avatarVersion' : base;
 }
+
+/// Серверные TIMESTAMP приходят без зоны (UTC). Парсим как UTC и переводим в локальное время.
+DateTime parseServerDate(String raw) {
+  final s = raw.trim();
+  final hasTz = s.endsWith('Z') ||
+      RegExp(r'[+-]\d{2}:?\d{2}$').hasMatch(s);
+  final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
+  return DateTime.parse(hasTz ? normalized : '${normalized}Z').toLocal();
+}

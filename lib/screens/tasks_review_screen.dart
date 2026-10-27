@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../widgets/loading_dots.dart';
+import '../utils/app_utils.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 
@@ -364,7 +365,7 @@ class _TasksReviewScreenState extends State<TasksReviewScreen> {
   String _timeAgo(String? dateStr) {
   if (dateStr == null) return '';
   try {
-    final dt = DateTime.parse(dateStr).add(const Duration(hours: 3)); // UTC+3 Москва
+    final dt = parseServerDate(dateStr);
     final diff = DateTime.now().difference(dt);
     if (diff.inMinutes < 1) return 'только что';
     if (diff.inMinutes < 60) return '${diff.inMinutes} мин назад';
