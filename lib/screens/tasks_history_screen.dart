@@ -46,7 +46,9 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
       final dateStr = t['approved_at'] ?? t['done_at'] ?? t['created_at'] ?? '';
       if (dateStr.toString().isEmpty) return true;
       try {
-        return DateTime.parse(dateStr.toString()).isAfter(thirtyDaysAgo);
+        final parsed = parseServerDateSafe(dateStr.toString()) ??
+            DateTime.parse(dateStr.toString());
+        return parsed.isAfter(thirtyDaysAgo);
       } catch (_) {
         return true;
       }

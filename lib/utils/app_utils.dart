@@ -130,3 +130,12 @@ DateTime parseServerDate(String raw) {
   final normalized = s.contains('T') ? s : s.replaceFirst(' ', 'T');
   return DateTime.parse(hasTz ? normalized : '${normalized}Z').toLocal();
 }
+
+/// Как parseServerDate, но только для строк со временем.
+/// Если пришла чистая дата (YYYY-MM-DD) — вернёт null, чтобы вызывающий
+/// разобрал её обычным DateTime.parse.
+DateTime? parseServerDateSafe(String raw) {
+  final s = raw.trim();
+  if (!s.contains(':') && !s.contains('T')) return null;
+  return parseServerDate(s);
+}

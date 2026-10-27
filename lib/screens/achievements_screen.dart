@@ -5,6 +5,7 @@ import '../services/cache_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/achievement_progress_sheet.dart';
 import '../widgets/loading_dots.dart';
+import '../utils/app_utils.dart';
 
 
 class AchievementsScreen extends StatefulWidget {
@@ -123,9 +124,9 @@ class _ChampionsTabState
     if (familyInfo != null &&
         familyInfo["created_at"] != null) {
 
-      createdAt = DateTime.parse(
-        familyInfo["created_at"],
-      );
+      createdAt =
+          parseServerDateSafe(familyInfo["created_at"].toString()) ??
+              DateTime.parse(familyInfo["created_at"]);
     }
 
     final now = DateTime.now();
@@ -1119,7 +1120,8 @@ for (final a in allAchievements) {
 
     final familyInfo = await ApiService.getFamilyInfo(familyId);
     if (familyInfo != null && familyInfo["created_at"] != null) {
-      final created = DateTime.parse(familyInfo["created_at"]);
+      final created = parseServerDateSafe(familyInfo["created_at"].toString()) ??
+          DateTime.parse(familyInfo["created_at"]);
       if (DateTime.now().difference(created).inDays < 3) weekStats = [];
       if (DateTime.now().difference(created).inDays < 28) monthStats = [];
     }
@@ -1965,7 +1967,8 @@ IconData _getIcon(String key) {
     DateTime familyCreated = DateTime(2000);
     final familyInfo = await ApiService.getFamilyInfo(familyId);
     if (familyInfo != null && familyInfo["created_at"] != null) {
-      familyCreated = DateTime.parse(familyInfo["created_at"]);
+      familyCreated = parseServerDateSafe(familyInfo["created_at"].toString()) ??
+          DateTime.parse(familyInfo["created_at"]);
     }
 
     final membersResponse = await ApiService.getMembers(familyId);
