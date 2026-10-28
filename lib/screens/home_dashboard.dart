@@ -739,7 +739,18 @@ Future<void> _loadTasksData() async {
   final role = family["role"] ?? "";
   if (familyId == null) return;
 
-  final tasks = (await ApiService.getTasks(familyId, null)) ?? [];
+  final tasks = await ApiService.getTasks(familyId, null);
+
+  if (!mounted) return;
+
+  // Нет связи — не подменяем реальные данные нулями.
+  if (tasks == null) {
+    setState(() {
+      _tasksData = null;
+      _updateTodayMessage();
+    });
+    return;
+  }
 
   final now = DateTime.now();
   final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
@@ -760,6 +771,7 @@ Future<void> _loadTasksData() async {
   if (mounted) {
     setState(() {
       _tasksData = {"active": active, "review": review};
+      _updateTodayMessage();
     });
   }
 }
@@ -1169,15 +1181,6 @@ Widget _buildTasksCard() {
 
 
 Widget _buildTodayCard() {
-  final isOffline =
-      _gardenData == null && _tasksData == null;
-
-  if (isOffline) {
-    _todayTitle = "Нет связи";
-    _todayMessage =
-        "Проверьте подключение к интернету и обновите данные.";
-  }
-
   IconData icon = Icons.lightbulb_rounded;
   Color iconColor = Colors.amber;
 
@@ -1283,6 +1286,13 @@ Widget _buildTodayCard() {
 
 
   void _updateTodayMessage() {
+  // Нет данных вообще — показываем честную ошибку, а не «не хватает достижений».
+  if (_gardenData == null && _tasksData == null) {
+    _todayTitle = "Нет связи";
+    _todayMessage = "Проверьте подключение к интернету и обновите данные.";
+    return;
+  }
+
   // 0. Для ребёнка — его задания
   if (_role == "child") {
     final active = _tasksData?["active"] ?? 0;
@@ -1326,20 +1336,19 @@ final notSynced = members.where((m) {
     }
 
     // 3. Не хватает достижений до сада
-  // DEBUG
-  print('GARDEN: level=${_gardenData?["level"]}, unique=${_gardenData?["unique_achievements"]}, task=${_gardenData?["task_progress"]}');
+    if (_gardenData != null) {
+      final achievements = (_gardenData?["unique_achievements"] ?? 0).toDouble();
+      final taskPart = (_gardenData?["task_progress"] ?? 0.0).toDouble();
+      final gardenLevel = (_gardenData?["level"] ?? 1).toDouble();
+      final totalAchievements = achievements + taskPart;
+      final required = gardenLevel;
 
-    final achievements = (_gardenData?["unique_achievements"] ?? 0).toDouble();
-    final taskPart = (_gardenData?["task_progress"] ?? 0.0).toDouble();
-    final gardenLevel = (_gardenData?["level"] ?? 1).toDouble();
-    final totalAchievements = achievements + taskPart;
-    final required = gardenLevel;
-
-    if (totalAchievements < required) {
-      final need = required - totalAchievements;
-      _todayTitle = "🌱 Рост сада";
-      _todayMessage = "Для роста сада не хватает ${need.toStringAsFixed(2)} достижения.";
-      return;
+      if (totalAchievements < required) {
+        final need = required - totalAchievements;
+        _todayTitle = "🌱 Рост сада";
+        _todayMessage = "Для роста сада не хватает ${need.toStringAsFixed(2)} достижения.";
+        return;
+      }
     }
 
     // 4. Экранное время >4 часа
