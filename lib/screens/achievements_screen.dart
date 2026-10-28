@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/achievement_progress_sheet.dart';
 import '../widgets/loading_dots.dart';
 import '../utils/app_utils.dart';
+import '../widgets/error_state.dart';
 
 
 class AchievementsScreen extends StatefulWidget {
@@ -81,6 +82,8 @@ class _ChampionsTabState
 
   bool _loading = true;
 
+  String? _error;
+
   bool _weekExpanded = false;
   bool _monthExpanded = false;
   bool _showMonthChampion = false;
@@ -106,6 +109,10 @@ class _ChampionsTabState
   }
 
   Future<void> _loadChampions() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
 
     final family =
         await FamilyStorage.loadFamily();
@@ -182,6 +189,7 @@ class _ChampionsTabState
 
       setState(() {
         _loading = false;
+        _error = 'Нет связи с сервером';
       });
 
       return;
@@ -274,6 +282,7 @@ class _ChampionsTabState
       }
 
       _loading = false;
+      _error = null;
     });
   }
 
@@ -283,10 +292,28 @@ Widget build(BuildContext context) {
     return const Center(child: LoadingDots());
   }
 
+  if (_error != null) {
+    return ErrorState(
+      message: _error!,
+      onRetry: _loadChampions,
+    );
+  }
+
+  if (_weekRanking.isEmpty && _monthRanking.isEmpty) {
+    return const EmptyState(
+      icon: Icons.emoji_events_outlined,
+      title: 'Пока нет данных чемпионата',
+      subtitle: 'Данные появятся, когда участники начнут пользоваться приложением',
+    );
+  }
+
   final bool isMonth = _showMonthChampion;
 
-  return ListView(
-    padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
+  return RefreshIndicator(
+    onRefresh: _loadChampions,
+    child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
     children: [
       // Переключатель периода
       Container(
@@ -435,6 +462,7 @@ Widget build(BuildContext context) {
               ),
       ),
     ],
+    ),
   );
 }
 
