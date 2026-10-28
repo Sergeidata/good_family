@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
-import '../widgets/loading_dots.dart';
 import '../utils/app_utils.dart';
+import '../widgets/error_state.dart';
 
 class TasksHistoryScreen extends StatefulWidget {
   const TasksHistoryScreen({super.key});
@@ -21,6 +21,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
   String? _filterChild;
   String? _filterStatus;
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -30,13 +31,29 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     final family = await FamilyStorage.loadFamily();
     _familyId = family['family_id'] ?? '';
     _userName = family['user_name'] ?? '';
     _role = family['role'] ?? '';
 
     // История заданий
-    final tasks = (await ApiService.getTasks(_familyId, _role == 'child' ? _userName : null)) ?? [];
+    final tasks = await ApiService.getTasks(_familyId, _role == 'child' ? _userName : null);
+
+    if (!mounted) return;
+
+    if (tasks == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет связи с сервером';
+      });
+      return;
+    }
+
     final now = DateTime.now();
     final thirtyDaysAgo = now.subtract(const Duration(days: 30));
 
@@ -61,7 +78,10 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
     });
 
     // История наград (покупок)
-    final requests = await ApiService.getRewardRequests(_familyId);
+    final requests = await ApiService.getRewardRequests(_familyId) ?? [];
+
+    if (!mounted) return;
+
     final filteredRequests = _role == 'child'
         ? requests.where((r) => r['child_name'] == _userName).toList()
         : requests;
@@ -70,6 +90,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
       _tasks = filteredTasks;
       _rewardRequests = filteredRequests;
       _loading = false;
+      _error = null;
     });
   }
 
@@ -129,7 +150,16 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
+    if (_loading || _error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('История')),
+        body: LoadingError(
+          loading: _loading,
+          message: _error ?? 'Нет связи с сервером',
+          onRetry: _loadData,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -188,9 +218,16 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
   Widget _buildTasksHistory() {
     final filtered = _filteredTasks;
     if (filtered.isEmpty) {
-      return const Center(child: Text('История заданий пуста'));
+      return const EmptyState(
+        icon: Icons.history,
+        title: 'История заданий пуста',
+        subtitle: 'Выполненные задания появятся здесь',
+      );
     }
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: filtered.length,
       itemBuilder: (ctx, i) {
@@ -233,6 +270,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
           ),
         );
       },
+      ),
     );
   }
 
@@ -244,10 +282,17 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
     }).toList();
 
     if (filtered.isEmpty) {
-      return const Center(child: Text('История наград пуста'));
+      return const EmptyState(
+        icon: Icons.card_giftcard_outlined,
+        title: 'История наград пуста',
+        subtitle: 'Покупки наград появятся здесь',
+      );
     }
 
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: filtered.length,
       itemBuilder: (ctx, i) {
@@ -300,6 +345,7 @@ class _TasksHistoryScreenState extends State<TasksHistoryScreen> with SingleTick
           ),
         );
       },
+      ),
     );
   }
 }

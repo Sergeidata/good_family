@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
-import '../widgets/loading_dots.dart';
+import '../widgets/error_state.dart';
 
 class MyPurchasesScreen extends StatefulWidget {
   const MyPurchasesScreen({super.key});
@@ -15,6 +15,7 @@ class _MyPurchasesScreenState extends State<MyPurchasesScreen> {
   String _userName = '';
   List<dynamic> _purchases = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -23,14 +24,31 @@ class _MyPurchasesScreenState extends State<MyPurchasesScreen> {
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     final family = await FamilyStorage.loadFamily();
     _familyId = family["family_id"] ?? '';
     _userName = family["user_name"] ?? '';
 
     final requests = await ApiService.getRewardRequests(_familyId);
+
+    if (!mounted) return;
+
+    if (requests == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет связи с сервером';
+      });
+      return;
+    }
+
     setState(() {
       _purchases = requests.where((r) => r["child_name"] == _userName).toList();
       _loading = false;
+      _error = null;
     });
   }
 
@@ -41,7 +59,16 @@ class _MyPurchasesScreenState extends State<MyPurchasesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
+    if (_loading || _error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Мои покупки')),
+        body: LoadingError(
+          loading: _loading,
+          message: _error ?? 'Нет связи с сервером',
+          onRetry: _loadData,
+        ),
+      );
+    }
 
     final pending = _purchases.where((r) => r["status"] == "approved").toList();
     final completed = _purchases.where((r) => r["status"] == "completed" || r["status"] == "rejected").toList();
@@ -49,22 +76,30 @@ class _MyPurchasesScreenState extends State<MyPurchasesScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Мои покупки')),
       body: _purchases.isEmpty
-          ? const Center(child: Text('Нет покупок'))
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (pending.isNotEmpty) ...[
-                  const Text('Ожидают получения', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  ...pending.map((p) => _buildPurchaseCard(p, canConfirm: true)),
-                  const SizedBox(height: 20),
+          ? const EmptyState(
+              icon: Icons.shopping_bag_outlined,
+              title: 'Нет покупок',
+              subtitle: 'Купленные награды появятся здесь',
+            )
+          : RefreshIndicator(
+              onRefresh: _loadData,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                children: [
+                  if (pending.isNotEmpty) ...[
+                    const Text('Ожидают получения', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...pending.map((p) => _buildPurchaseCard(p, canConfirm: true)),
+                    const SizedBox(height: 20),
+                  ],
+                  if (completed.isNotEmpty) ...[
+                    const Text('История', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    ...completed.map((p) => _buildPurchaseCard(p, canConfirm: false)),
+                  ],
                 ],
-                if (completed.isNotEmpty) ...[
-                  const Text('История', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  ...completed.map((p) => _buildPurchaseCard(p, canConfirm: false)),
-                ],
-              ],
+              ),
             ),
     );
   }

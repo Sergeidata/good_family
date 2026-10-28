@@ -29,7 +29,7 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
     final family = await FamilyStorage.loadFamily();
     _familyId = family["family_id"] ?? '';
 
-    final requests = await ApiService.getRewardRequests(_familyId);
+    final requests = (await ApiService.getRewardRequests(_familyId)) ?? [];
 
     // Балансы детей
     final members = await ApiService.getMembers(_familyId);

@@ -5,7 +5,7 @@ import '../widgets/emoji_picker.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 import 'my_purchases_screen.dart';
-import '../widgets/loading_dots.dart';
+import '../widgets/error_state.dart';
 
 class RewardShopScreen extends StatefulWidget {
   final bool childMode;
@@ -34,6 +34,8 @@ class _RewardShopScreenState extends State<RewardShopScreen> {
 
   bool _loading = true;
 
+  String? _error;
+
 
   
   
@@ -47,6 +49,11 @@ class _RewardShopScreenState extends State<RewardShopScreen> {
 
 
   Future<void> _loadData() async {
+  setState(() {
+    _loading = true;
+    _error = null;
+  });
+
   final family = await FamilyStorage.loadFamily();
 
   _familyId = family["family_id"] ?? '';
@@ -55,8 +62,20 @@ class _RewardShopScreenState extends State<RewardShopScreen> {
 
   final items = await ApiService.getRewardShop(_familyId);
 
+  if (!mounted) return;
+
+  if (items == null) {
+    setState(() {
+      _loading = false;
+      _error = 'Нет связи с сервером';
+    });
+    return;
+  }
+
   final requests =
-      await ApiService.getRewardRequests(_familyId);
+      await ApiService.getRewardRequests(_familyId) ?? [];
+
+  if (!mounted) return;
 
   int balance = 0;
 
@@ -667,7 +686,18 @@ Widget _buildChildHeader() {
 
  @override
 Widget build(BuildContext context) {
-  if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
+  if (_loading || _error != null) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.childMode ? 'Магазин наград' : 'Магазин наград'),
+      ),
+      body: LoadingError(
+        loading: _loading,
+        message: _error ?? 'Нет связи с сервером',
+        onRetry: _loadData,
+      ),
+    );
+  }
 
   return Scaffold(
     appBar: AppBar(
@@ -687,24 +717,17 @@ Widget build(BuildContext context) {
         if (!widget.childMode) _buildShopSummary(),
         Expanded(
           child: _items.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.inventory_2_outlined, size: 54, color: Colors.grey.shade400),
-                      const SizedBox(height: 12),
-                      Text(
-                        widget.childMode ? 'Пока нет наград' : 'Нет наград в магазине',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-                      ),
-                      if (!widget.childMode) ...[
-                        const SizedBox(height: 8),
-                        Text('Нажмите +, чтобы добавить первую награду', style: TextStyle(color: Colors.grey.shade500)),
-                      ],
-                    ],
-                  ),
+              ? EmptyState(
+                  icon: Icons.inventory_2_outlined,
+                  title: widget.childMode ? 'Пока нет наград' : 'Нет наград в магазине',
+                  subtitle: widget.childMode ? null : 'Нажмите +, чтобы добавить первую награду',
+                  actionText: widget.childMode ? null : 'Добавить награду',
+                  onAction: widget.childMode ? null : _showRewardSheet,
                 )
-              : ListView.builder(
+              : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 90),
                   itemCount: _items.length,
                   itemBuilder: (ctx, i) {
@@ -957,6 +980,7 @@ Widget build(BuildContext context) {
                     );
                   },
                 ),
+              ),
         ),
       ],
     ),

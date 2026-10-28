@@ -275,7 +275,7 @@ Widget build(BuildContext context) {
               title: 'Балансы и запросы',
               subtitle: 'Монеты детей и запросы на награды',
               screen: const RewardRequestsScreen(),
-              trailing: FutureBuilder<List<dynamic>>(
+              trailing: FutureBuilder<List<dynamic>?>(
                 future: ApiService.getRewardRequests(_familyId),
                 builder: (ctx, snap) {
                   final count = snap.data?.where((r) => r["status"] == "pending").length ?? 0;
