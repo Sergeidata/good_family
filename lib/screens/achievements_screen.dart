@@ -997,6 +997,7 @@ Widget build(BuildContext context) {
 
 class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   Map<String, dynamic>? _data;
+  String? _error;
   final Map<String, dynamic> _achievementInfo = {};
 
   int _countTotal() {
@@ -1059,12 +1060,17 @@ int _countEarned() {
   }
 
   Future<void> _loadData() async {
+  setState(() {
+    _error = null;
+  });
+
   final family = await FamilyStorage.loadFamily();
   final familyId = family["family_id"];
 
   try {
     final membersResponse = await ApiService.getMembers(familyId);
-    final List<dynamic> members = membersResponse?["members"] ?? [];
+    if (membersResponse == null) throw Exception('offline');
+    final List<dynamic> members = membersResponse["members"] ?? [];
 
     
 
@@ -1110,7 +1116,9 @@ int _countEarned() {
     monthStats.sort((a, b) => (a["seconds"] as int).compareTo(b["seconds"] as int));
 
    // Получить личные ачивки с сервера
-    final allAchievements = await ApiService.getAchievements(familyId, "personal", null) ?? [];
+    final achievementsRaw = await ApiService.getAchievements(familyId, "personal", null);
+    if (achievementsRaw == null) throw Exception('offline');
+    final allAchievements = achievementsRaw;
 
 Map<String, List<String>> weekAchievers = {};
 Map<String, List<String>> monthAchievers = {};
@@ -1170,6 +1178,7 @@ for (final a in allAchievements) {
         "weekAchievers": weekAchievers,
         "monthAchievers": monthAchievers,
       };
+      _error = null;
     });
   } catch (e) {
     final cache = await CacheStorage.load('achievements_$familyId');
@@ -1183,6 +1192,10 @@ for (final a in allAchievements) {
         };
         _lastUpdated = DateTime.tryParse(cache["updated_at"] ?? "");
         _fromCache = true;
+      });
+    } else {
+      setState(() {
+        _error = 'Нет связи с сервером';
       });
     }
   }
@@ -1569,13 +1582,23 @@ Widget _buildSectionTitle(
 
   @override
   Widget build(BuildContext context) {
+    if (_error != null) {
+      return ErrorState(
+        message: _error!,
+        onRetry: _loadData,
+      );
+    }
+
     if (_data == null) {
       return const Center(child: LoadingDots());
     }
 
     
 
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
           // Карточка коллекции
@@ -1642,6 +1665,7 @@ Widget _buildSectionTitle(
               ),
             ),
       ],
+      ),
     );
   }
 }
@@ -1662,6 +1686,8 @@ class _GroupAchievementsTabState
     extends State<_GroupAchievementsTab> {
 
   bool _loading = true;
+
+  String? _error;
 
   String _familyName = "Семья";
   int _earnedGroupCount = 0;
@@ -1987,6 +2013,11 @@ IconData _getIcon(String key) {
 }
 
  Future<void> _loadAchievements() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     final family = await FamilyStorage.loadFamily();
     final familyId = family["family_id"];
     _familyId = familyId ?? '';
@@ -2000,7 +2031,14 @@ IconData _getIcon(String key) {
     }
 
     final membersResponse = await ApiService.getMembers(familyId);
-    final members = membersResponse?["members"] ?? [];
+    if (membersResponse == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет связи с сервером';
+      });
+      return;
+    }
+    final members = membersResponse["members"] ?? [];
     final now = DateTime.now();
 
     // Прошлая неделя
@@ -2158,7 +2196,10 @@ _earnedGroupCount = _groupKeysFromServer.length;
       };
     }
 
-    setState(() { _loading = false; });
+    setState(() {
+      _loading = false;
+      _error = null;
+    });
   }
 
   void _addAchievement({
@@ -2363,10 +2404,20 @@ Widget build(BuildContext context) {
     return const Center(child: LoadingDots());
   }
 
+  if (_error != null) {
+    return ErrorState(
+      message: _error!,
+      onRetry: _loadAchievements,
+    );
+  }
+
   final earnedCount = _earnedGroupCount;
   const totalCount = 21;
 
-  return ListView(
+  return RefreshIndicator(
+    onRefresh: _loadAchievements,
+    child: ListView(
+    physics: const AlwaysScrollableScrollPhysics(),
     padding: const EdgeInsets.all(16),
     children: [
       // Коллекция
@@ -2430,6 +2481,7 @@ Widget build(BuildContext context) {
 
 
     ],
+    ),
   );
 }
 }
