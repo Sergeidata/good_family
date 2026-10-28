@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../widgets/loading_dots.dart';
+import '../widgets/error_state.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 import '../utils/app_utils.dart';
@@ -30,6 +31,7 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
 
   int _selectedStars = 10;
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -45,6 +47,11 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     final family = await FamilyStorage.loadFamily();
 
     _familyId = family['family_id'] ?? '';
@@ -52,7 +59,17 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
 
     final members = await ApiService.getMembers(_familyId);
 
-    _children = (members?['members'] ?? [])
+    if (!mounted) return;
+
+    if (members == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет связи с сервером';
+      });
+      return;
+    }
+
+    _children = (members['members'] ?? [])
         .where((m) => m['role'] == 'child')
         .toList();
 
@@ -63,6 +80,7 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
     if (mounted) {
       setState(() {
         _loading = false;
+        _error = null;
       });
     }
   }
@@ -350,6 +368,16 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
       return const Scaffold(
         body: Center(
           child: LoadingDots(),
+        ),
+      );
+    }
+
+    if (_error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Новое задание')),
+        body: ErrorState(
+          message: _error!,
+          onRetry: _loadData,
         ),
       );
     }

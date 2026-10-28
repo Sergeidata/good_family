@@ -10,6 +10,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'crop_screen.dart';
 import '../utils/app_utils.dart';
+import '../widgets/error_state.dart';
 
 
 
@@ -654,7 +655,10 @@ if (_isAdmin && !isMe)
 
                     Expanded(
                       child: _error != null
-                          ? Center(child: Text(_error!))
+                          ? ErrorState(
+                              message: _error!,
+                              onRetry: _loadData,
+                            )
                           : ListView.builder(
                               itemCount: _members.length,
                               itemBuilder: (_, i) =>

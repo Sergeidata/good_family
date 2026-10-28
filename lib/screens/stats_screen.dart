@@ -6,6 +6,7 @@ import '../services/usage_stats_helper.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import '../widgets/loading_dots.dart';
+import '../widgets/error_state.dart';
 import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 
@@ -27,6 +28,8 @@ class _StatsScreenState
   List<MapEntry<String, int>> _topApps = [];
 
   bool _loadingApps = false;
+
+  bool _appsError = false;
 
 
 //   // ВРЕМЕННО ДЛЯ ДЕМО — УДАЛИТЬ ПОСЛЕ ЗАПИСИ
@@ -92,6 +95,7 @@ class _StatsScreenState
   Future<void> _refreshApps() async {
     setState(() {
       _loadingApps = true;
+      _appsError = false;
     });
 
     try {
@@ -119,6 +123,7 @@ class _StatsScreenState
       });
     } catch (e) {
       debugPrint("APPS ERROR: $e");
+      _appsError = true;
     }
 
     setState(() {
@@ -207,6 +212,13 @@ class _StatsScreenState
   return FutureBuilder<Map<String, int>>(
     future: _calculateWeekTotals(),
     builder: (context, snapshot) {
+      if (snapshot.hasError) {
+        return ErrorState(
+          message: 'Нет связи с сервером',
+          onRetry: () => setState(() {}),
+        );
+      }
+
       if (!snapshot.hasData) {
         return const Center(
           child: LoadingDots(),
@@ -214,14 +226,22 @@ class _StatsScreenState
       }
 
       final totals = snapshot.data!;
-      final now = DateTime.now();
-
-      final passedDays = now.weekday;
-
       final weekSeconds = totals.values.fold(
         0,
         (sum, item) => sum + item,
       );
+
+      if (weekSeconds == 0) {
+        return const EmptyState(
+          icon: Icons.bar_chart_rounded,
+          title: 'Нет данных за неделю',
+          subtitle: 'Как только появится статистика, здесь будет график',
+        );
+      }
+
+      final now = DateTime.now();
+
+      final passedDays = now.weekday;
 
       final averageSeconds = passedDays > 0
           ? weekSeconds ~/ passedDays
@@ -749,33 +769,18 @@ class _StatsScreenState
             ? const Center(
                 child: LoadingDots(),
               )
-            : _topApps.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize:
-                          MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.phone_android_rounded,
-                          size: 52,
-                          color:
-                              Colors.blueGrey.shade200,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          "Нет данных",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight:
-                                FontWeight.w600,
-                            color:
-                                Colors.blueGrey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
+            : _appsError
+                ? ErrorState(
+                    message: 'Нет связи с сервером',
+                    onRetry: _refreshApps,
                   )
-                : ListView.builder(
+                : _topApps.isEmpty
+                    ? const EmptyState(
+                        icon: Icons.phone_android_rounded,
+                        title: 'Нет данных',
+                        subtitle: 'Статистика по приложениям появится позже',
+                      )
+                    : ListView.builder(
                     padding:
                         const EdgeInsets.fromLTRB(
                       20,
