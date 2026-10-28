@@ -1,4 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import 'loading_dots.dart';
 
 /// Экран ошибки загрузки: сообщение и кнопка «Повторить».
 class ErrorState extends StatelessWidget {
@@ -123,5 +127,69 @@ class EmptyState extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Лоадер с таймаутом: если загрузка не уложилась в [timeout],
+/// показывает ErrorState с «Повторить» вместо вечного LoadingDots.
+class LoadingError extends StatefulWidget {
+  final bool loading;
+  final String message;
+  final VoidCallback onRetry;
+  final Duration timeout;
+
+  const LoadingError({
+    super.key,
+    required this.loading,
+    required this.message,
+    required this.onRetry,
+    this.timeout = const Duration(seconds: 20),
+  });
+
+  @override
+  State<LoadingError> createState() => _LoadingErrorState();
+}
+
+class _LoadingErrorState extends State<LoadingError> {
+  Timer? _timer;
+  bool _timedOut = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.loading) _startTimer();
+  }
+
+  @override
+  void didUpdateWidget(LoadingError oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.loading && !oldWidget.loading) {
+      _timedOut = false;
+      _startTimer();
+    } else if (!widget.loading && oldWidget.loading) {
+      _timer?.cancel();
+      _timedOut = false;
+    }
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer(widget.timeout, () {
+      if (mounted) setState(() => _timedOut = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.loading && !_timedOut) {
+      return const Center(child: LoadingDots());
+    }
+    return ErrorState(message: widget.message, onRetry: widget.onRetry);
   }
 }

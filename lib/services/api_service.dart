@@ -608,12 +608,16 @@ static Future<Map<String, dynamic>?> getAchievementProgress(
   return null;
 }
 
-static Future<List<dynamic>> getRewardShop(String familyId) async {
-  final response = await http.get(Uri.parse("$baseUrl/reward_shop?family_id=$familyId"));
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body)["items"] ?? [];
+static Future<List<dynamic>?> getRewardShop(String familyId) async {
+  try {
+    final response = await http.get(Uri.parse("$baseUrl/reward_shop?family_id=$familyId"));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)["items"] ?? [];
+    }
+    return null;
+  } catch (_) {
+    return null;
   }
-  return [];
 }
 
 static Future<bool> createReward(String familyId, String title, String emoji, int costStars, {String colorHex = "#FFF4E5", String description = ""}) async {
@@ -684,23 +688,26 @@ return false;
 
 
 
-static Future<List<dynamic>> getRewardRequests(
+static Future<List<dynamic>?> getRewardRequests(
   String familyId,
 ) async {
+  try {
+    final response = await http.get(
+      Uri.parse(
+        "$baseUrl/reward_requests?family_id=$familyId",
+      ),
+    );
 
-  final response = await http.get(
-    Uri.parse(
-      "$baseUrl/reward_requests?family_id=$familyId",
-    ),
-  );
+    if(response.statusCode!=200){
+      return null;
+    }
 
-  if(response.statusCode!=200){
-    return [];
+    return jsonDecode(
+      response.body,
+    )["requests"];
+  } catch (_) {
+    return null;
   }
-
-  return jsonDecode(
-    response.body,
-  )["requests"];
 }
 
 static Future<bool> approveReward(
