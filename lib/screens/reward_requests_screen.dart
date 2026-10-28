@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../utils/app_utils.dart';
-import '../widgets/loading_dots.dart';
+import '../widgets/error_state.dart';
 
 class RewardRequestsScreen extends StatefulWidget {
   const RewardRequestsScreen({super.key});
@@ -17,6 +17,7 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
   List<dynamic> _requests = [];
   List<dynamic> _balances = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -26,14 +27,40 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
   }
 
   Future<void> _loadData() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     final family = await FamilyStorage.loadFamily();
     _familyId = family["family_id"] ?? '';
 
-    final requests = (await ApiService.getRewardRequests(_familyId)) ?? [];
+    final requests = await ApiService.getRewardRequests(_familyId);
+
+    if (!mounted) return;
+
+    if (requests == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет связи с сервером';
+      });
+      return;
+    }
 
     // Балансы детей
     final members = await ApiService.getMembers(_familyId);
-    final children = (members?["members"] ?? []).where((m) => m["role"] == "child").toList();
+
+    if (!mounted) return;
+
+    if (members == null) {
+      setState(() {
+        _loading = false;
+        _error = 'Нет связи с сервером';
+      });
+      return;
+    }
+
+    final children = (members["members"] ?? []).where((m) => m["role"] == "child").toList();
 
     // Балансы детей — параллельно, без N+1.
     final List<Map<String, dynamic>> balances = await Future.wait(
@@ -49,10 +76,13 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       ),
     );
 
+    if (!mounted) return;
+
     setState(() {
       _requests = requests;
       _balances = balances;
       _loading = false;
+      _error = null;
     });
   }
 
@@ -272,7 +302,16 @@ Future<void> _reject(int requestId) async {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: LoadingDots()));
+    if (_loading || _error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Балансы и запросы')),
+        body: LoadingError(
+          loading: _loading,
+          message: _error ?? 'Нет связи с сервером',
+          onRetry: _loadData,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -299,29 +338,17 @@ Future<void> _reject(int requestId) async {
     final pending = _requests.where((r) => r["status"] == "pending").toList();
 
     if (pending.isEmpty) {
-  return const Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.card_giftcard_outlined,
-          size: 72,
-          color: Colors.grey,
-        ),
-        SizedBox(height: 16),
-        Text(
-          'Нет новых запросов',
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.grey,
-          ),
-        ),
-      ],
-    ),
-  );
-}
+      return const EmptyState(
+        icon: Icons.card_giftcard_outlined,
+        title: 'Нет новых запросов',
+        subtitle: 'Запросы от детей появятся здесь',
+      );
+    }
 
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: pending.length,
       itemBuilder: (ctx, i) {
@@ -377,42 +404,23 @@ Future<void> _reject(int requestId) async {
           ),
         );
       },
+      ),
     );
   }
 
   Widget _buildBalancesTab() {
     if (_balances.isEmpty) {
-  return const Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          Icons.account_balance_wallet_outlined,
-          size: 72,
-          color: Colors.grey,
-        ),
-        SizedBox(height: 16),
-        Text(
-          'Нет детей',
-          style: TextStyle(
-            fontSize: 18,
-            color: Colors.grey,
-          ),
-        ),
-        SizedBox(height: 6),
-        Text(
-          'Добавьте ребёнка в семью',
-          style: TextStyle(
-            fontSize: 14,
-            color: Colors.grey,
-          ),
-        ),
-      ],
-    ),
-  );
-}
+      return const EmptyState(
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'Нет детей',
+        subtitle: 'Добавьте ребёнка в семью',
+      );
+    }
 
-    return ListView.builder(
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _balances.length,
       itemBuilder: (ctx, i) {
@@ -455,6 +463,7 @@ Future<void> _reject(int requestId) async {
           ),
         );
       },
+      ),
     );
   }
 }

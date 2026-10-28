@@ -260,7 +260,7 @@ class ApiService {
   }
 }
 
-static Future<List<dynamic>> getAchievements(
+static Future<List<dynamic>?> getAchievements(
   String familyId,
   String period,
   String? minDate,
@@ -277,9 +277,9 @@ static Future<List<dynamic>> getAchievements(
       final data = jsonDecode(response.body);
       return data["achievements"] ?? [];
     }
-    return [];
+    return null;
   } catch (e) {
-    return [];
+    return null;
   }
 }
     

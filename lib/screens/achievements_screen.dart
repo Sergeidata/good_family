@@ -1082,7 +1082,7 @@ int _countEarned() {
     monthStats.sort((a, b) => (a["seconds"] as int).compareTo(b["seconds"] as int));
 
    // Получить личные ачивки с сервера
-    final allAchievements = await ApiService.getAchievements(familyId, "personal", null);
+    final allAchievements = await ApiService.getAchievements(familyId, "personal", null) ?? [];
 
 Map<String, List<String>> weekAchievers = {};
 Map<String, List<String>> monthAchievers = {};
@@ -1107,7 +1107,7 @@ for (final a in allAchievements) {
   }
 }
 
-    final achievementsData = await ApiService.getAchievements(familyId, "", null);
+    final achievementsData = await ApiService.getAchievements(familyId, "", null) ?? [];
 
       for (final achievement in achievementsData) {
         final key = achievement["achievement_key"];
@@ -2118,11 +2118,11 @@ if (isMonday || isFirstDay) {
 
 
 // Считаем уникальные групповые ключи из уже загруженных данных
-final groupData = await ApiService.getAchievements(familyId, "group", null);
+final groupData = await ApiService.getAchievements(familyId, "group", null) ?? [];
 _groupKeysFromServer = groupData.map((a) => a["achievement_key"].toString()).toSet();
 _earnedGroupCount = _groupKeysFromServer.length;
 
-    final achievementsData = await ApiService.getAchievements(familyId, "", null);
+    final achievementsData = await ApiService.getAchievements(familyId, "", null) ?? [];
     for (final achievement in achievementsData) {
       _achievementInfo[achievement["achievement_key"]] = {
         "count": achievement["count"] ?? 1,

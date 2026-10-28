@@ -59,16 +59,11 @@ class _GardenScreen2State
       throw Exception("Garden data is null");
     }
 
+    // guard: при ошибке сети не перезаписываем счётчик достижений
     final allAchievements = await ApiService.getAchievements(familyId, "", null);
-    final personalKeys = allAchievements
-        .where((a) => a["user_name"] != _familyName && a["family_id"] == familyId)  // личные
-        .map((a) => a["achievement_key"].toString())
-        .toSet();
-    final groupKeys = allAchievements
-        .where((a) => a["user_name"] == _familyName && a["family_id"] == familyId)  // групповые
-        .map((a) => a["achievement_key"].toString())
-        .toSet();
-    _currentAchievements = garden["achievements_count"] ?? 0;
+    if (allAchievements != null) {
+      _currentAchievements = garden["achievements_count"] ?? 0;
+    }
 
     
     
@@ -109,6 +104,9 @@ Future<void> _checkLevelUp() async {
 
   final personalAchievements = await ApiService.getAchievements(familyId, "personal", null);
   final groupAchievements = await ApiService.getAchievements(familyId, "group", null);
+
+  // Не можем посчитать уникальные достижения — тихо выходим без ошибки.
+  if (personalAchievements == null || groupAchievements == null) return;
 
   final personalKeys = personalAchievements
       .map((a) => a["achievement_key"].toString())
