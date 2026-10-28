@@ -8,11 +8,15 @@ import 'loading_dots.dart';
 class ErrorState extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
+  final String? secondaryActionText;
+  final VoidCallback? onSecondaryAction;
 
   const ErrorState({
     super.key,
     required this.message,
     required this.onRetry,
+    this.secondaryActionText,
+    this.onSecondaryAction,
   });
 
   @override
@@ -52,6 +56,13 @@ class ErrorState extends StatelessWidget {
               ),
             ),
           ),
+          if (secondaryActionText != null && onSecondaryAction != null) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: onSecondaryAction,
+              child: Text(secondaryActionText!),
+            ),
+          ],
         ],
       ),
     );

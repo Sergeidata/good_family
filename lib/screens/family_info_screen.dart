@@ -201,8 +201,12 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
       final members = results[1];
       final status = results[2];
 
+      // ApiService при сетевой ошибке возвращает null (не бросает),
+      // поэтому без этой проверки экран уходит в «успешную» ветку с пустым списком.
+      if (members == null) throw Exception('offline');
+
       final memberStatus = status?['members'] ?? [];
-      final membersList = members?['members'] ?? [];
+      final membersList = members['members'] ?? [];
 
       for (final member in membersList) {
         final match = memberStatus.firstWhere(

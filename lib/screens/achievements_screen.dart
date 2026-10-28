@@ -998,6 +998,8 @@ Widget build(BuildContext context) {
 class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   Map<String, dynamic>? _data;
   String? _error;
+  bool _showCachedData = false;
+  Map<String, dynamic>? _cachedData;
   final Map<String, dynamic> _achievementInfo = {};
 
   int _countTotal() {
@@ -1062,6 +1064,7 @@ int _countEarned() {
   Future<void> _loadData() async {
   setState(() {
     _error = null;
+    _showCachedData = false;
   });
 
   final family = await FamilyStorage.loadFamily();
@@ -1178,26 +1181,25 @@ for (final a in allAchievements) {
         "weekAchievers": weekAchievers,
         "monthAchievers": monthAchievers,
       };
+      _cachedData = null;
+      _showCachedData = false;
       _error = null;
     });
   } catch (e) {
     final cache = await CacheStorage.load('achievements_$familyId');
-    if (cache != null) {
-      setState(() {
-        _data = {
-          "week": List<Map<String, dynamic>>.from(cache["data"]["week"] ?? []),
-          "month": List<Map<String, dynamic>>.from(cache["data"]["month"] ?? []),
-          "weekAchievers": Map<String, dynamic>.from(cache["data"]["weekAchievers"] ?? {}),
-          "monthAchievers": Map<String, dynamic>.from(cache["data"]["monthAchievers"] ?? {}),
-        };
-        _lastUpdated = DateTime.tryParse(cache["updated_at"] ?? "");
-        _fromCache = true;
-      });
-    } else {
-      setState(() {
-        _error = 'Нет связи с сервером';
-      });
-    }
+    setState(() {
+      _cachedData = cache == null
+          ? null
+          : {
+              "week": List<Map<String, dynamic>>.from(cache["data"]["week"] ?? []),
+              "month": List<Map<String, dynamic>>.from(cache["data"]["month"] ?? []),
+              "weekAchievers": Map<String, dynamic>.from(cache["data"]["weekAchievers"] ?? {}),
+              "monthAchievers": Map<String, dynamic>.from(cache["data"]["monthAchievers"] ?? {}),
+            };
+      _lastUpdated = cache == null ? null : DateTime.tryParse(cache["updated_at"] ?? "");
+      _fromCache = cache != null;
+      _error = 'Нет связи с сервером';
+    });
   }
 }
 
@@ -1586,6 +1588,16 @@ Widget _buildSectionTitle(
       return ErrorState(
         message: _error!,
         onRetry: _loadData,
+        secondaryActionText: _cachedData != null ? 'Показать сохранённые данные' : null,
+        onSecondaryAction: _cachedData == null
+            ? null
+            : () {
+                setState(() {
+                  _data = _cachedData;
+                  _showCachedData = true;
+                  _error = null;
+                });
+              },
       );
     }
 
@@ -1601,6 +1613,38 @@ Widget _buildSectionTitle(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
+        if (_showCachedData) ...[
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.amber.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.cloud_off_rounded, size: 18, color: Colors.amber.shade800),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Показаны сохранённые данные',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _showCachedData = false;
+                    });
+                    _loadData();
+                  },
+                  child: const Text('Обновить'),
+                ),
+              ],
+            ),
+          ),
+        ],
           // Карточка коллекции
           Card(
             elevation: 6,
