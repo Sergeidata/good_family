@@ -5,6 +5,7 @@ import '../services/family_storage.dart';
 import '../utils/app_utils.dart';
 import '../services/cache_storage.dart';
 import '../widgets/loading_dots.dart';
+import '../widgets/error_state.dart';
 
 class GroupScreen extends StatefulWidget {
   const GroupScreen({super.key});
@@ -46,6 +47,7 @@ class _GroupScreenState
 
     setState(() {
       _loading = true;
+      _error = null;
     });
 
     final family =
@@ -132,6 +134,7 @@ class _GroupScreenState
     setState(() {
       _groupStats = stats;
       _loading = false;
+      _error = null;
     });
   }
 
@@ -360,8 +363,10 @@ class _GroupScreenState
             const SizedBox(height: 16),
 
             if (_error != null)
-            
-              Center(child: Text(_error!, style: const TextStyle(fontSize: 18))),
+              ErrorState(
+                message: _error!,
+                onRetry: _refreshGroup,
+              ),
               
               if (_groupStats.isNotEmpty)
               _buildMotivation(),
