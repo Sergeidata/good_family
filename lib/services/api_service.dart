@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:http/http.dart' as http;
 
 import 'package:intl/intl.dart';
@@ -190,6 +192,7 @@ class ApiService {
       );
 
       final data = jsonDecode(response.body);
+      debugPrint('API family_members status=${response.statusCode} type=${data.runtimeType} len=${response.body.length}'); // DEBUG-TEMP
 
       return data;
     } catch (e) {
@@ -501,7 +504,8 @@ static Future<Map<String, dynamic>> getChildBalance(
     }
 
     return {"stars": 0};
-  } catch (_) {
+  } catch (e) {
+    debugPrint('API child_balance ERROR for $userName: $e'); // DEBUG-TEMP
     return {"stars": 0};
   }
 }
@@ -701,6 +705,7 @@ static Future<List<dynamic>?> getRewardRequests(
         "$baseUrl/reward_requests?family_id=$familyId",
       ),
     ).timeout(const Duration(seconds: 8));
+    debugPrint('API reward_requests status=${response.statusCode} len=${response.body.length}'); // DEBUG-TEMP
 
     if(response.statusCode!=200){
       return null;
@@ -709,7 +714,8 @@ static Future<List<dynamic>?> getRewardRequests(
     return jsonDecode(
       response.body,
     )["requests"];
-  } catch (_) {
+  } catch (e) {
+    debugPrint('API reward_requests ERROR: $e'); // DEBUG-TEMP
     return null;
   }
 }
