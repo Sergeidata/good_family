@@ -503,9 +503,6 @@ def join_family():
         if not invite_code:
             return jsonify({"status": "error", "message": "invite_code required"}), 400
 
-        if not device_id:
-            return jsonify({"status": "error", "message": "device_id required"}), 400
-
         conn = get_connection()
         cur = conn.cursor()
 
@@ -539,7 +536,8 @@ def join_family():
                 return jsonify({"status": "ok", "family_id": family_id, "family_name": family_name})
 
         # Не плодим дубликаты: записи, созданные старыми версиями клиента,
-        # могли остаться с пустым device_id при том же user_name.
+        # могли остаться с пустым device_id при том же user_name. Пустой
+        # device_id не отклоняем (мягкий режим) — ищем дубль по user_name.
         cur.execute("""
             SELECT id, avatar FROM members
             WHERE family_id = %s AND user_name = %s

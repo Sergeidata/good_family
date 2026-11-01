@@ -36,3 +36,6 @@ familyfocus.db
 *.db
 server/venv/
 __pycache__/
+
+# Временные артефакты от внешних инструментов
+adblogger_catalog_*.png

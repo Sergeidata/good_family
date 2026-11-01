@@ -77,14 +77,30 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _createGroup() async {
     final prefs = await SharedPreferences.getInstance();
-    final deviceId = prefs.getString("device_id");
 
     setState(() { _loading = true; });
+
+    // device_id мог ещё не сохраниться (getDeviceId вызывается позже) —
+    // дожидаемся нативного значения, иначе админ семьи получит пустой device_id.
+    var deviceId = prefs.getString("device_id") ?? "";
+    if (deviceId.isEmpty) {
+      final nativeId = await SyncServiceHelper.getDeviceId();
+      if (nativeId != null && nativeId.isNotEmpty) {
+        deviceId = nativeId;
+        await prefs.setString("device_id", deviceId);
+      }
+    }
+
+    if (deviceId.isEmpty) {
+      setState(() { _loading = false; });
+      _showError("Не удалось определить устройство. Попробуйте ещё раз.");
+      return;
+    }
 
     final result = await ApiService.createFamily(
       widget.familyName!,
       widget.name,
-      deviceId ?? "",
+      deviceId,
       _selectedRole,
       _selectedAvatar,
     );
