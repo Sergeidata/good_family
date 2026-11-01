@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 class UsageStatsHelper {
   static const MethodChannel _channel = MethodChannel(
@@ -60,7 +61,7 @@ static int getSocialSeconds(Map<String, int> apps) {
 
       return result;
     } catch (e) {
-      print("HAS_PERMISSION ERROR: $e");
+      debugPrint("HAS_PERMISSION ERROR: $e");
       return false;
     }
   }
@@ -71,7 +72,7 @@ static int getSocialSeconds(Map<String, int> apps) {
         'requestPermission',
       );
     } catch (e) {
-      print("REQUEST_PERMISSION ERROR: $e");
+      debugPrint("REQUEST_PERMISSION ERROR: $e");
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 
 class SyncServiceHelper {
 
@@ -16,7 +17,7 @@ class SyncServiceHelper {
       'userName': userName,
     });
   } catch (e) {
-    print('START SYNC SERVICE ERROR: $e');
+    debugPrint('START SYNC SERVICE ERROR: $e');
   }
 }
 
@@ -34,7 +35,7 @@ class SyncServiceHelper {
 
     } catch (e) {
 
-      print(
+      debugPrint(
         'STOP SYNC SERVICE ERROR: $e',
       );
     }

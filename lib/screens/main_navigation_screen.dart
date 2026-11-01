@@ -9,19 +9,12 @@ import '../widgets/main_bottom_bar.dart';
 /// Открыть «Достижения» на нужной внутренней вкладке.
 /// 0 — Чемпионат, 1 — Личные, 2 — Групповые.
 void openAchievementsTab(int innerIndex) {
-  debugPrint('DEBUG-TEMP openAchievementsTab($innerIndex): '
-      'nav=${MainNavigationScreenState.current != null} '
-      'ach=${AchievementsScreenState.current != null}');
-
   // Переключаем нижнюю вкладку на «Ачивки» (index 2)
   MainNavigationScreenState.current?.switchToTab(2);
 
   // Ждём кадр, чтобы IndexedStack показал вкладку,
   // и только потом переключаем внутренний TabBar.
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    debugPrint('DEBUG-TEMP postFrame: '
-        'nav=${MainNavigationScreenState.current != null} '
-        'ach=${AchievementsScreenState.current != null}');
     AchievementsScreenState.current?.selectTab(innerIndex);
   });
 }

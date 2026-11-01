@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiService {
   static const String baseUrl =
@@ -37,7 +38,7 @@ class ApiService {
 
       return jsonDecode(response.body);
     } catch (e) {
-      print("CREATE FAMILY ERROR: $e");
+      debugPrint("CREATE FAMILY ERROR: $e");
       return null;
     }
   }
@@ -71,7 +72,7 @@ class ApiService {
 
       return jsonDecode(response.body);
     } catch (e) {
-      print("JOIN FAMILY ERROR: $e");
+      debugPrint("JOIN FAMILY ERROR: $e");
       return null;
     }
   }
@@ -161,7 +162,7 @@ class ApiService {
       ).timeout(const Duration(seconds: 5));
       return jsonDecode(response.body);
     } catch (e) {
-      print("SYNC ERROR: $e");
+      debugPrint("SYNC ERROR: $e");
       return null;
     }
   }
@@ -201,7 +202,7 @@ class ApiService {
 
       return data;
     } catch (e) {
-      print("GET MEMBERS ERROR: $e");
+      debugPrint("GET MEMBERS ERROR: $e");
       return null;
     }
   }
@@ -381,7 +382,7 @@ static Future<Map<String, dynamic>?> getFamilyDailyStats(String familyId, String
       return jsonDecode(response.body);
     }
   } catch (e) {
-  print("FAMILY_DAILY_STATS ERROR: $e");
+  debugPrint("FAMILY_DAILY_STATS ERROR: $e");
   }
   return null;
 }
@@ -615,7 +616,7 @@ static Future<Map<String, dynamic>?> getAchievementProgress(
       return jsonDecode(response.body);
     }
   } catch (e) {
-    print("ACHIEVEMENT PROGRESS ERROR: $e");
+    debugPrint("ACHIEVEMENT PROGRESS ERROR: $e");
   }
   return null;
 }

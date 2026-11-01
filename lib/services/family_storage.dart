@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 
 class FamilyStorage {
   static const String _fileName = "family.json";
@@ -32,7 +33,7 @@ class FamilyStorage {
 
       return jsonDecode(content);
     } catch (e) {
-      print("LOAD FAMILY ERROR: $e");
+      debugPrint("LOAD FAMILY ERROR: $e");
       return {};
     }
   }
@@ -52,7 +53,7 @@ class FamilyStorage {
         jsonEncode(data),
       );
     } catch (e) {
-      print("SAVE FAMILY ERROR: $e");
+      debugPrint("SAVE FAMILY ERROR: $e");
     }
   }
 
@@ -69,7 +70,7 @@ class FamilyStorage {
         await file.delete();
       }
     } catch (e) {
-      print("CLEAR FAMILY ERROR: $e");
+      debugPrint("CLEAR FAMILY ERROR: $e");
     }
   }
 }

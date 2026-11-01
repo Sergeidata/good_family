@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart';
 
 class SessionStorage {
   static const String _fileName =
@@ -42,7 +43,7 @@ class SessionStorage {
           )
           .toList();
     } catch (e) {
-      print("LOAD_SESSIONS ERROR: $e");
+      debugPrint("LOAD_SESSIONS ERROR: $e");
 
       return [];
     }
@@ -64,7 +65,7 @@ class SessionStorage {
         jsonString,
       );
     } catch (e) {
-      print("SAVE_SESSIONS ERROR: $e");
+      debugPrint("SAVE_SESSIONS ERROR: $e");
     }
   }
 
@@ -79,7 +80,7 @@ class SessionStorage {
 
       await saveSessions(sessions);
     } catch (e) {
-      print("ADD_SESSION ERROR: $e");
+      debugPrint("ADD_SESSION ERROR: $e");
     }
   }
 
