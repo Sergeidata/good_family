@@ -17,53 +17,108 @@ class AchievementsScreen extends StatefulWidget {
   State<AchievementsScreen> createState() => _AchievementsScreenState();
 }
 
-class _AchievementsScreenState extends State<AchievementsScreen> {
+class _AchievementsScreenState extends State<AchievementsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  final GlobalKey<_ChampionsTabState> _championsKey = GlobalKey();
+  final GlobalKey<_PersonalAchievementsTabState> _personalKey = GlobalKey();
+  final GlobalKey<_GroupAchievementsTabState> _groupKey = GlobalKey();
+
+  int _lastIndex = 0;
+  bool _seeding = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
+    _seedSeenAchievements();
+  }
+
+  /// Однократно (при первом запуске с фичей) заполняем seen_achievements
+  /// обоими типами достижений сразу — иначе второй таб «вспыхнет» каскадом.
+  Future<void> _seedSeenAchievements() async {
+    final family = await FamilyStorage.loadFamily();
+    final familyId = family["family_id"];
+    if (familyId != null) {
+      await AchievementUnlockService.ensureSeeded(familyId);
+    }
+    if (!mounted) return;
+    setState(() => _seeding = false);
+  }
+
+  void _onTabChanged() {
+    if (_tabController.indexIsChanging) return;
+
+    final index = _tabController.index;
+    if (index == _lastIndex) return;
+    _lastIndex = index;
+
+    // Достижения могли появиться на сервере, пока экран был открыт.
+    switch (index) {
+      case 0:
+        _championsKey.currentState?.reloadData();
+        break;
+      case 1:
+        _personalKey.currentState?.reloadData();
+        break;
+      case 2:
+        _groupKey.currentState?.reloadData();
+        break;
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text("Достижения"),
-         bottom: const TabBar(
-  isScrollable: false,
-  labelColor: Colors.blue,
-  unselectedLabelColor: Colors.grey,
-  indicatorColor: Colors.blue,
-  tabs: [
-    Tab(
-      icon: Icon(Icons.emoji_events),
-      text: "Чемпионат",
-    ),
-    Tab(
-      icon: Icon(Icons.person),
-      text: "Личные",
-    ),
-    Tab(
-      icon: Icon(Icons.groups),
-      text: "Групповые",
-    ),
-  ],
-),
-        ),
-        body: TabBarView(
-          children: [
-
-            _ChampionsTab(),
-
-            _PersonalAchievementsTab(),
-
-            _GroupAchievementsTab(),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Достижения"),
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: false,
+          labelColor: Colors.blue,
+          unselectedLabelColor: Colors.grey,
+          indicatorColor: Colors.blue,
+          tabs: const [
+            Tab(
+              icon: Icon(Icons.emoji_events),
+              text: "Чемпионат",
+            ),
+            Tab(
+              icon: Icon(Icons.person),
+              text: "Личные",
+            ),
+            Tab(
+              icon: Icon(Icons.groups),
+              text: "Групповые",
+            ),
           ],
         ),
-        
       ),
+      body: _seeding
+          ? const Center(child: LoadingDots())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                _ChampionsTab(key: _championsKey),
+                _PersonalAchievementsTab(key: _personalKey),
+                _GroupAchievementsTab(key: _groupKey),
+              ],
+            ),
     );
   }
 }
 
 class _PersonalAchievementsTab extends StatefulWidget {
-  const _PersonalAchievementsTab();
+  const _PersonalAchievementsTab({super.key});
 
   @override
   State<_PersonalAchievementsTab> createState() => _PersonalAchievementsTabState();
@@ -71,7 +126,7 @@ class _PersonalAchievementsTab extends StatefulWidget {
 
 
 class _ChampionsTab extends StatefulWidget {
-  const _ChampionsTab();
+  const _ChampionsTab({super.key});
 
   @override
   State<_ChampionsTab> createState() =>
@@ -84,6 +139,9 @@ class _ChampionsTabState
   bool _loading = true;
 
   String? _error;
+
+  /// Перезагрузка при переключении на вкладку.
+  void reloadData() => _loadChampions();
 
   bool _weekExpanded = false;
   bool _monthExpanded = false;
@@ -999,6 +1057,9 @@ Widget build(BuildContext context) {
 class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   Map<String, dynamic>? _data;
   String? _error;
+
+  /// Перезагрузка при переключении на вкладку.
+  void reloadData() => _loadData();
   bool _showCachedData = false;
   Map<String, dynamic>? _cachedData;
   final Map<String, dynamic> _achievementInfo = {};
@@ -1226,17 +1287,11 @@ for (final a in allAchievements) {
     }
     if (current.isEmpty) return;
 
-    final newKeys = await AchievementUnlockService.takeNew(current);
-    if (newKeys.isEmpty || !mounted) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      await AchievementUnlockService.showQueue(
-        context,
-        keys: newKeys,
-        titleFor: (key) => _achievementTitle(key.split(':').last),
-      );
-    });
+    await AchievementUnlockService.checkAndShow(
+      context,
+      currentKeys: current,
+      titleFor: (key) => _achievementTitle(key.split(':').last),
+    );
   }
 
   String formatHoursMinutes(int seconds) {
@@ -1753,7 +1808,7 @@ Widget _buildSectionTitle(
 
 
 class _GroupAchievementsTab extends StatefulWidget {
-  const _GroupAchievementsTab();
+  const _GroupAchievementsTab({super.key});
 
   @override
   State<_GroupAchievementsTab> createState() =>
@@ -1766,6 +1821,9 @@ class _GroupAchievementsTabState
   bool _loading = true;
 
   String? _error;
+
+  /// Перезагрузка при переключении на вкладку.
+  void reloadData() => _loadAchievements();
 
   String _familyName = "Семья";
   int _earnedGroupCount = 0;
@@ -2167,6 +2225,24 @@ if (isMonday || isFirstDay) {
   }
 }
 
+// После записи личных достижений — сразу проверяем, не появились ли новые у меня.
+if (isMonday || isFirstDay) {
+  final myName = family["user_name"] ?? "";
+  if (myName.isNotEmpty) {
+    final personalData =
+        await ApiService.getAchievements(familyId, "personal", null) ?? [];
+    final myKeys = personalData
+        .where((a) => a["user_name"].toString() == myName)
+        .map((a) => 'personal:${a["achievement_key"]}')
+        .toSet();
+    await AchievementUnlockService.checkAndShow(
+      context,
+      currentKeys: myKeys,
+      titleFor: (key) => _achievementTitle(key.split(':').last),
+    );
+  }
+}
+
     // Заполнить _weeklyAchievements и _monthlyAchievements для build
     if (goodWeekDays >= 3) _weeklyAchievements.add("3");
     if (goodWeekDays >= 5) _weeklyAchievements.add("5");
@@ -2221,17 +2297,11 @@ _earnedGroupCount = _groupKeysFromServer.length;
     };
     if (current.isEmpty) return;
 
-    final newKeys = await AchievementUnlockService.takeNew(current);
-    if (newKeys.isEmpty || !mounted) return;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
-      await AchievementUnlockService.showQueue(
-        context,
-        keys: newKeys,
-        titleFor: (key) => _achievementTitle(key.split(':').last),
-      );
-    });
+    await AchievementUnlockService.checkAndShow(
+      context,
+      currentKeys: current,
+      titleFor: (key) => _achievementTitle(key.split(':').last),
+    );
   }
 
   void _addAchievement({
