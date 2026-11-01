@@ -1554,7 +1554,7 @@ else ...[
         target:
             (_achievementProgress!.next!["target"] as num?)?.toInt() ?? 0,
         onTap: _openAchievements,
-        gradientColors: const [Color(0xFF9C1C2E), Color(0xFF6A0F1C)],
+        gradientColors: const[Color(0xFFD81B60), Color(0xFFAD1457)],
       )
     else
       AllAchievementsEarnedCard(onTap: _openAchievements),
