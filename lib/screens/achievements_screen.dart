@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../services/cache_storage.dart';
+import '../services/achievement_unlock_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/achievement_progress_sheet.dart';
 import '../widgets/loading_dots.dart';
@@ -1069,6 +1070,7 @@ int _countEarned() {
 
   final family = await FamilyStorage.loadFamily();
   final familyId = family["family_id"];
+  final myName = family["user_name"] ?? "";
 
   try {
     final membersResponse = await ApiService.getMembers(familyId);
@@ -1185,6 +1187,9 @@ for (final a in allAchievements) {
       _showCachedData = false;
       _error = null;
     });
+
+    // Личные достижения — только мои.
+    await _checkNewAchievements(weekAchievers, monthAchievers, myName);
   } catch (e) {
     final cache = await CacheStorage.load('achievements_$familyId');
     setState(() {
@@ -1204,6 +1209,35 @@ for (final a in allAchievements) {
 }
 
  
+
+  Future<void> _checkNewAchievements(
+    Map<String, List<String>> weekAchievers,
+    Map<String, List<String>> monthAchievers,
+    String myName,
+  ) async {
+    if (myName.isEmpty) return;
+
+    final current = <String>{};
+    for (final entry in weekAchievers.entries) {
+      if (entry.value.contains(myName)) current.add('personal:${entry.key}');
+    }
+    for (final entry in monthAchievers.entries) {
+      if (entry.value.contains(myName)) current.add('personal:${entry.key}');
+    }
+    if (current.isEmpty) return;
+
+    final newKeys = await AchievementUnlockService.takeNew(current);
+    if (newKeys.isEmpty || !mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await AchievementUnlockService.showQueue(
+        context,
+        keys: newKeys,
+        titleFor: (key) => _achievementTitle(key.split(':').last),
+      );
+    });
+  }
 
   String formatHoursMinutes(int seconds) {
     final hours = seconds ~/ 3600;
@@ -1753,76 +1787,7 @@ class _GroupAchievementsTabState
   Set<String> _groupKeysFromServer = {};
 
 
-  String _getTitle(String key) {
-  switch (key) {
-
-    case "3":
-      return "3 дня минимум телефона";
-
-    case "5":
-      return "5 дней минимум телефона";
-
-    case "7":
-      return "7 дней минимум телефона";
-
-    case "10":
-      return "10 дней минимум телефона";
-
-    case "20":
-      return "20 дней минимум телефона";
-
-    case "25":
-      return "25 дней минимум телефона";
-
-    case "-1":
-      return "Весь месяц минимум телефона";
-
-    case "3p":
-      return "3 дня без телефона";
-
-    case "5p":
-      return "5 дней без телефона";
-
-    case "7p":
-      return "7 дней без телефона";
-
-    case "10p":
-      return "10 дней без телефона";
-
-    case "20p":
-      return "20 дней без телефона";
-
-    case "25p":
-      return "25 дней без телефона";
-
-    case "-1p":
-      return "Весь месяц без телефона";
-
-    case "3s":
-  return "3 дня минимум соцсетей";
-
-    case "5s":
-      return "5 дней минимум соцсетей";
-
-    case "7s":
-      return "7 дней минимум соцсетей";
-
-    case "10s":
-      return "10 дней минимум соцсетей";
-
-    case "20s":
-      return "20 дней минимум соцсетей";
-
-    case "25s":
-      return "25 дней минимум соцсетей";
-
-    case "-1s":
-      return "Весь месяц минимум соцсетей";
-
-    default:
-      return "";
-  }
-}
+  String _getTitle(String key) => _achievementTitle(key);
 
 
 String _getDescription(String key) {
@@ -2244,6 +2209,29 @@ _earnedGroupCount = _groupKeysFromServer.length;
       _loading = false;
       _error = null;
     });
+
+    // Групповые достижения принадлежат семье (у них user_name == family_name),
+    // поэтому берём ключи, подтверждённые сервером для этой семьи.
+    await _checkNewGroupAchievements();
+  }
+
+  Future<void> _checkNewGroupAchievements() async {
+    final current = <String>{
+      for (final key in _groupKeysFromServer) 'group:$key',
+    };
+    if (current.isEmpty) return;
+
+    final newKeys = await AchievementUnlockService.takeNew(current);
+    if (newKeys.isEmpty || !mounted) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await AchievementUnlockService.showQueue(
+        context,
+        keys: newKeys,
+        titleFor: (key) => _achievementTitle(key.split(':').last),
+      );
+    });
   }
 
   void _addAchievement({
@@ -2528,4 +2516,54 @@ Widget build(BuildContext context) {
     ),
   );
 }
+}
+
+/// Название достижения по ключу — общее для личных и групповых.
+String _achievementTitle(String key) {
+  switch (key) {
+    case "3":
+      return "3 дня минимум телефона";
+    case "5":
+      return "5 дней минимум телефона";
+    case "7":
+      return "7 дней минимум телефона";
+    case "10":
+      return "10 дней минимум телефона";
+    case "20":
+      return "20 дней минимум телефона";
+    case "25":
+      return "25 дней минимум телефона";
+    case "-1":
+      return "Весь месяц минимум телефона";
+    case "3p":
+      return "3 дня без телефона";
+    case "5p":
+      return "5 дней без телефона";
+    case "7p":
+      return "7 дней без телефона";
+    case "10p":
+      return "10 дней без телефона";
+    case "20p":
+      return "20 дней без телефона";
+    case "25p":
+      return "25 дней без телефона";
+    case "-1p":
+      return "Весь месяц без телефона";
+    case "3s":
+      return "3 дня минимум соцсетей";
+    case "5s":
+      return "5 дней минимум соцсетей";
+    case "7s":
+      return "7 дней минимум соцсетей";
+    case "10s":
+      return "10 дней минимум соцсетей";
+    case "20s":
+      return "20 дней минимум соцсетей";
+    case "25s":
+      return "25 дней минимум соцсетей";
+    case "-1s":
+      return "Весь месяц минимум соцсетей";
+    default:
+      return key;
+  }
 }
