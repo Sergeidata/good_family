@@ -8,6 +8,7 @@ import '../widgets/achievement_progress_sheet.dart';
 import '../widgets/loading_dots.dart';
 import '../utils/app_utils.dart';
 import '../widgets/error_state.dart';
+import '../widgets/next_achievement_card.dart';
 
 
 class AchievementsScreen extends StatefulWidget {
@@ -1058,8 +1059,43 @@ class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   Map<String, dynamic>? _data;
   String? _error;
 
+  Map<String, dynamic>? _nextAchievement;
+  bool _allPersonalEarned = false;
+
   /// Перезагрузка при переключении на вкладку.
   void reloadData() => _loadData();
+
+  /// Ближайшее к завершению личное достижение (ratio < 1).
+  /// Возвращает null, только если все достижения уже получены.
+  Map<String, dynamic>? _pickClosest(List<dynamic> items) {
+    Map<String, dynamic>? best;
+    double bestRatio = -1;
+
+    for (final item in items) {
+      if (item is! Map) continue;
+
+      final current = (item["current"] as num?)?.toInt() ?? 0;
+      final target = (item["target"] as num?)?.toInt() ?? 0;
+      if (target <= 0) continue;
+
+      final ratio = current / target;
+      if (ratio >= 1.0) continue;
+
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        best = Map<String, dynamic>.from(item);
+      }
+    }
+
+    return best;
+  }
+
+  /// Название: серверное, иначе — клиентский словарь.
+  String _progressTitle(Map<String, dynamic> item) {
+    final serverTitle = item["title"]?.toString().trim() ?? "";
+    if (serverTitle.isNotEmpty) return serverTitle;
+    return _achievementTitle(item["key"].toString());
+  }
   bool _showCachedData = false;
   Map<String, dynamic>? _cachedData;
   final Map<String, dynamic> _achievementInfo = {};
@@ -1228,6 +1264,11 @@ for (final a in allAchievements) {
       if (DateTime.now().difference(created).inDays < 28) monthStats = [];
     }
 
+    // Ближайшее личное достижение — одним запросом.
+    final progressList =
+        await ApiService.getAchievementProgressAll(familyId, myName) ?? [];
+    final nextAchievement = _pickClosest(progressList);
+
     await CacheStorage.save('achievements_$familyId', {
       "week": weekStats,
       "month": monthStats,
@@ -1247,6 +1288,8 @@ for (final a in allAchievements) {
       _cachedData = null;
       _showCachedData = false;
       _error = null;
+      _nextAchievement = nextAchievement;
+      _allPersonalEarned = progressList.isNotEmpty && nextAchievement == null;
     });
 
     // Личные достижения — только мои.
@@ -1734,6 +1777,14 @@ Widget _buildSectionTitle(
             ),
           ),
         ],
+          if (_nextAchievement != null)
+            NextAchievementCard(
+              title: _progressTitle(_nextAchievement!),
+              current: (_nextAchievement!["current"] as num?)?.toInt() ?? 0,
+              target: (_nextAchievement!["target"] as num?)?.toInt() ?? 0,
+            )
+          else if (_allPersonalEarned)
+            const AllAchievementsEarnedCard(),
           // Карточка коллекции
           Card(
             elevation: 6,

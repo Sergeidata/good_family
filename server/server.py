@@ -1512,34 +1512,59 @@ def personal_achievements():
 
 
 
+# Ключ -> (period_type, metric, threshold_seconds, target)
+ACHIEVEMENT_METRICS = {
+    "3": ("weekly", "screen", 7200, 3),
+    "5": ("weekly", "screen", 7200, 5),
+    "7": ("weekly", "screen", 7200, 7),
+    "3p": ("weekly", "screen", 1200, 3),
+    "5p": ("weekly", "screen", 1200, 5),
+    "7p": ("weekly", "screen", 1200, 7),
+    "3s": ("weekly", "social", 1800, 3),
+    "5s": ("weekly", "social", 1800, 5),
+    "7s": ("weekly", "social", 1800, 7),
+    "10": ("monthly", "screen", 7200, 10),
+    "20": ("monthly", "screen", 7200, 20),
+    "25": ("monthly", "screen", 7200, 25),
+    "-1": ("monthly", "screen", 7200, 30),
+    "10p": ("monthly", "screen", 1200, 10),
+    "20p": ("monthly", "screen", 1200, 20),
+    "25p": ("monthly", "screen", 1200, 25),
+    "-1p": ("monthly", "screen", 1200, 30),
+    "10s": ("monthly", "social", 1800, 10),
+    "20s": ("monthly", "social", 1800, 20),
+    "25s": ("monthly", "social", 1800, 25),
+    "-1s": ("monthly", "social", 1800, 30),
+}
+
+ACHIEVEMENT_TITLES = {
+    "3": "3 дня минимум телефона",
+    "5": "5 дней минимум телефона",
+    "7": "7 дней минимум телефона",
+    "10": "10 дней минимум телефона",
+    "20": "20 дней минимум телефона",
+    "25": "25 дней минимум телефона",
+    "-1": "Весь месяц минимум телефона",
+    "3p": "3 дня без телефона",
+    "5p": "5 дней без телефона",
+    "7p": "7 дней без телефона",
+    "10p": "10 дней без телефона",
+    "20p": "20 дней без телефона",
+    "25p": "25 дней без телефона",
+    "-1p": "Весь месяц без телефона",
+    "3s": "3 дня минимум соцсетей",
+    "5s": "5 дней минимум соцсетей",
+    "7s": "7 дней минимум соцсетей",
+    "10s": "10 дней минимум соцсетей",
+    "20s": "20 дней минимум соцсетей",
+    "25s": "25 дней минимум соцсетей",
+    "-1s": "Весь месяц минимум соцсетей",
+}
+
+
 def get_achievement_config(key):
     """Возвращает (period_type, metric, threshold_seconds, target)"""
-    weekly_metrics = {
-        "3": ("weekly", "screen", 7200, 3),
-        "5": ("weekly", "screen", 7200, 5),
-        "7": ("weekly", "screen", 7200, 7),
-        "3p": ("weekly", "screen", 1200, 3),
-        "5p": ("weekly", "screen", 1200, 5),
-        "7p": ("weekly", "screen", 1200, 7),
-        "3s": ("weekly", "social", 1800, 3),
-        "5s": ("weekly", "social", 1800, 5),
-        "7s": ("weekly", "social", 1800, 7),
-    }
-    monthly_metrics = {
-        "10": ("monthly", "screen", 7200, 10),
-        "20": ("monthly", "screen", 7200, 20),
-        "25": ("monthly", "screen", 7200, 25),
-        "-1": ("monthly", "screen", 7200, 30),
-        "10p": ("monthly", "screen", 1200, 10),
-        "20p": ("monthly", "screen", 1200, 20),
-        "25p": ("monthly", "screen", 1200, 25),
-        "-1p": ("monthly", "screen", 1200, 30),
-        "10s": ("monthly", "social", 1800, 10),
-        "20s": ("monthly", "social", 1800, 20),
-        "25s": ("monthly", "social", 1800, 25),
-        "-1s": ("monthly", "social", 1800, 30),
-    }
-    return weekly_metrics.get(key) or monthly_metrics.get(key)
+    return ACHIEVEMENT_METRICS.get(key)
 
 
 def get_periods(period_type):
@@ -1708,6 +1733,64 @@ def achievement_progress():
             "previous": previous,
         })
     
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/achievement_progress_all")
+def achievement_progress_all():
+    """Прогресс по всем личным достижениям за один запрос (1 SQL-запрос)."""
+    try:
+        family_id = request.args.get("family_id")
+        user_name = request.args.get("user_name")
+
+        if not family_id or not user_name:
+            return jsonify({"status": "error", "message": "missing params"}), 400
+
+        today = datetime.now().date()
+        month_start = today.replace(day=1)
+        week_start = today - timedelta(days=today.weekday())
+        # Самый ранний из нужных периодов: неделя может начаться в прошлом месяце
+        start = min(month_start, week_start)
+        end = today - timedelta(days=1)  # как в get_periods: сегодня не учитываем
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        rows = []
+        if start <= end:
+            cur.execute("""
+                SELECT date, total_seconds, COALESCE(social_seconds, 0)
+                FROM screen_time
+                WHERE user_id = %s AND date >= %s AND date <= %s
+            """, (user_name, start, end))
+            rows = cur.fetchall()
+
+        cur.close()
+        conn.close()
+
+        achievements = []
+        for key, (period_type, metric, threshold, target) in ACHIEVEMENT_METRICS.items():
+            p_start = week_start if period_type == "weekly" else month_start
+
+            good_days = 0
+            if p_start <= end:
+                for day, total, social in rows:
+                    if day < p_start or day > end:
+                        continue
+                    seconds = total if metric == "screen" else social
+                    if seconds < threshold:
+                        good_days += 1
+
+            achievements.append({
+                "key": key,
+                "current": good_days,
+                "target": target,
+                "title": ACHIEVEMENT_TITLES.get(key, key),
+            })
+
+        return jsonify({"status": "ok", "achievements": achievements})
+
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 

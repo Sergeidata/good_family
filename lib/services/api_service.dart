@@ -620,6 +620,34 @@ static Future<Map<String, dynamic>?> getAchievementProgress(
   return null;
 }
 
+static Future<List<dynamic>?> getAchievementProgressAll(
+  String familyId,
+  String userName,
+) async {
+  try {
+    final uri = Uri.parse("$baseUrl/achievement_progress_all").replace(
+      queryParameters: {
+        "family_id": familyId,
+        "user_name": userName,
+      },
+    );
+
+    final response = await http.get(uri).timeout(const Duration(seconds: 8));
+
+    if (response.statusCode != 200) return null;
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) return null;
+
+    final list = decoded["achievements"];
+    if (list is! List) return null;
+
+    return list;
+  } catch (_) {
+    return null;
+  }
+}
+
 static Future<List<dynamic>?> getRewardShop(String familyId) async {
   try {
     final response = await http.get(Uri.parse("$baseUrl/reward_shop?family_id=$familyId")).timeout(const Duration(seconds: 8));
