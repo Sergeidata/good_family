@@ -6,21 +6,23 @@ import 'more_screen.dart';
 import 'home_dashboard.dart';
 import '../widgets/main_bottom_bar.dart';
 
-final GlobalKey<MainNavigationScreenState> mainNavKey = GlobalKey();
-
-/// Ключ к вкладке «Ачивки»: нужен, чтобы выбрать внутреннюю вкладку извне.
-final GlobalKey<AchievementsScreenState> achievementsKey = GlobalKey();
-
 /// Открыть «Достижения» на нужной внутренней вкладке.
 /// 0 — Чемпионат, 1 — Личные, 2 — Групповые.
 void openAchievementsTab(int innerIndex) {
+  debugPrint('DEBUG-TEMP openAchievementsTab($innerIndex): '
+      'nav=${MainNavigationScreenState.current != null} '
+      'ach=${AchievementsScreenState.current != null}');
+
   // Переключаем нижнюю вкладку на «Ачивки» (index 2)
-  mainNavKey.currentState?.switchToTab(2);
+  MainNavigationScreenState.current?.switchToTab(2);
 
   // Ждём кадр, чтобы IndexedStack показал вкладку,
   // и только потом переключаем внутренний TabBar.
   WidgetsBinding.instance.addPostFrameCallback((_) {
-    achievementsKey.currentState?.selectTab(innerIndex);
+    debugPrint('DEBUG-TEMP postFrame: '
+        'nav=${MainNavigationScreenState.current != null} '
+        'ach=${AchievementsScreenState.current != null}');
+    AchievementsScreenState.current?.selectTab(innerIndex);
   });
 }
 
@@ -49,6 +51,10 @@ class MainNavigationScreen extends StatefulWidget {
 
 class MainNavigationScreenState extends State<MainNavigationScreen> {
 
+  /// Текущий живой экземпляр навигации.
+  /// GlobalKey вешался на Scaffold, из-за чего currentState всегда был null.
+  static MainNavigationScreenState? current;
+
   late int _currentIndex;
 
    void switchToTab(int index) {
@@ -60,19 +66,25 @@ class MainNavigationScreenState extends State<MainNavigationScreen> {
 @override
 void initState() {
   super.initState();
+  current = this;
   _currentIndex = widget.initialIndex;
 }
+
+  @override
+  void dispose() {
+    if (current == this) current = null;
+    super.dispose();
+  }
 
  @override
 Widget build(BuildContext context) {
   return Scaffold(
-    key: mainNavKey,
     body: IndexedStack(
       index: _currentIndex,
       children: [
         const HomeDashboard(),
         const GroupScreen(),
-        AchievementsScreen(key: achievementsKey),
+        const AchievementsScreen(),
         const FamilyInfoScreen(),
         const MoreScreen(),
       ],

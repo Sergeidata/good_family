@@ -991,7 +991,7 @@ Widget _buildScreenTimeCard(
     MaterialPageRoute(builder: (_) => const StatsScreen()),
   );
   if (result != null) {
-    mainNavKey.currentState?.switchToTab(result);
+    MainNavigationScreenState.current?.switchToTab(result);
   }
 },
     child: Container(

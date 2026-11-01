@@ -23,6 +23,11 @@ class AchievementsScreen extends StatefulWidget {
 
 class AchievementsScreenState extends State<AchievementsScreen>
     with SingleTickerProviderStateMixin {
+  /// Текущий живой экземпляр экрана «Достижения».
+  /// Через него главная переключает внутреннюю вкладку (без GlobalKey,
+  /// чтобы не ловить «Multiple widgets used the same GlobalKey»).
+  static AchievementsScreenState? current;
+
   late final TabController _tabController;
 
   final GlobalKey<_ChampionsTabState> _championsKey = GlobalKey();
@@ -35,6 +40,7 @@ class AchievementsScreenState extends State<AchievementsScreen>
   @override
   void initState() {
     super.initState();
+    current = this;
     _lastIndex = widget.initialTab.clamp(0, 2);
     _tabController = TabController(
       length: 3,
@@ -86,6 +92,7 @@ class AchievementsScreenState extends State<AchievementsScreen>
 
   @override
   void dispose() {
+    if (current == this) current = null;
     _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
