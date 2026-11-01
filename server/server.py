@@ -503,6 +503,9 @@ def join_family():
         if not invite_code:
             return jsonify({"status": "error", "message": "invite_code required"}), 400
 
+        if not device_id:
+            return jsonify({"status": "error", "message": "device_id required"}), 400
+
         conn = get_connection()
         cur = conn.cursor()
 
@@ -534,6 +537,39 @@ def join_family():
                 cur.close()
                 conn.close()
                 return jsonify({"status": "ok", "family_id": family_id, "family_name": family_name})
+
+        # Не плодим дубликаты: записи, созданные старыми версиями клиента,
+        # могли остаться с пустым device_id при том же user_name.
+        cur.execute("""
+            SELECT id, avatar FROM members
+            WHERE family_id = %s AND user_name = %s
+              AND (device_id = %s OR device_id IS NULL OR device_id = '')
+            ORDER BY id ASC
+            LIMIT 1
+        """, (family_id, user_name, device_id))
+
+        dup = cur.fetchone()
+
+        if dup:
+            member_id, db_avatar = dup
+
+            # Не затираем загруженное фото эмодзи из формы.
+            new_avatar = avatar
+            if (db_avatar or "").startswith("/uploads/") and not new_avatar.startswith("/uploads/"):
+                new_avatar = db_avatar
+
+            cur.execute("""
+                UPDATE members
+                SET device_id = COALESCE(NULLIF(device_id, ''), %s),
+                    avatar = %s
+                WHERE id = %s AND family_id = %s
+            """, (device_id, new_avatar, member_id, family_id))
+
+            conn.commit()
+            cur.close()
+            conn.close()
+
+            return jsonify({"status": "ok", "family_id": family_id, "family_name": family_name})
 
         # Добавляем нового участника
         cur.execute("""
@@ -2482,11 +2518,11 @@ def upload_avatar():
 def latest_version():
     try:
         # Версия приложения (обновлять вручную при выпуске)
-        current_version_name = "1.3.0"
-        current_version_code = 11
+        current_version_name = "1.3.1"
+        current_version_code = 12
 
         # Минимальная версия для принудительного обновления
-        min_version_code = 10  # ← МЕНЯЙТЕ ВРУЧНУЮ
+        min_version_code = 11  # ← МЕНЯЙТЕ ВРУЧНУЮ
 
         return jsonify({
             "status": "ok",

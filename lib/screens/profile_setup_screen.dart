@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../services/sync_service_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'main_navigation_screen.dart';
 import 'dart:io';
@@ -207,15 +208,30 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _joinGroup() async {
     final prefs = await SharedPreferences.getInstance();
-    final deviceId = prefs.getString("device_id");
-  
 
     setState(() { _loading = true; });
+
+    // device_id мог ещё не сохраниться (getDeviceId вызывается позже),
+    // поэтому дожидаемся нативного значения — иначе сервер создаст дубликат.
+    var deviceId = prefs.getString("device_id") ?? "";
+    if (deviceId.isEmpty) {
+      final nativeId = await SyncServiceHelper.getDeviceId();
+      if (nativeId != null && nativeId.isNotEmpty) {
+        deviceId = nativeId;
+        await prefs.setString("device_id", deviceId);
+      }
+    }
+
+    if (deviceId.isEmpty) {
+      setState(() { _loading = false; });
+      _showError("Не удалось определить устройство. Попробуйте ещё раз.");
+      return;
+    }
 
     final result = await ApiService.joinFamily(
       widget.inviteCode!,
       widget.name,
-      deviceId ?? "",
+      deviceId,
       _selectedRole,
       _selectedAvatar,
     );
@@ -228,7 +244,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     }
 
     if (result["status"] != "ok") {
-      _showError("Неверный код");
+      final message = result["message"]?.toString() ?? "";
+      if (message == "family not found") {
+        _showError("Неверный код");
+      } else if (message == "device_id required") {
+        _showError("Не удалось определить устройство. Попробуйте ещё раз.");
+      } else {
+        _showError("Не удалось присоединиться к семье");
+      }
       return;
     }
 
