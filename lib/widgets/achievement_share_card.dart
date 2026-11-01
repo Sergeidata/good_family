@@ -82,7 +82,7 @@ class AchievementShareCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'семья в порядке',
+                        'Здоровые привычки вместе',
                         style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF8A8A8A),
@@ -98,11 +98,11 @@ class AchievementShareCard extends StatelessWidget {
 
             // Аватар + имя
             CircleAvatar(
-              radius: 42,
+              radius: 38,
               backgroundColor: const Color(0xFFF3E6E8),
               child: Text(
                 avatar.isEmpty ? '👤' : avatar,
-                style: const TextStyle(fontSize: 38),
+                style: const TextStyle(fontSize: 34),
               ),
             ),
             const SizedBox(height: 10),
@@ -118,7 +118,7 @@ class AchievementShareCard extends StatelessWidget {
             Text(
               userName,
               style: const TextStyle(
-                fontSize: 24,
+                fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF1B1B1B),
               ),
@@ -149,28 +149,28 @@ class AchievementShareCard extends StatelessWidget {
                         children: [
                           for (final item in achievements)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.only(bottom: 8),
                               child: Row(
                                 children: [
                                   Container(
-                                    width: 38,
-                                    height: 38,
+                                    width: 34,
+                                    height: 34,
                                     decoration: BoxDecoration(
                                       color: item.color,
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(11),
                                     ),
                                     child: Icon(
                                       item.icon,
-                                      size: 21,
+                                      size: 19,
                                       color: const Color(0xFF1B1B1B),
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
+                                  const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
                                       item.title,
                                       style: const TextStyle(
-                                        fontSize: 15,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                         color: Color(0xFF1B1B1B),
                                         height: 1.2,

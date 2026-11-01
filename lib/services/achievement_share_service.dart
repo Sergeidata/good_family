@@ -70,7 +70,7 @@ class AchievementShareService {
       await SharePlus.instance.share(
         ShareParams(
           files: [XFile(file.path, mimeType: 'image/png')],
-          text: shareText,
+          text: '$shareText\n\n${AchievementShareCard.rustoreUrl}',
         ),
       );
     } finally {

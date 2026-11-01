@@ -1276,6 +1276,18 @@ int _countEarned() {
     if (membersResponse == null) throw Exception('offline');
     final List<dynamic> members = membersResponse["members"] ?? [];
 
+    // Аватар — из сервера (эмодзи или путь к фото).
+    for (final member in members) {
+      if (member["user_name"]?.toString() != myName) continue;
+
+      final avatar = (member["avatar"] ?? "").toString();
+      // Фото (/uploads/...) на карточке пока не рисуем — только эмодзи.
+      if (avatar.isNotEmpty && !avatar.contains("/uploads/")) {
+        _myAvatar = avatar;
+      }
+      break;
+    }
+
     
 
     // week + month по каждому участнику — параллельно, без N+1.
