@@ -70,18 +70,22 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       debugPrint('RR step4 children=${children.length} names=${children.map((c) => c["user_name"]).toList()}'); // DEBUG-TEMP
 
       // Балансы детей — параллельно, без N+1.
-      final List<Map<String, dynamic>> balances = await Future.wait(
-        children.map(
-          (child) async {
-            final data = await ApiService.getChildBalance(_familyId, child["user_name"]);
-            return <String, dynamic>{
-              "name": child["user_name"],
-              "avatar": child["avatar"] ?? "👦",
-              "stars": data["stars"] ?? 0,
-            };
-          },
-        ),
-      );
+      // Явный type-argument у .map обязателен: без него Future.wait не выводит T
+      // из контекста, и в рантайме получаем MappedListIterable<dynamic, dynamic>.
+      final futures = children
+          .map<Future<Map<String, dynamic>>>(
+            (child) async {
+              final data = await ApiService.getChildBalance(_familyId, child["user_name"]);
+              return <String, dynamic>{
+                "name": child["user_name"],
+                "avatar": child["avatar"] ?? "👦",
+                "stars": data["stars"] ?? 0,
+              };
+            },
+          )
+          .toList();
+
+      final List<Map<String, dynamic>> balances = await Future.wait(futures);
       debugPrint('RR step5 balances=${balances.length}'); // DEBUG-TEMP
 
       if (!mounted) return;
