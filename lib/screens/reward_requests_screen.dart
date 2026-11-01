@@ -32,15 +32,11 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       _error = null;
     });
 
-    debugPrint('RR _loadData START'); // DEBUG-TEMP
-
     try {
       final family = await FamilyStorage.loadFamily();
       _familyId = family["family_id"] ?? '';
-      debugPrint('RR step1 familyId=[$_familyId]'); // DEBUG-TEMP
 
       final requests = await ApiService.getRewardRequests(_familyId);
-      debugPrint('RR step2 requests=${requests == null ? "NULL" : "len=${requests.length} type=${requests.runtimeType}"}'); // DEBUG-TEMP
 
       if (!mounted) return;
 
@@ -54,7 +50,6 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
 
       // Балансы детей
       final members = await ApiService.getMembers(_familyId);
-      debugPrint('RR step3 members=${members == null ? "NULL" : "type=${members.runtimeType} keys=${members.keys.toList()} inner=${members["members"].runtimeType}"}'); // DEBUG-TEMP
 
       if (!mounted) return;
 
@@ -67,7 +62,6 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       }
 
       final children = (members["members"] ?? []).where((m) => m["role"] == "child").toList();
-      debugPrint('RR step4 children=${children.length} names=${children.map((c) => c["user_name"]).toList()}'); // DEBUG-TEMP
 
       // Балансы детей — параллельно, без N+1.
       // Явный type-argument у .map обязателен: без него Future.wait не выводит T
@@ -86,7 +80,6 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
           .toList();
 
       final List<Map<String, dynamic>> balances = await Future.wait(futures);
-      debugPrint('RR step5 balances=${balances.length}'); // DEBUG-TEMP
 
       if (!mounted) return;
 
@@ -96,9 +89,7 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
         _loading = false;
         _error = null;
       });
-    } catch (e, st) {
-      debugPrint('RR EXCEPTION: $e'); // DEBUG-TEMP
-      debugPrint('RR STACK: $st'); // DEBUG-TEMP
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
