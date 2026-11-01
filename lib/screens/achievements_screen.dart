@@ -4,6 +4,8 @@ import '../services/family_storage.dart';
 import '../services/cache_storage.dart';
 import '../services/achievement_unlock_service.dart';
 import '../services/achievement_progress_service.dart';
+import '../services/achievement_share_service.dart';
+import '../widgets/achievement_share_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/achievement_progress_sheet.dart';
 import '../widgets/loading_dots.dart';
@@ -57,6 +59,13 @@ class AchievementsScreenState extends State<AchievementsScreen>
     _tabController.animateTo(index);
   }
 
+  /// Кнопка «Поделиться» в AppBar.
+  void _shareCurrentTab() {
+    if (_tabController.index == 1) {
+      _personalKey.currentState?.shareAchievements();
+    }
+  }
+
   /// Однократно (при первом запуске с фичей) заполняем seen_achievements
   /// обоими типами достижений сразу — иначе второй таб «вспыхнет» каскадом.
   Future<void> _seedSeenAchievements() async {
@@ -75,6 +84,7 @@ class AchievementsScreenState extends State<AchievementsScreen>
     final index = _tabController.index;
     if (index == _lastIndex) return;
     _lastIndex = index;
+    setState(() {}); // обновить кнопку «Поделиться» в AppBar
 
     // Достижения могли появиться на сервере, пока экран был открыт.
     switch (index) {
@@ -103,6 +113,15 @@ class AchievementsScreenState extends State<AchievementsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text("Достижения"),
+        actions: [
+          // v1: шаринг только на «Личных»
+          if (_tabController.index == 1)
+            IconButton(
+              tooltip: 'Поделиться',
+              icon: const Icon(Icons.ios_share_rounded),
+              onPressed: _shareCurrentTab,
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: false,
@@ -1081,9 +1100,102 @@ class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   String? _error;
 
   AchievementProgress? _progress;
+  String _myName = "";
+  String _myAvatar = "";
 
   /// Перезагрузка при переключении на вкладку.
   void reloadData() => _loadData();
+
+  /// Вес редкости: «божественная+» > «божественная» > … > «редкая».
+  static int _rarityRank(Object? rarity) {
+    final r = rarity?.toString() ?? "";
+    final base = switch (r) {
+      "редкая" => 1,
+      "эпическая" => 2,
+      "легендарная" => 3,
+      "божественная" => 4,
+      _ => 0,
+    };
+    return base * 2 + (r.endsWith("+") ? 1 : 0);
+  }
+
+  /// Заработанные личные достижения для карточки-картинки
+  /// (топ-5 по редкости, если их больше пяти).
+  List<ShareAchievementItem> _earnedItems() {
+    final earnedKeys = <String>{};
+
+    for (final period in ["week", "month"]) {
+      final achievers =
+          _data?["${period}Achievers"] as Map<String, dynamic>? ?? {};
+
+      for (final entry in achievers.entries) {
+        final users =
+            (entry.value as List?)?.map((e) => e.toString()) ?? const [];
+        if (users.contains(_myName)) earnedKeys.add(entry.key);
+      }
+    }
+
+    final cards = [
+      ..._personalAchievementCards("week"),
+      ..._personalAchievementCards("month"),
+    ];
+
+    final earned = [
+      for (final card in cards)
+        if (earnedKeys.contains(card["key"])) card,
+    ];
+
+    earned.sort(
+      (a, b) => _rarityRank(b["rarity"]).compareTo(_rarityRank(a["rarity"])),
+    );
+
+    final selected = earned.length > 5 ? earned.take(5) : earned;
+
+    return [
+      for (final card in selected)
+        ShareAchievementItem(
+          title: card["title"] as String,
+          icon: card["icon"] as IconData,
+          color: card["color"] as Color,
+        ),
+    ];
+  }
+
+  /// 1 достижение / 2 достижения / 5 достижений
+  static String _achievementWord(int count) {
+    final mod10 = count % 10;
+    final mod100 = count % 100;
+    if (mod10 == 1 && mod100 != 11) return "достижение";
+    if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+      return "достижения";
+    }
+    return "достижений";
+  }
+
+  /// Сформировать картинку 1080×1920 и открыть системный диалог «Поделиться».
+  Future<void> shareAchievements() async {
+    final items = _earnedItems();
+    final name = _myName.isEmpty ? "Участник" : _myName;
+
+    final card = AchievementShareCard(
+      title: "Мои достижения",
+      userName: name,
+      avatar: _myAvatar.isEmpty ? "👤" : _myAvatar,
+      badgeText: items.isEmpty
+          ? "пока нет достижений"
+          : "${items.length} ${_achievementWord(items.length)}",
+      achievements: items,
+    );
+
+    await AchievementShareService.share(
+      context: context,
+      card: card,
+      shareText: items.isEmpty
+          ? "Я в Good Family — присоединяйтесь! 🏆"
+          : "Мои достижения в Good Family 🏆",
+    );
+  }
+
   bool _showCachedData = false;
   Map<String, dynamic>? _cachedData;
   final Map<String, dynamic> _achievementInfo = {};
@@ -1156,6 +1268,8 @@ int _countEarned() {
   final family = await FamilyStorage.loadFamily();
   final familyId = family["family_id"];
   final myName = family["user_name"] ?? "";
+  _myName = myName;
+  _myAvatar = (family["avatar"] ?? "").toString();
 
   try {
     final membersResponse = await ApiService.getMembers(familyId);
@@ -1651,35 +1765,7 @@ Widget _buildSectionTitle(
     final achievers = _data?["${period}Achievers"] as Map<String, dynamic>? ?? {};
     
 
-    List<Map<String, dynamic>> achievements;
-    if (period == "week") {
-      achievements = [
-        {"title": "3 дня минимум телефона", "description": "3 дня за неделю вы должны провести в телефоне меньше 2 часов в день","rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "3", "icon": Icons.star},
-        {"title": "5 дней минимум телефона", "description": "5 дней за неделю вы должны провести в телефоне меньше 2 часов в день", "rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "5", "icon": Icons.auto_awesome},
-        {"title": "7 дней минимум телефона","description": "7 дней за неделю вы должны провести в телефоне меньше 2 часов в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "7", "icon": Icons.workspace_premium},
-        {"title": "3 дня без телефона", "description": "3 дня за неделю вы должны провести в телефоне меньше 20 минут в день", "rarity": "редкая+", "color": const Color(0xFFB3E5FC), "key": "3p", "icon": Icons.workspace_premium},
-        {"title": "5 дней без телефона", "description": "5 дней за неделю вы должны провести в телефоне меньше 20 минут в день", "rarity": "эпическая+", "color": const Color(0xFFD1C4E9), "key": "5p", "icon": Icons.workspace_premium},
-        {"title": "7 дней без телефона", "description": "7 дней за неделю вы должны провести в телефоне меньше 20 минут в день", "rarity": "легендарная+", "color": const Color(0xFFFFCC80), "key": "7p", "icon": Icons.workspace_premium},
-        {"title": "3 дня минимум соцсетей", "description": "3 дня за неделю вы должны провести в соцсетях меньше 30 минут в день", "rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "3s", "icon": Icons.forum},
-        {"title": "5 дней минимум соцсетей", "description": "5 дней за неделю вы должны провести в соцсетях меньше 30 минут в день", "rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "5s", "icon": Icons.groups},
-        {"title": "7 дней минимум соцсетей", "description": "7 дней за неделю вы должны провести в соцсетях меньше 30 минут в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "7s", "icon": Icons.public},
-      ];
-    } else {
-      achievements = [
-        {"title": "10 дней минимум телефона", "description": "10 дней за месяц вы должны провести в телефоне меньше 2 часов в день","rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "10", "icon": Icons.star},
-        {"title": "20 дней минимум телефона", "description": "20 дней за месяц вы должны провести в телефоне меньше 2 часов в день","rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "20", "icon": Icons.auto_awesome},
-        {"title": "25 дней минимум телефона", "description": "25 дней за месяц вы должны провести в телефоне меньше 2 часов в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "25", "icon": Icons.workspace_premium},
-        {"title": "Весь месяц минимум телефона", "description": "Весь месяц вы должны провести в телефоне меньше 2 часов в день","rarity": "божественная", "color": const Color(0xFFFFFDE7), "key": "-1", "icon": Icons.emoji_events},
-        {"title": "10 дней без телефона", "description": "10 дней за месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "редкая+", "color": const Color(0xFFB3E5FC), "key": "10p", "icon": Icons.workspace_premium},
-        {"title": "20 дней без телефона", "description": "20 дней за месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "эпическая+", "color": const Color(0xFFD1C4E9), "key": "20p", "icon": Icons.workspace_premium},
-        {"title": "25 дней без телефона", "description": "25 дней за месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "легендарная+", "color": const Color(0xFFFFCC80), "key": "25p", "icon": Icons.workspace_premium},
-        {"title": "Весь месяц без телефона", "description": "Весь месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "божественная+", "color": const Color(0xFFFFF59D), "key": "-1p", "icon": Icons.workspace_premium},
-        {"title": "10 дней минимум соцсетей", "description": "10 дней за месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "10s", "icon": Icons.forum},
-        {"title": "20 дней минимум соцсетей", "description": "20 дней за месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "20s", "icon": Icons.groups},
-        {"title": "25 дней минимум соцсетей", "description": "25 дней за месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "25s", "icon": Icons.public},
-        {"title": "Весь месяц минимум соцсетей", "description": "Весь месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "божественная", "color": const Color(0xFFFFFDE7), "key": "-1s", "icon": Icons.emoji_events},
-      ];
-    }
+    final achievements = _personalAchievementCards(period);
 
     return achievements.map((a) {
 
@@ -2679,4 +2765,37 @@ String _achievementTitle(String key) {
     default:
       return key;
   }
+}
+
+
+/// Каталог личных достижений: ключ, название, описание, редкость, цвет, иконка.
+List<Map<String, dynamic>> _personalAchievementCards(String period) {
+  if (period == "week") {
+    return [
+        {"title": "3 дня минимум телефона", "description": "3 дня за неделю вы должны провести в телефоне меньше 2 часов в день","rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "3", "icon": Icons.star},
+        {"title": "5 дней минимум телефона", "description": "5 дней за неделю вы должны провести в телефоне меньше 2 часов в день", "rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "5", "icon": Icons.auto_awesome},
+        {"title": "7 дней минимум телефона","description": "7 дней за неделю вы должны провести в телефоне меньше 2 часов в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "7", "icon": Icons.workspace_premium},
+        {"title": "3 дня без телефона", "description": "3 дня за неделю вы должны провести в телефоне меньше 20 минут в день", "rarity": "редкая+", "color": const Color(0xFFB3E5FC), "key": "3p", "icon": Icons.workspace_premium},
+        {"title": "5 дней без телефона", "description": "5 дней за неделю вы должны провести в телефоне меньше 20 минут в день", "rarity": "эпическая+", "color": const Color(0xFFD1C4E9), "key": "5p", "icon": Icons.workspace_premium},
+        {"title": "7 дней без телефона", "description": "7 дней за неделю вы должны провести в телефоне меньше 20 минут в день", "rarity": "легендарная+", "color": const Color(0xFFFFCC80), "key": "7p", "icon": Icons.workspace_premium},
+        {"title": "3 дня минимум соцсетей", "description": "3 дня за неделю вы должны провести в соцсетях меньше 30 минут в день", "rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "3s", "icon": Icons.forum},
+        {"title": "5 дней минимум соцсетей", "description": "5 дней за неделю вы должны провести в соцсетях меньше 30 минут в день", "rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "5s", "icon": Icons.groups},
+        {"title": "7 дней минимум соцсетей", "description": "7 дней за неделю вы должны провести в соцсетях меньше 30 минут в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "7s", "icon": Icons.public},
+    ];
+  }
+
+  return [
+        {"title": "10 дней минимум телефона", "description": "10 дней за месяц вы должны провести в телефоне меньше 2 часов в день","rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "10", "icon": Icons.star},
+        {"title": "20 дней минимум телефона", "description": "20 дней за месяц вы должны провести в телефоне меньше 2 часов в день","rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "20", "icon": Icons.auto_awesome},
+        {"title": "25 дней минимум телефона", "description": "25 дней за месяц вы должны провести в телефоне меньше 2 часов в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "25", "icon": Icons.workspace_premium},
+        {"title": "Весь месяц минимум телефона", "description": "Весь месяц вы должны провести в телефоне меньше 2 часов в день","rarity": "божественная", "color": const Color(0xFFFFFDE7), "key": "-1", "icon": Icons.emoji_events},
+        {"title": "10 дней без телефона", "description": "10 дней за месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "редкая+", "color": const Color(0xFFB3E5FC), "key": "10p", "icon": Icons.workspace_premium},
+        {"title": "20 дней без телефона", "description": "20 дней за месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "эпическая+", "color": const Color(0xFFD1C4E9), "key": "20p", "icon": Icons.workspace_premium},
+        {"title": "25 дней без телефона", "description": "25 дней за месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "легендарная+", "color": const Color(0xFFFFCC80), "key": "25p", "icon": Icons.workspace_premium},
+        {"title": "Весь месяц без телефона", "description": "Весь месяц вы должны провести в телефоне меньше 20 минут в день", "rarity": "божественная+", "color": const Color(0xFFFFF59D), "key": "-1p", "icon": Icons.workspace_premium},
+        {"title": "10 дней минимум соцсетей", "description": "10 дней за месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "редкая", "color": const Color(0xFFE3F2FD), "key": "10s", "icon": Icons.forum},
+        {"title": "20 дней минимум соцсетей", "description": "20 дней за месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "эпическая", "color": const Color(0xFFF3E5F5), "key": "20s", "icon": Icons.groups},
+        {"title": "25 дней минимум соцсетей", "description": "25 дней за месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "легендарная", "color": const Color(0xFFFFF3E0), "key": "25s", "icon": Icons.public},
+        {"title": "Весь месяц минимум соцсетей", "description": "Весь месяц вы должны провести в соцсетях меньше 30 минут в день", "rarity": "божественная", "color": const Color(0xFFFFFDE7), "key": "-1s", "icon": Icons.emoji_events},
+  ];
 }
