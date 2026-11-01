@@ -191,8 +191,16 @@ class ApiService {
         const Duration(seconds: 5),
       );
 
+      if (response.statusCode != 200) {
+        return null;
+      }
+
       final data = jsonDecode(response.body);
       debugPrint('API family_members status=${response.statusCode} type=${data.runtimeType} len=${response.body.length}'); // DEBUG-TEMP
+
+      if (data is! Map<String, dynamic>) {
+        return null;
+      }
 
       return data;
     } catch (e) {
@@ -707,13 +715,21 @@ static Future<List<dynamic>?> getRewardRequests(
     ).timeout(const Duration(seconds: 8));
     debugPrint('API reward_requests status=${response.statusCode} len=${response.body.length}'); // DEBUG-TEMP
 
-    if(response.statusCode!=200){
+    if (response.statusCode != 200) {
       return null;
     }
 
-    return jsonDecode(
-      response.body,
-    )["requests"];
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      return null;
+    }
+
+    final list = decoded["requests"];
+    if (list is! List) {
+      return null;
+    }
+
+    return list;
   } catch (e) {
     debugPrint('API reward_requests ERROR: $e'); // DEBUG-TEMP
     return null;

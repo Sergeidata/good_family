@@ -47,7 +47,7 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       if (requests == null) {
         setState(() {
           _loading = false;
-          _error = 'Нет связи с сервером';
+          _error = 'Не удалось загрузить запросы';
         });
         return;
       }
@@ -61,7 +61,7 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       if (members == null) {
         setState(() {
           _loading = false;
-          _error = 'Нет связи с сервером';
+          _error = 'Не удалось загрузить участников';
         });
         return;
       }
@@ -98,7 +98,7 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Нет связи с сервером';
+        _error = 'Не удалось загрузить данные';
       });
     }
   }
