@@ -49,6 +49,15 @@ class NextAchievementCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 2),
+          Text(
+            'Ближайшее к завершению',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
           const SizedBox(height: 10),
           Text(
             title,
@@ -81,7 +90,7 @@ class NextAchievementCard extends StatelessWidget {
                 ),
               ),
               Text(
-                'осталось $left',
+                _daysLeftLabel(left),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.85),
                   fontSize: 13,
@@ -133,4 +142,16 @@ class AllAchievementsEarnedCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// «ещё 1 день!» / «осталось 3 дня» / «осталось 5 дней».
+String _daysLeftLabel(int left) {
+  if (left <= 0) return 'готово!';
+  if (left == 1) return 'ещё 1 день!';
+
+  final mod10 = left % 10;
+  final mod100 = left % 100;
+  final isFew = mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14);
+
+  return 'осталось $left ${isFew ? "дня" : "дней"}';
 }
