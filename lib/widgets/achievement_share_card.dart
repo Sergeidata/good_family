@@ -30,6 +30,7 @@ class AchievementShareCard extends StatelessWidget {
   final String title;
   final String userName;
   final String avatar;
+  final ImageProvider? avatarImage;
   final String badgeText;
   final List<ShareAchievementItem> achievements;
 
@@ -40,6 +41,7 @@ class AchievementShareCard extends StatelessWidget {
     required this.avatar,
     required this.badgeText,
     required this.achievements,
+    this.avatarImage,
   });
 
   @override
@@ -100,10 +102,13 @@ class AchievementShareCard extends StatelessWidget {
             CircleAvatar(
               radius: 38,
               backgroundColor: const Color(0xFFF3E6E8),
-              child: Text(
-                avatar.isEmpty ? '👤' : avatar,
-                style: const TextStyle(fontSize: 34),
-              ),
+              backgroundImage: avatarImage,
+              child: avatarImage == null
+                  ? Text(
+                      avatar.isEmpty ? '👤' : avatar,
+                      style: const TextStyle(fontSize: 34),
+                    )
+                  : null,
             ),
             const SizedBox(height: 10),
             Text(

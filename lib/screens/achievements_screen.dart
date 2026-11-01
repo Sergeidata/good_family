@@ -1102,6 +1102,7 @@ class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   AchievementProgress? _progress;
   String _myName = "";
   String _myAvatar = "";
+  String _myAvatarUrl = "";
 
   /// Перезагрузка при переключении на вкладку.
   void reloadData() => _loadData();
@@ -1177,10 +1178,24 @@ class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
     final items = _earnedItems();
     final name = _myName.isEmpty ? "Участник" : _myName;
 
+    // Фото аватара грузим заранее, иначе в снимке его не будет.
+    ImageProvider? avatarImage;
+    if (_myAvatarUrl.isNotEmpty) {
+      final provider = NetworkImage(_myAvatarUrl);
+      try {
+        await precacheImage(provider, context)
+            .timeout(const Duration(seconds: 5));
+        avatarImage = provider;
+      } catch (_) {
+        avatarImage = null; // не загрузилось — покажем эмодзи
+      }
+    }
+
     final card = AchievementShareCard(
       title: "Мои достижения",
       userName: name,
       avatar: _myAvatar.isEmpty ? "👤" : _myAvatar,
+      avatarImage: avatarImage,
       badgeText: items.isEmpty
           ? "пока нет достижений"
           : "${items.length} ${_achievementWord(items.length)}",
@@ -1281,8 +1296,9 @@ int _countEarned() {
       if (member["user_name"]?.toString() != myName) continue;
 
       final avatar = (member["avatar"] ?? "").toString();
-      // Фото (/uploads/...) на карточке пока не рисуем — только эмодзи.
-      if (avatar.isNotEmpty && !avatar.contains("/uploads/")) {
+      if (avatar.contains("/uploads/")) {
+        _myAvatarUrl = avatarUrl(avatar);
+      } else if (avatar.isNotEmpty) {
         _myAvatar = avatar;
       }
       break;
