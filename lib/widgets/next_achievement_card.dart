@@ -144,13 +144,19 @@ class AllAchievementsEarnedCard extends StatelessWidget {
   }
 }
 
-/// «ещё 1 день!» / «осталось 3 дня» / «осталось 5 дней».
+/// «ещё 1 день!» / «осталось 3 дня» / «осталось 21 день» / «осталось 5 дней».
 String _daysLeftLabel(int left) {
   if (left <= 0) return 'готово!';
-  if (left == 1) return 'ещё 1 день!';
 
   final mod10 = left % 10;
   final mod100 = left % 100;
+
+  // 1, 21, 31... но не 11
+  if (mod10 == 1 && mod100 != 11) {
+    return left == 1 ? 'ещё 1 день!' : 'осталось $left день';
+  }
+
+  // 2–4, 22–24... но не 12–14
   final isFew = mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14);
 
   return 'осталось $left ${isFew ? "дня" : "дней"}';
