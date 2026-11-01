@@ -190,6 +190,16 @@ class _LoadingErrorState extends State<LoadingError> {
     });
   }
 
+  void _handleRetry() {
+    setState(() {
+      _timedOut = false;
+    });
+    if (widget.loading) {
+      _startTimer();
+    }
+    widget.onRetry();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
@@ -201,6 +211,6 @@ class _LoadingErrorState extends State<LoadingError> {
     if (widget.loading && !_timedOut) {
       return const Center(child: LoadingDots());
     }
-    return ErrorState(message: widget.message, onRetry: widget.onRetry);
+    return ErrorState(message: widget.message, onRetry: _handleRetry);
   }
 }

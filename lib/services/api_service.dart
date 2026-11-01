@@ -487,19 +487,23 @@ static Future<Map<String, dynamic>> getChildBalance(
   String familyId,
   String userName,
 ) async {
-  final response = await http.get(
-    Uri.parse(
-      "$baseUrl/child_balance"
-      "?family_id=$familyId"
-      "&user_name=${Uri.encodeComponent(userName)}",
-    ),
-  );
+  try {
+    final response = await http.get(
+      Uri.parse(
+        "$baseUrl/child_balance"
+        "?family_id=$familyId"
+        "&user_name=${Uri.encodeComponent(userName)}",
+      ),
+    ).timeout(const Duration(seconds: 8));
 
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+
+    return {"stars": 0};
+  } catch (_) {
+    return {"stars": 0};
   }
-
-  return {"stars": 0};
 }
 
 static Future<bool> approveTask(
@@ -610,7 +614,7 @@ static Future<Map<String, dynamic>?> getAchievementProgress(
 
 static Future<List<dynamic>?> getRewardShop(String familyId) async {
   try {
-    final response = await http.get(Uri.parse("$baseUrl/reward_shop?family_id=$familyId"));
+    final response = await http.get(Uri.parse("$baseUrl/reward_shop?family_id=$familyId")).timeout(const Duration(seconds: 8));
     if (response.statusCode == 200) {
       return jsonDecode(response.body)["items"] ?? [];
     }
@@ -696,7 +700,7 @@ static Future<List<dynamic>?> getRewardRequests(
       Uri.parse(
         "$baseUrl/reward_requests?family_id=$familyId",
       ),
-    );
+    ).timeout(const Duration(seconds: 8));
 
     if(response.statusCode!=200){
       return null;

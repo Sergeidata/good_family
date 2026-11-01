@@ -32,58 +32,66 @@ class _RewardRequestsScreenState extends State<RewardRequestsScreen> with Single
       _error = null;
     });
 
-    final family = await FamilyStorage.loadFamily();
-    _familyId = family["family_id"] ?? '';
+    try {
+      final family = await FamilyStorage.loadFamily();
+      _familyId = family["family_id"] ?? '';
 
-    final requests = await ApiService.getRewardRequests(_familyId);
+      final requests = await ApiService.getRewardRequests(_familyId);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    if (requests == null) {
+      if (requests == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Нет связи с сервером';
+        });
+        return;
+      }
+
+      // Балансы детей
+      final members = await ApiService.getMembers(_familyId);
+
+      if (!mounted) return;
+
+      if (members == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Нет связи с сервером';
+        });
+        return;
+      }
+
+      final children = (members["members"] ?? []).where((m) => m["role"] == "child").toList();
+
+      // Балансы детей — параллельно, без N+1.
+      final List<Map<String, dynamic>> balances = await Future.wait(
+        children.map(
+          (child) async {
+            final data = await ApiService.getChildBalance(_familyId, child["user_name"]);
+            return <String, dynamic>{
+              "name": child["user_name"],
+              "avatar": child["avatar"] ?? "👦",
+              "stars": data["stars"] ?? 0,
+            };
+          },
+        ),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _requests = requests;
+        _balances = balances;
+        _loading = false;
+        _error = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
       setState(() {
         _loading = false;
         _error = 'Нет связи с сервером';
       });
-      return;
     }
-
-    // Балансы детей
-    final members = await ApiService.getMembers(_familyId);
-
-    if (!mounted) return;
-
-    if (members == null) {
-      setState(() {
-        _loading = false;
-        _error = 'Нет связи с сервером';
-      });
-      return;
-    }
-
-    final children = (members["members"] ?? []).where((m) => m["role"] == "child").toList();
-
-    // Балансы детей — параллельно, без N+1.
-    final List<Map<String, dynamic>> balances = await Future.wait(
-      children.map(
-        (child) async {
-          final data = await ApiService.getChildBalance(_familyId, child["user_name"]);
-          return <String, dynamic>{
-            "name": child["user_name"],
-            "avatar": child["avatar"] ?? "👦",
-            "stars": data["stars"] ?? 0,
-          };
-        },
-      ),
-    );
-
-    if (!mounted) return;
-
-    setState(() {
-      _requests = requests;
-      _balances = balances;
-      _loading = false;
-      _error = null;
-    });
   }
 
   Future<void> _approve(int requestId) async {
