@@ -7,12 +7,16 @@ class NextAchievementCard extends StatelessWidget {
   final int target;
   final VoidCallback? onTap;
 
+  /// Цвета градиента. По умолчанию — зелёный (стиль приложения).
+  final List<Color>? gradientColors;
+
   const NextAchievementCard({
     super.key,
     required this.title,
     required this.current,
     required this.target,
     this.onTap,
+    this.gradientColors,
   });
 
   @override
@@ -22,7 +26,8 @@ class NextAchievementCard extends StatelessWidget {
     final left = (safeTarget - current).clamp(0, safeTarget);
 
     final gradient = LinearGradient(
-      colors: [Colors.green.shade400, Colors.green.shade600],
+      colors: gradientColors ??
+          [Colors.green.shade400, Colors.green.shade600],
     );
     const radius = 22.0;
 
