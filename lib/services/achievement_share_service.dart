@@ -67,9 +67,11 @@ class AchievementShareService {
       navigator.pop();
       overlayOpen = false;
 
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'image/png')],
-        text: shareText,
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path, mimeType: 'image/png')],
+          text: shareText,
+        ),
       );
     } finally {
       if (overlayOpen && navigator.canPop()) navigator.pop();
