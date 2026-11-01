@@ -8,6 +8,22 @@ import '../widgets/main_bottom_bar.dart';
 
 final GlobalKey<MainNavigationScreenState> mainNavKey = GlobalKey();
 
+/// Ключ к вкладке «Ачивки»: нужен, чтобы выбрать внутреннюю вкладку извне.
+final GlobalKey<AchievementsScreenState> achievementsKey = GlobalKey();
+
+/// Открыть «Достижения» на нужной внутренней вкладке.
+/// 0 — Чемпионат, 1 — Личные, 2 — Групповые.
+void openAchievementsTab(int innerIndex) {
+  // Переключаем нижнюю вкладку на «Ачивки» (index 2)
+  mainNavKey.currentState?.switchToTab(2);
+
+  // Ждём кадр, чтобы IndexedStack показал вкладку,
+  // и только потом переключаем внутренний TabBar.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    achievementsKey.currentState?.selectTab(innerIndex);
+  });
+}
+
 enum AppScreen {
   home,
   stats,
@@ -56,7 +72,7 @@ Widget build(BuildContext context) {
       children: [
         const HomeDashboard(),
         const GroupScreen(),
-        const AchievementsScreen(),
+        AchievementsScreen(key: achievementsKey),
         const FamilyInfoScreen(),
         const MoreScreen(),
       ],

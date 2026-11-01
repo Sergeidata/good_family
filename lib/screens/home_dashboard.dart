@@ -18,6 +18,8 @@ import 'package:yaml/yaml.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'tasks_screen.dart';
 import 'main_navigation_screen.dart';
+import '../services/achievement_progress_service.dart';
+import '../widgets/next_achievement_card.dart';
 import '../widgets/loading_dots.dart';
 
 class HomeDashboard extends StatefulWidget {
@@ -34,6 +36,7 @@ class _HomeDashboardState extends State<HomeDashboard>
   Map<String, dynamic>? _dashboard;
   Map<String, dynamic>? _gardenData;
   Map<String, dynamic>? _tasksData;
+  AchievementProgress? _achievementProgress;
   bool _loading = true;
 
   late final AnimationController _refreshController;
@@ -703,6 +706,7 @@ Future<void> _refreshDashboard() async {
       _loadGardenData(),
       _loadTasksData(),
       _loadDashboard(),
+      _loadAchievementProgress(),
     ]);
 
     if (mounted) {
@@ -710,6 +714,30 @@ Future<void> _refreshDashboard() async {
         _loading = false;
       });
     }
+  }
+
+  /// Ближайшее личное достижение — одним запросом.
+  /// При ошибке сети карточка не показывается.
+  Future<void> _loadAchievementProgress() async {
+    final family = await FamilyStorage.loadFamily();
+    final familyId = family["family_id"];
+    final userName = family["user_name"];
+    if (familyId == null || userName == null) return;
+
+    final progress = await AchievementProgressService.load(
+      familyId: familyId,
+      userName: userName,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _achievementProgress = progress;
+    });
+  }
+
+  /// Переход на вкладку «Личные» экрана «Достижения».
+  void _openAchievements() {
+    openAchievementsTab(1); // 1 = «Личные»
   }
 
 Future<void> _loadGardenData() async {
@@ -1511,6 +1539,25 @@ else ...[
   const SizedBox(height: 20),
 
   _buildTodayCard(),
+
+  if (_achievementProgress != null &&
+      (_achievementProgress!.next != null ||
+          _achievementProgress!.allEarned)) ...[
+    const SizedBox(height: 20),
+    if (_achievementProgress!.next != null)
+      NextAchievementCard(
+        title: AchievementProgressService.titleOf(
+          _achievementProgress!.next!,
+        ),
+        current:
+            (_achievementProgress!.next!["current"] as num?)?.toInt() ?? 0,
+        target:
+            (_achievementProgress!.next!["target"] as num?)?.toInt() ?? 0,
+        onTap: _openAchievements,
+      )
+    else
+      AllAchievementsEarnedCard(onTap: _openAchievements),
+  ],
 ],
 
 

@@ -5,12 +5,14 @@ class NextAchievementCard extends StatelessWidget {
   final String title;
   final int current;
   final int target;
+  final VoidCallback? onTap;
 
   const NextAchievementCard({
     super.key,
     required this.title,
     required this.current,
     required this.target,
+    this.onTap,
   });
 
   @override
@@ -19,7 +21,7 @@ class NextAchievementCard extends StatelessWidget {
     final ratio = (current / safeTarget).clamp(0.0, 1.0);
     final left = (safeTarget - current).clamp(0, safeTarget);
 
-    return Container(
+    final card = Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -47,6 +49,13 @@ class NextAchievementCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const Spacer(),
+              if (onTap != null)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white.withValues(alpha: 0.8),
+                  size: 22,
+                ),
             ],
           ),
           const SizedBox(height: 2),
@@ -101,16 +110,29 @@ class NextAchievementCard extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap == null) return card;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: card,
+      ),
+    );
   }
 }
 
 /// Карточка «все личные достижения получены».
 class AllAchievementsEarnedCard extends StatelessWidget {
-  const AllAchievementsEarnedCard({super.key});
+  final VoidCallback? onTap;
+
+  const AllAchievementsEarnedCard({super.key, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final card = Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -138,7 +160,24 @@ class AllAchievementsEarnedCard extends StatelessWidget {
               ),
             ),
           ),
+          if (onTap != null)
+            Icon(
+              Icons.chevron_right_rounded,
+              color: Colors.white.withValues(alpha: 0.8),
+              size: 24,
+            ),
         ],
+      ),
+    );
+
+    if (onTap == null) return card;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: card,
       ),
     );
   }

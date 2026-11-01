@@ -3,6 +3,7 @@ import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../services/cache_storage.dart';
 import '../services/achievement_unlock_service.dart';
+import '../services/achievement_progress_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../widgets/achievement_progress_sheet.dart';
 import '../widgets/loading_dots.dart';
@@ -12,13 +13,15 @@ import '../widgets/next_achievement_card.dart';
 
 
 class AchievementsScreen extends StatefulWidget {
-  const AchievementsScreen({super.key});
+  final int initialTab;
+
+  const AchievementsScreen({super.key, this.initialTab = 0});
 
   @override
-  State<AchievementsScreen> createState() => _AchievementsScreenState();
+  State<AchievementsScreen> createState() => AchievementsScreenState();
 }
 
-class _AchievementsScreenState extends State<AchievementsScreen>
+class AchievementsScreenState extends State<AchievementsScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
@@ -26,15 +29,26 @@ class _AchievementsScreenState extends State<AchievementsScreen>
   final GlobalKey<_PersonalAchievementsTabState> _personalKey = GlobalKey();
   final GlobalKey<_GroupAchievementsTabState> _groupKey = GlobalKey();
 
-  int _lastIndex = 0;
+  late int _lastIndex;
   bool _seeding = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _lastIndex = widget.initialTab.clamp(0, 2);
+    _tabController = TabController(
+      length: 3,
+      vsync: this,
+      initialIndex: _lastIndex,
+    );
     _tabController.addListener(_onTabChanged);
     _seedSeenAchievements();
+  }
+
+  /// Выбрать внутреннюю вкладку извне (например, с главной).
+  void selectTab(int index) {
+    if (index < 0 || index > 2) return;
+    _tabController.animateTo(index);
   }
 
   /// Однократно (при первом запуске с фичей) заполняем seen_achievements
@@ -1059,43 +1073,10 @@ class _PersonalAchievementsTabState extends State<_PersonalAchievementsTab> {
   Map<String, dynamic>? _data;
   String? _error;
 
-  Map<String, dynamic>? _nextAchievement;
-  bool _allPersonalEarned = false;
+  AchievementProgress? _progress;
 
   /// Перезагрузка при переключении на вкладку.
   void reloadData() => _loadData();
-
-  /// Ближайшее к завершению личное достижение (ratio < 1).
-  /// Возвращает null, только если все достижения уже получены.
-  Map<String, dynamic>? _pickClosest(List<dynamic> items) {
-    Map<String, dynamic>? best;
-    double bestRatio = -1;
-
-    for (final item in items) {
-      if (item is! Map) continue;
-
-      final current = (item["current"] as num?)?.toInt() ?? 0;
-      final target = (item["target"] as num?)?.toInt() ?? 0;
-      if (target <= 0) continue;
-
-      final ratio = current / target;
-      if (ratio >= 1.0) continue;
-
-      if (ratio > bestRatio) {
-        bestRatio = ratio;
-        best = Map<String, dynamic>.from(item);
-      }
-    }
-
-    return best;
-  }
-
-  /// Название: серверное, иначе — клиентский словарь.
-  String _progressTitle(Map<String, dynamic> item) {
-    final serverTitle = item["title"]?.toString().trim() ?? "";
-    if (serverTitle.isNotEmpty) return serverTitle;
-    return _achievementTitle(item["key"].toString());
-  }
   bool _showCachedData = false;
   Map<String, dynamic>? _cachedData;
   final Map<String, dynamic> _achievementInfo = {};
@@ -1265,9 +1246,10 @@ for (final a in allAchievements) {
     }
 
     // Ближайшее личное достижение — одним запросом.
-    final progressList =
-        await ApiService.getAchievementProgressAll(familyId, myName) ?? [];
-    final nextAchievement = _pickClosest(progressList);
+    final progress = await AchievementProgressService.load(
+      familyId: familyId,
+      userName: myName,
+    );
 
     await CacheStorage.save('achievements_$familyId', {
       "week": weekStats,
@@ -1288,8 +1270,8 @@ for (final a in allAchievements) {
       _cachedData = null;
       _showCachedData = false;
       _error = null;
-      _nextAchievement = nextAchievement;
-      _allPersonalEarned = progressList.isNotEmpty && nextAchievement == null;
+      _progress = progress;
+
     });
 
     // Личные достижения — только мои.
@@ -1777,13 +1759,16 @@ Widget _buildSectionTitle(
             ),
           ),
         ],
-          if (_nextAchievement != null)
+          if (_progress?.next != null)
             NextAchievementCard(
-              title: _progressTitle(_nextAchievement!),
-              current: (_nextAchievement!["current"] as num?)?.toInt() ?? 0,
-              target: (_nextAchievement!["target"] as num?)?.toInt() ?? 0,
+              title: AchievementProgressService.titleOf(
+                _progress!.next!,
+                fallback: _achievementTitle,
+              ),
+              current: (_progress!.next!["current"] as num?)?.toInt() ?? 0,
+              target: (_progress!.next!["target"] as num?)?.toInt() ?? 0,
             )
-          else if (_allPersonalEarned)
+          else if (_progress?.allEarned == true)
             const AllAchievementsEarnedCard(),
           // Карточка коллекции
           Card(
