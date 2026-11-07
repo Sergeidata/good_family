@@ -52,13 +52,7 @@ class AuthGateScreen extends StatelessWidget {
               SizedBox(
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const RegisterScreen(),
-                      ),
-                    );
-                  },
+                  onPressed: () => _openAuth(context, const RegisterScreen()),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
                     foregroundColor: Colors.white,
@@ -81,13 +75,7 @@ class AuthGateScreen extends StatelessWidget {
               SizedBox(
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LoginScreen(),
-                      ),
-                    );
-                  },
+                  onPressed: () => _openAuth(context, const LoginScreen()),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Colors.blue,
                     side: const BorderSide(color: Colors.blue, width: 1.5),
@@ -108,7 +96,7 @@ class AuthGateScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               TextButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(context).pop(false),
                 child: const Text('Продолжить без аккаунта'),
               ),
 
@@ -118,5 +106,17 @@ class AuthGateScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Открывает auth-экран и, если вернулся `true` (успех),
+  /// закрывает AuthGate — онбординг продолжится на WelcomeScreen.
+  static Future<void> _openAuth(BuildContext context, Widget screen) async {
+    final success = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => screen),
+    );
+
+    if (success == true && context.mounted) {
+      Navigator.of(context).pop(true);
+    }
   }
 }

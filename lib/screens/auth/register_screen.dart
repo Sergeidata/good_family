@@ -68,11 +68,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    Navigator.of(context).push(
+    final verified = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => VerifyCodeScreen(email: _emailCtrl.text.trim()),
       ),
     );
+
+    if (!mounted) return;
+
+    // Верификация прошла — пробрасываем успех наверх в AuthGateScreen.
+    if (verified == true) {
+      Navigator.of(context).pop(true);
+    }
   }
 
   @override
