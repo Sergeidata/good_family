@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../services/auth_service.dart';
+import 'auth/register_screen.dart';
+import 'auth/login_screen.dart';
 import '../services/sync_service_helper.dart';
 import 'welcome_screen.dart';
 import 'permissions_screen.dart';
@@ -13,10 +15,30 @@ import 'info_screen.dart';
 
 import 'dart:io';
 
-class MoreScreen extends StatelessWidget {
+class MoreScreen extends StatefulWidget {
   const MoreScreen({super.key});
 
-  static const _email = "serz9oodjob@gmail.com";
+  @override
+  State<MoreScreen> createState() => _MoreScreenState();
+}
+
+class _MoreScreenState extends State<MoreScreen> {
+  /// Почта аккаунта; null — ещё загружается.
+  String? _email;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadEmail();
+  }
+
+  Future<void> _loadEmail() async {
+    final email = await AuthService.loadEmail();
+    if (!mounted) return;
+    setState(() => _email = email ?? "");
+  }
+
+  static const _supportEmail = "serz9oodjob@gmail.com";
 
   Future<void> _sendFeedback(BuildContext context) async {
   final family = await FamilyStorage.loadFamily();
@@ -39,7 +61,7 @@ family_id: $familyId
 
 
  final uri = Uri.parse(
-  "mailto:$_email?subject=${Uri.encodeComponent('Обратная связь Good Family')}&body=${Uri.encodeComponent(body)}",
+  "mailto:$_supportEmail?subject=${Uri.encodeComponent('Обратная связь Good Family')}&body=${Uri.encodeComponent(body)}",
 );
 
   
@@ -111,7 +133,7 @@ family_id: $familyId
                 onPressed: () async {
                   await Clipboard.setData(
                     const ClipboardData(
-                      text: _email,
+                      text: _supportEmail,
                     ),
                   );
 
@@ -175,13 +197,10 @@ family_id: $familyId
 
   /// Блок аккаунта: почта + выход (или предложение создать аккаунт).
   Widget _accountCard(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: AuthService.loadEmail(),
-      builder: (context, snapshot) {
-        final email = snapshot.data ?? "";
-        final hasAccount = email.isNotEmpty;
+    final email = _email ?? "";
+    final hasAccount = email.isNotEmpty;
 
-        return Container(
+    return Container(
           margin: const EdgeInsets.only(bottom: 14),
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
@@ -263,11 +282,98 @@ family_id: $familyId
                     ),
                   ),
                 ),
+              ] else ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _createAccount(context),
+                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                    label: const Text("Создать аккаунт"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: () => _loginToAccount(context),
+                    child: const Text(
+                      "У меня уже есть аккаунт",
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ),
               ],
             ],
           ),
         );
-      },
+  }
+
+  /// Привязка аккаунта к уже существующей семье.
+  Future<void> _createAccount(BuildContext context) async {
+    final verified = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+    );
+
+    if (!context.mounted) return;
+
+    if (verified != true) return;
+
+    // Профиль уже создан — привязываем user_id к текущей семье.
+    await _linkAccountToFamily(context);
+  }
+
+  /// Вход в существующий аккаунт из экрана «Ещё».
+  Future<void> _loginToAccount(BuildContext context) async {
+    final result = await Navigator.push<AuthLoginResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+
+    if (!context.mounted) return;
+    if (result == null) return;
+
+    await _linkAccountToFamily(context);
+  }
+
+  /// Привязывает аккаунт к семье и обновляет карточку.
+  Future<void> _linkAccountToFamily(BuildContext context) async {
+    final family = await FamilyStorage.loadFamily();
+    final familyId = (family["family_id"] ?? "").toString();
+    final userName = (family["user_name"] ?? "").toString();
+
+    if (familyId.isNotEmpty && userName.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      final deviceId = prefs.getString("device_id") ?? "";
+
+      // Идемпотентно: если user_id уже привязан — сервер ничего не меняет.
+      await ApiService.joinFamily(
+        family["invite_code"]?.toString() ?? "",
+        userName,
+        deviceId,
+        (family["role"] ?? "member").toString(),
+        (family["avatar"] ?? "").toString(),
+      );
+    }
+
+    if (!context.mounted) return;
+
+    await _loadEmail();
+
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Аккаунт привязан — теперь данные не потеряются"),
+      ),
     );
   }
 
