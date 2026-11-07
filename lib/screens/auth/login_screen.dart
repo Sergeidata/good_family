@@ -4,6 +4,15 @@ import '../../services/auth_service.dart';
 import '../../widgets/loading_dots.dart';
 import 'register_screen.dart';
 
+/// Результат успешного входа: есть ли у аккаунта семья.
+class AuthLoginResult {
+  /// Данные семьи (family_id, family_name, user_name, role, avatar,
+  /// invite_code) или null, если аккаунт ещё не в семье.
+  final Map<String, dynamic>? family;
+
+  const AuthLoginResult({this.family});
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -48,14 +57,28 @@ class _LoginScreenState extends State<LoginScreen> {
     final result = await AuthService.login(email: email, password: password);
 
     if (!mounted) return;
-    setState(() => _loading = false);
 
     if (!result.ok) {
-      setState(() => _error = result.message);
+      setState(() {
+        _loading = false;
+        _error = result.message;
+      });
       return;
     }
 
-    Navigator.of(context).pop(true);
+    // Узнаём, привязан ли аккаунт к семье (восстановление после
+    // переустановки приложения).
+    final me = await AuthService.fetchMe();
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    final family = me?["family"];
+    Navigator.of(context).pop(
+      AuthLoginResult(
+        family: family is Map ? Map<String, dynamic>.from(family) : null,
+      ),
+    );
   }
 
   @override

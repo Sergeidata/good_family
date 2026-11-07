@@ -1396,6 +1396,58 @@ def auth_login():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/auth/me", methods=["GET"])
+def auth_me():
+    """Аккаунт текущего пользователя и его семья (если привязана)."""
+    try:
+        user_id = get_auth_user()
+        if user_id is None:
+            return jsonify({
+                "status": "error",
+                "message": "unauthorized",
+            }), 401
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("SELECT email FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        email = row[0] if row else ""
+
+        cur.execute("""
+            SELECT m.family_id, m.user_name, m.role, m.avatar,
+                   f.family_name, f.invite_code
+            FROM members m
+            JOIN families f ON f.family_id = m.family_id
+            WHERE m.user_id = %s
+            LIMIT 1
+        """, (user_id,))
+        m = cur.fetchone()
+
+        cur.close()
+        conn.close()
+
+        family = None
+        if m:
+            family = {
+                "family_id": m[0],
+                "user_name": m[1],
+                "role": m[2],
+                "avatar": m[3] or "",
+                "family_name": m[4],
+                "invite_code": m[5],
+            }
+
+        return jsonify({
+            "status": "ok",
+            "email": email,
+            "family": family,
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/auth/logout", methods=["POST"])
 def auth_logout():
     try:

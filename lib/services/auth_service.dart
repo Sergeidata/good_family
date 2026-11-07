@@ -72,6 +72,14 @@ class AuthService {
   // -------------------------
   // ЗАПРОСЫ
   // -------------------------
+  /// Данные аккаунта: {"email": ..., "family": {...} | null}.
+  /// `null` — нет токена или сервер недоступен.
+  static Future<Map<String, dynamic>?> fetchMe() async {
+    final res = await ApiService.getJson('/auth/me');
+    if (res == null || res['status'] != 'ok') return null;
+    return res;
+  }
+
   static Future<AuthResult> register({
     required String email,
     required String password,

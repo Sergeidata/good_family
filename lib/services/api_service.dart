@@ -14,6 +14,53 @@ class ApiService {
   static const String _tokenKey = 'session_token';
 
   // ---------------------------------
+  // Заголовки с опциональным Bearer
+  // ---------------------------------
+  static Future<Map<String, String>> _authHeaders() async {
+    final headers = <String, String>{
+      "Content-Type": "application/json",
+    };
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString(_tokenKey);
+      if (token != null && token.isNotEmpty) {
+        headers["Authorization"] = "Bearer $token";
+      }
+    } catch (_) {
+      // нет токена — работаем без авторизации
+    }
+
+    return headers;
+  }
+
+  // ---------------------------------
+  // JSON GET с опциональным Bearer
+  // ---------------------------------
+  static Future<Map<String, dynamic>?> getJson(
+    String path, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse("$baseUrl$path"),
+            headers: await _authHeaders(),
+          )
+          .timeout(timeout);
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+
+      return null;
+    } catch (e) {
+      debugPrint('GET $path ERROR: $e');
+      return null;
+    }
+  }
+
+  // ---------------------------------
   // JSON POST с опциональным Bearer
   // ---------------------------------
   /// POST JSON. Если в SharedPreferences есть session_token —
@@ -27,24 +74,10 @@ class ApiService {
     Duration timeout = const Duration(seconds: 15),
   }) async {
     try {
-      final headers = <String, String>{
-        "Content-Type": "application/json",
-      };
-
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString(_tokenKey);
-        if (token != null && token.isNotEmpty) {
-          headers["Authorization"] = "Bearer $token";
-        }
-      } catch (_) {
-        // нет токена — работаем без авторизации
-      }
-
       final response = await http
           .post(
             Uri.parse("$baseUrl$path"),
-            headers: headers,
+            headers: await _authHeaders(),
             body: jsonEncode(body),
           )
           .timeout(timeout);

@@ -3,6 +3,9 @@ import 'info_screen.dart';
 import 'package:lottie/lottie.dart';
 import 'profile_setup_screen.dart';
 import 'auth/auth_gate_screen.dart';
+import 'auth/login_screen.dart';
+import 'main_navigation_screen.dart';
+import '../services/family_storage.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -17,6 +20,66 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   final TextEditingController _inviteController = TextEditingController();
 
   bool _joinMode = false;
+  bool _loading = false;
+
+  /// Вход в существующий аккаунт (например, после переустановки).
+  Future<void> _loginToAccount() async {
+    final result = await Navigator.push<AuthLoginResult>(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+
+    if (!mounted || result == null) return;
+
+    // Аккаунт привязан к семье — восстанавливаем локальные данные
+    // и идём сразу на главный экран.
+    final family = result.family;
+    if (family != null && (family["family_id"] ?? "").toString().isNotEmpty) {
+      setState(() => _loading = true);
+
+      await FamilyStorage.saveFamily({
+        "family_id": family["family_id"],
+        "invite_code": family["invite_code"],
+        "family_name": family["family_name"],
+        "user_name": family["user_name"],
+        "role": family["role"],
+        "avatar": family["avatar"] ?? "",
+      });
+
+      if (!mounted) return;
+      setState(() => _loading = false);
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainNavigationScreen()),
+        (_) => false,
+      );
+      return;
+    }
+
+    // Аккаунт есть, но семьи нет — создаём или вступаем по коду.
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Введите имя, чтобы продолжить"),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ProfileSetupScreen(
+          isCreator: !_joinMode,
+          name: name,
+          familyName: _joinMode ? null : _familyController.text.trim(),
+          inviteCode: _joinMode ? _inviteController.text.trim() : null,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -216,6 +279,25 @@ const SizedBox(height: 12),
                                 ? "Создать новую семью"
                                 : "У меня есть код приглашения",
                             style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+
+                        // Восстановление после переустановки приложения.
+                        OutlinedButton.icon(
+                          onPressed: _loading ? null : _loginToAccount,
+                          icon: const Icon(Icons.login_rounded, size: 18),
+                          label: const Text(
+                            "У меня есть аккаунт",
+                            style: TextStyle(fontSize: 15),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.blue,
+                            minimumSize: const Size(double.infinity, 46),
+                            side: BorderSide(color: Colors.blue.shade300),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 8),
