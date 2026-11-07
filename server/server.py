@@ -113,11 +113,25 @@ def init_db():
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS user_id INTEGER")
 
     # Код приглашения может быть ограничен по времени.
-    # NULL = бессрочный (старые семьи), обратная совместимость.
+    # NULL = бессрочный (обратная совместимость для старых клиентов).
     cur.execute("""
         ALTER TABLE families
         ADD COLUMN IF NOT EXISTS invite_code_expires_at TIMESTAMP
     """)
+
+    # Backfill: старые семьи получают код со сроком жизни 1 час.
+    # Идемпотентно — WHERE ... IS NULL не продлевает уже выставленные сроки.
+    cur.execute("""
+        UPDATE families
+        SET invite_code_expires_at = NOW() + INTERVAL '1 hour'
+        WHERE invite_code_expires_at IS NULL
+    """)
+    backfilled = cur.rowcount
+    print(
+        f"MIGRATION: backfilled invite_code_expires_at for "
+        f"{backfilled} families",
+        flush=True,
+    )
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (

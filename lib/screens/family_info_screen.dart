@@ -39,7 +39,9 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
   /// Срок действия кода приглашения (ISO-строка) или null — бессрочный.
   String? _inviteExpiresAt;
   Timer? _codeTimer;
-  int _secondsLeft = -1;      // -1 = бессрочный, 0 = истёк
+
+  /// -1 = срок не определён (null или битая дата), 0 = истёк.
+  int _secondsLeft = -1;
   bool _refreshing = false;
 
   @override
@@ -67,14 +69,14 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
 
   void _recalcSecondsLeft() {
     final raw = _inviteExpiresAt;
-    if (raw == null || raw.isEmpty) {
-      _secondsLeft = -1;      // бессрочный
+    if (raw == null) {
+      _secondsLeft = -1;      // бессрочный (старая строка без backfill)
       return;
     }
 
     final expires = parseServerDateSafe(raw);
     if (expires == null) {
-      _secondsLeft = -1;
+      _secondsLeft = -2;      // срок не определён — битая дата
       return;
     }
 
@@ -82,7 +84,14 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
     _secondsLeft = diff > 0 ? diff : 0;
   }
 
+  /// Код истёк — делиться нельзя.
+  bool get _codeExpired => _secondsLeft == 0;
+
+  /// Срок неизвестен (null после backfill быть не должно) — тоже нельзя.
+  bool get _codeShareBlocked => _secondsLeft == 0 || _secondsLeft == -2;
+
   String get _codeStatusLabel {
+    if (_secondsLeft == -2) return 'Срок не определён';
     if (_secondsLeft < 0) return 'Бессрочный';
     if (_secondsLeft == 0) return 'Код истёк';
 
@@ -337,9 +346,15 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
   }
 
   void _shareCode() async {
-    if (_secondsLeft == 0) {
+    if (_codeShareBlocked) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Код истёк — обновите его')),
+        SnackBar(
+          content: Text(
+            _codeExpired
+                ? 'Код истёк — обновите его'
+                : 'Срок действия кода неизвестен — обновите его',
+          ),
+        ),
       );
       return;
     }
@@ -721,7 +736,7 @@ if (_isAdmin && !isMe)
                               style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
-                                  color: _secondsLeft == 0
+                                  color: _codeShareBlocked
                                       ? Colors.grey
                                       : Colors.black87)),
                           const SizedBox(height: 4),
@@ -730,7 +745,7 @@ if (_isAdmin && !isMe)
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: _secondsLeft == 0
+                              color: _codeShareBlocked
                                   ? Colors.red.shade600
                                   : _secondsLeft < 0
                                       ? Colors.grey.shade600
@@ -745,9 +760,8 @@ if (_isAdmin && !isMe)
                           SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: _secondsLeft == 0
-                                    ? null
-                                    : _shareCode,
+                                onPressed:
+                                    _codeShareBlocked ? null : _shareCode,
                                 icon: const Icon(Icons.share),
                                 label: const Text("Поделиться кодом"),
                                 style: ElevatedButton.styleFrom(
@@ -777,7 +791,7 @@ if (_isAdmin && !isMe)
                                       )
                                     : const Icon(Icons.refresh_rounded),
                                 label: Text(
-                                  _secondsLeft == 0
+                                  _codeShareBlocked
                                       ? "Обновить код"
                                       : "Выпустить новый код",
                                 ),
