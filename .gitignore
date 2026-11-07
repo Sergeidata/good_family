@@ -37,5 +37,13 @@ familyfocus.db
 server/venv/
 __pycache__/
 
+# Секреты и окружение (НЕ КОММИТИТЬ)
+.env
+*.env
+!env.example
+!.env.example
+credentials.txt
+*credentials*.txt
+
 # Временные артефакты от внешних инструментов
 adblogger_catalog_*.png

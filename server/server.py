@@ -5,7 +5,12 @@ import json
 import uuid
 import random
 import os
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 from PIL import Image
+import bcrypt
 
 from flask import send_from_directory
 
@@ -30,6 +35,36 @@ def get_connection():
         )
 
     return psycopg2.connect(DATABASE_URL)
+
+
+# ---------------------------------
+# SMTP (Yandex)
+# ---------------------------------
+def send_email(to, subject, body):
+    """Отправка письма через Yandex SMTP (SSL 465). True при успехе."""
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_password = os.environ.get("SMTP_PASSWORD", "")
+    smtp_host = os.environ.get("SMTP_HOST", "smtp.yandex.com")
+    smtp_port = int(os.environ.get("SMTP_PORT", "465"))
+
+    if not smtp_user or not smtp_password:
+        print("SMTP NOT CONFIGURED (SMTP_USER/SMTP_PASSWORD)")
+        return False
+
+    try:
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = Header(subject, "utf-8")
+        msg["From"] = smtp_user
+        msg["To"] = to
+
+        with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20) as server:
+            server.login(smtp_user, smtp_password)
+            server.send_message(msg)
+
+        return True
+    except Exception as e:
+        print(f"SEND EMAIL ERROR: {e}")
+        return False
 
 
 def init_db():
@@ -75,6 +110,33 @@ def init_db():
 
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS device_id TEXT")
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar TEXT")
+    cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS user_id INTEGER")
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            email_verified BOOLEAN DEFAULT FALSE,
+            verification_code TEXT,
+            verification_expires_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            token TEXT UNIQUE NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+    """)
+
+    cur.execute(
+        "CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)"
+    )
 
     cur.execute("""
         CREATE TABLE IF NOT EXISTS achievements (
@@ -974,6 +1036,276 @@ def achievement_check():
         conn.close()
 
         return jsonify({"status": "ok", "count": count})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# ---------------------------------
+# Auth (регистрация по почте)
+# ---------------------------------
+SESSION_TTL_DAYS = 90
+VERIFICATION_TTL_MINUTES = 15
+
+
+def _create_session(cur, user_id):
+    """Создаёт сессию на SESSION_TTL_DAYS и возвращает токен."""
+    token = secrets.token_hex(32)
+    cur.execute("""
+        INSERT INTO sessions (user_id, token, expires_at)
+        VALUES (%s, %s, NOW() + INTERVAL '90 days')
+    """, (user_id, token))
+    return token
+
+
+def get_auth_user():
+    """Возвращает user_id по заголовку Authorization, либо None.
+
+    Опциональная проверка: клиенты без токена работают по-старому.
+    """
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return None
+
+    token = header[len("Bearer "):].strip()
+    if not token:
+        return None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT user_id FROM sessions
+            WHERE token = %s AND expires_at > NOW()
+        """, (token,))
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+@app.route("/auth/register", methods=["POST"])
+def auth_register():
+    try:
+        data = request.get_json() or {}
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password") or ""
+
+        if "@" not in email or len(email) < 5:
+            return jsonify({"status": "error", "message": "invalid email"}), 400
+        if len(password) < 6:
+            return jsonify({"status": "error", "message": "password too short"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT id, email_verified FROM users WHERE email = %s",
+            (email,),
+        )
+        row = cur.fetchone()
+
+        if row and row[1]:
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "email already registered",
+            }), 409
+
+        code = f"{secrets.randbelow(1000000):06d}"
+        password_hash = bcrypt.hashpw(
+            password.encode(), bcrypt.gensalt()
+        ).decode()
+
+        if row:
+            # Email есть, но не подтверждён — обновляем пароль и код.
+            cur.execute("""
+                UPDATE users
+                SET password_hash = %s,
+                    verification_code = %s,
+                    verification_expires_at = NOW() + INTERVAL '15 minutes'
+                WHERE id = %s
+            """, (password_hash, code, row[0]))
+        else:
+            cur.execute("""
+                INSERT INTO users (
+                    email, password_hash, verification_code,
+                    verification_expires_at
+                )
+                VALUES (%s, %s, %s, NOW() + INTERVAL '15 minutes')
+            """, (email, password_hash, code))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        sent = send_email(
+            email,
+            "Код подтверждения Good Family",
+            f"Ваш код подтверждения: {code}\n\n"
+            f"Он действует {VERIFICATION_TTL_MINUTES} минут.\n\n"
+            f"Если вы не регистрировались в Good Family, "
+            f"просто проигнорируйте это письмо.",
+        )
+
+        if not sent:
+            return jsonify({
+                "status": "error",
+                "message": "email send failed",
+            }), 500
+
+        return jsonify({"status": "ok", "message": "code sent"})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/auth/verify", methods=["POST"])
+def auth_verify():
+    try:
+        data = request.get_json() or {}
+        email = (data.get("email") or "").strip().lower()
+        code = (data.get("code") or "").strip()
+
+        if not email or not code:
+            return jsonify({"status": "error", "message": "missing params"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT id, verification_code, verification_expires_at,
+                   email_verified
+            FROM users
+            WHERE email = %s
+        """, (email,))
+        row = cur.fetchone()
+
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "user not found"}), 404
+
+        user_id, db_code, expires_at, verified = row
+
+        if verified:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "already verified"}), 409
+
+        if not db_code or code != db_code:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "invalid code"}), 400
+
+        if expires_at is None or expires_at < datetime.now():
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "code expired"}), 400
+
+        cur.execute("""
+            UPDATE users
+            SET email_verified = TRUE,
+                verification_code = NULL,
+                verification_expires_at = NULL
+            WHERE id = %s
+        """, (user_id,))
+
+        token = _create_session(cur, user_id)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({"status": "ok", "session_token": token})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/auth/login", methods=["POST"])
+def auth_login():
+    try:
+        data = request.get_json() or {}
+        email = (data.get("email") or "").strip().lower()
+        password = data.get("password") or ""
+
+        if not email or not password:
+            return jsonify({"status": "error", "message": "missing params"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT id, password_hash, email_verified
+            FROM users
+            WHERE email = %s
+        """, (email,))
+        row = cur.fetchone()
+
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "invalid credentials",
+            }), 401
+
+        user_id, password_hash, verified = row
+
+        if not bcrypt.checkpw(password.encode(), password_hash.encode()):
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "invalid credentials",
+            }), 401
+
+        if not verified:
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "email not verified",
+            }), 403
+
+        token = _create_session(cur, user_id)
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({"status": "ok", "session_token": token})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+@app.route("/auth/logout", methods=["POST"])
+def auth_logout():
+    try:
+        data = request.get_json() or {}
+        token = (data.get("session_token") or "").strip()
+
+        if not token:
+            header = request.headers.get("Authorization", "")
+            if header.startswith("Bearer "):
+                token = header[len("Bearer "):].strip()
+
+        if not token:
+            return jsonify({"status": "error", "message": "missing token"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM sessions WHERE token = %s", (token,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({"status": "ok"})
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
