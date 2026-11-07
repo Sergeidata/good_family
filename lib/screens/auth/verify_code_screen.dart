@@ -139,7 +139,57 @@ class _VerifyCodeScreenState extends State<VerifyCodeScreen> {
                 'Код действует 15 минут.',
                 style: const TextStyle(fontSize: 14, color: Colors.black54),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              // Письмо часто попадает в спам — предупреждаем заранее.
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.mark_email_unread_outlined,
+                      color: Colors.amber.shade800,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Письма нет? Проверьте папку «Спам»',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Иногда письма от новых отправителей попадают '
+                            'туда. Найдите наше письмо и отметьте его как '
+                            '«Не спам» — тогда следующие будут приходить '
+                            'в обычный ящик.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              height: 1.35,
+                              color: Colors.amber.shade900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
               TextField(
                 controller: _codeCtrl,
                 keyboardType: TextInputType.number,
