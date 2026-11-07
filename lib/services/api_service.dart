@@ -142,6 +142,23 @@ class ApiService {
   }
 
   // ---------------------------------
+  // REFRESH INVITE CODE
+  // ---------------------------------
+  /// Пересоздать код приглашения на 1 час (только администратор семьи).
+  static Future<Map<String, dynamic>?> refreshInviteCode(
+    String familyId, {
+    String deviceId = '',
+  }) async {
+    return postJson(
+      '/family/refresh_invite_code',
+      {
+        "family_id": familyId,
+        "device_id": deviceId,
+      },
+    );
+  }
+
+  // ---------------------------------
   // LEAVE FAMILY
   // ---------------------------------
   static Future<Map<String, dynamic>?> leaveFamily(

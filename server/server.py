@@ -112,6 +112,13 @@ def init_db():
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar TEXT")
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS user_id INTEGER")
 
+    # Код приглашения может быть ограничен по времени.
+    # NULL = бессрочный (старые семьи), обратная совместимость.
+    cur.execute("""
+        ALTER TABLE families
+        ADD COLUMN IF NOT EXISTS invite_code_expires_at TIMESTAMP
+    """)
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -551,8 +558,10 @@ def create_family():
                 }), 409
 
         cur.execute("""
-            INSERT INTO families (family_id, family_name, invite_code)
-            VALUES (%s, %s, %s)
+            INSERT INTO families (
+                family_id, family_name, invite_code, invite_code_expires_at
+            )
+            VALUES (%s, %s, %s, NOW() + INTERVAL '1 hour')
         """, (family_id, family_name, invite_code))
 
         cur.execute("""
@@ -597,13 +606,28 @@ def join_family():
         conn = get_connection()
         cur = conn.cursor()
 
-        cur.execute("SELECT family_id, family_name FROM families WHERE invite_code = %s", (invite_code,))
+        cur.execute("""
+            SELECT family_id, family_name, invite_code_expires_at
+            FROM families
+            WHERE invite_code = %s
+        """, (invite_code,))
         row = cur.fetchone()
 
         if not row:
             cur.close()
             conn.close()
             return jsonify({"status": "error", "message": "family not found"}), 404
+
+        # Код истёк (NULL = бессрочный, старые семьи).
+        # datetime.now() naive + TIMESTAMP без tz — сравнение в одной зоне
+        # (сервер Reg.ru работает в UTC).
+        if row[2] is not None and row[2] < datetime.now():
+            cur.close()
+            conn.close()
+            return jsonify({
+                "status": "error",
+                "message": "invite_code_expired",
+            }), 410
 
         family_id = row[0]
         family_name = row[1]
@@ -1001,6 +1025,91 @@ def family_member_status():
             "message": str(e)
         }), 500
 
+@app.route("/family/refresh_invite_code", methods=["POST"])
+def refresh_invite_code():
+    """Пересоздаёт код приглашения на 1 час. Только администратор семьи."""
+    try:
+        data = request.get_json() or {}
+        family_id = (data.get("family_id") or "").strip()
+
+        if not family_id:
+            return jsonify({
+                "status": "error",
+                "message": "family_id required",
+            }), 400
+
+        user_id = get_auth_user()
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        # Права: по аккаунту, либо (старые клиенты без токена) по device_id.
+        is_admin = False
+
+        if user_id is not None:
+            cur.execute("""
+                SELECT role FROM members
+                WHERE family_id = %s AND user_id = %s
+                LIMIT 1
+            """, (family_id, user_id))
+            r = cur.fetchone()
+            is_admin = bool(r) and r[0] in ("admin", "admin_parent")
+        else:
+            device_id = (data.get("device_id") or "").strip()
+            if device_id:
+                cur.execute("""
+                    SELECT role FROM members
+                    WHERE family_id = %s AND device_id = %s
+                    LIMIT 1
+                """, (family_id, device_id))
+                r = cur.fetchone()
+                is_admin = bool(r) and r[0] in ("admin", "admin_parent")
+
+        if not is_admin:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "forbidden"}), 403
+
+        # Новый код не должен совпадать с уже существующим.
+        new_code = None
+        for _ in range(10):
+            candidate = str(random.randint(100000, 999999))
+            cur.execute(
+                "SELECT 1 FROM families WHERE invite_code = %s",
+                (candidate,),
+            )
+            if cur.fetchone() is None:
+                new_code = candidate
+                break
+
+        if new_code is None:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "retry"}), 500
+
+        cur.execute("""
+            UPDATE families
+            SET invite_code = %s,
+                invite_code_expires_at = NOW() + INTERVAL '1 hour'
+            WHERE family_id = %s
+            RETURNING invite_code_expires_at
+        """, (new_code, family_id))
+        updated = cur.fetchone()
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        return jsonify({
+            "status": "ok",
+            "invite_code": new_code,
+            "expires_at": updated[0].isoformat() if updated else None,
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/family_info")
 def family_info():
 
@@ -1022,7 +1131,8 @@ def family_info():
         SELECT
             family_name,
             invite_code,
-            created_at
+            created_at,
+            invite_code_expires_at
         FROM families
         WHERE family_id = %s
     """, (
@@ -1039,7 +1149,9 @@ def family_info():
     result = {
         "family_name": row[0],
         "invite_code": row[1],
-        "created_at": str(row[2])
+        "created_at": str(row[2]),
+        "invite_code_expires_at":
+            row[3].isoformat() if row[3] else None
     }
 
     cur.close()

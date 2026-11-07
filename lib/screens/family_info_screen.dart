@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'dart:async';
 import 'package:path_provider/path_provider.dart';
 import 'crop_screen.dart';
 import '../utils/app_utils.dart';
@@ -35,10 +36,97 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
   String _familyId = '';
   String _userName = '';
 
+  /// Срок действия кода приглашения (ISO-строка) или null — бессрочный.
+  String? _inviteExpiresAt;
+  Timer? _codeTimer;
+  int _secondsLeft = -1;      // -1 = бессрочный, 0 = истёк
+  bool _refreshing = false;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _codeTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCodeTimer() {
+    _codeTimer?.cancel();
+    _recalcSecondsLeft();
+
+    // Обновляем раз в 30 секунд — не нагружаем процессор.
+    _codeTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!mounted) return;
+      setState(_recalcSecondsLeft);
+    });
+  }
+
+  void _recalcSecondsLeft() {
+    final raw = _inviteExpiresAt;
+    if (raw == null || raw.isEmpty) {
+      _secondsLeft = -1;      // бессрочный
+      return;
+    }
+
+    final expires = parseServerDateSafe(raw);
+    if (expires == null) {
+      _secondsLeft = -1;
+      return;
+    }
+
+    final diff = expires.difference(DateTime.now()).inSeconds;
+    _secondsLeft = diff > 0 ? diff : 0;
+  }
+
+  String get _codeStatusLabel {
+    if (_secondsLeft < 0) return 'Бессрочный';
+    if (_secondsLeft == 0) return 'Код истёк';
+
+    final m = _secondsLeft ~/ 60;
+    final s = _secondsLeft % 60;
+    return 'Истечёт через ${m.toString().padLeft(2, '0')}:'
+        '${s.toString().padLeft(2, '0')}';
+  }
+
+  /// Выпустить новый код на 1 час (только администратор).
+  Future<void> _refreshCode() async {
+    if (_familyId.isEmpty) return;
+
+    setState(() => _refreshing = true);
+
+    final res = await ApiService.refreshInviteCode(
+      _familyId,
+      deviceId: _deviceId,
+    );
+
+    if (!mounted) return;
+    setState(() => _refreshing = false);
+
+    if (res == null || res['status'] != 'ok') {
+      final msg = res?['message']?.toString() ?? '';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg == 'forbidden'
+                ? 'Только администратор может обновить код'
+                : 'Не удалось обновить код',
+          ),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _inviteCode = res['invite_code']?.toString() ?? _inviteCode;
+      _inviteExpiresAt = res['expires_at']?.toString();
+    });
+
+    _startCodeTimer();
+    setState(() {});
   }
 
   String _formatDate(dynamic value) {
@@ -229,10 +317,14 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
             'Семья';
         _inviteCode =
             familyInfo?['invite_code'] ?? '';
+        _inviteExpiresAt =
+            familyInfo?['invite_code_expires_at']?.toString();
         _createdAt = familyInfo?['created_at'] ?? '';
         _loading = false;
         _error = null;
       });
+
+      _startCodeTimer();
     } catch (_) {
       setState(() {
         _familyName = localFamily['family_name'] ?? 'Семья';
@@ -245,6 +337,13 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
   }
 
   void _shareCode() async {
+    if (_secondsLeft == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Код истёк — обновите его')),
+      );
+      return;
+    }
+
     final channel = MethodChannel('family_focus/sync_service');
     await channel.invokeMethod('share', {
       'text':
@@ -619,8 +718,25 @@ if (_isAdmin && !isMe)
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Код приглашения: $_inviteCode",
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold)),
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: _secondsLeft == 0
+                                      ? Colors.grey
+                                      : Colors.black87)),
+                          const SizedBox(height: 4),
+                          Text(
+                            _codeStatusLabel,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: _secondsLeft == 0
+                                  ? Colors.red.shade600
+                                  : _secondsLeft < 0
+                                      ? Colors.grey.shade600
+                                      : Colors.green.shade700,
+                            ),
+                          ),
                           const SizedBox(height: 10),
                           Text("Создана: ${_formatDate(_createdAt)}",
                               style: TextStyle(
@@ -629,7 +745,9 @@ if (_isAdmin && !isMe)
                           SizedBox(
                               width: double.infinity,
                               child: ElevatedButton.icon(
-                                onPressed: _shareCode,
+                                onPressed: _secondsLeft == 0
+                                    ? null
+                                    : _shareCode,
                                 icon: const Icon(Icons.share),
                                 label: const Text("Поделиться кодом"),
                                 style: ElevatedButton.styleFrom(
@@ -642,7 +760,38 @@ if (_isAdmin && !isMe)
                                   ),
                                 ),
                               ),
-                            )
+                            ),
+                          if (_isAdmin) ...[
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _refreshing ? null : _refreshCode,
+                                icon: _refreshing
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.refresh_rounded),
+                                label: Text(
+                                  _secondsLeft == 0
+                                      ? "Обновить код"
+                                      : "Выпустить новый код",
+                                ),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: Colors.blue,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 13),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),

@@ -273,6 +273,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final message = result["message"]?.toString() ?? "";
       if (message == "family not found") {
         _showError("Неверный код");
+      } else if (message == "invite_code_expired") {
+        _showError("Код истёк. Попросите родителя создать новый.");
       } else if (message == "already in another family") {
         _showError("Вы уже в другой семье. Выйдите сначала.");
       } else if (message == "device_id required") {
