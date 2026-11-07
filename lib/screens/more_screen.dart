@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../services/auth_service.dart';
 import '../services/sync_service_helper.dart';
 import 'welcome_screen.dart';
 import 'permissions_screen.dart';
@@ -171,6 +172,141 @@ family_id: $familyId
   ),
 );
 }
+
+  /// Блок аккаунта: почта + выход (или предложение создать аккаунт).
+  Widget _accountCard(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: AuthService.loadEmail(),
+      builder: (context, snapshot) {
+        final email = snapshot.data ?? "";
+        final hasAccount = email.isNotEmpty;
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 14),
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: hasAccount
+                          ? Colors.blue.shade50
+                          : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      hasAccount
+                          ? Icons.verified_user_rounded
+                          : Icons.person_outline_rounded,
+                      color: hasAccount
+                          ? Colors.blue
+                          : Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          hasAccount ? "Аккаунт: $email" : "Аккаунта нет",
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          hasAccount
+                              ? "Семья привязана к почте"
+                              : "Создайте, чтобы не потерять данные",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (hasAccount) ...[
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _logout(context),
+                    icon: const Icon(Icons.logout_rounded, size: 18),
+                    label: const Text("Выйти из аккаунта"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: BorderSide(color: Colors.red.shade200),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: const Text("Выйти из аккаунта?"),
+        content: const Text(
+          "Семья останется на сервере. Войти снова можно по почте и паролю.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Отмена"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "Выйти",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    await AuthService.logout();
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Вы вышли из аккаунта")),
+    );
+  }
 
   Future<void> _leaveFamily(BuildContext context) async {
     final family = await FamilyStorage.loadFamily();
@@ -563,7 +699,7 @@ family_id: $familyId
 
             const SizedBox(height: 14),
 
-            
+            _accountCard(context),
 
             _menuCard(
               context: context,

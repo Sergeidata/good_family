@@ -4,10 +4,61 @@ import 'package:http/http.dart' as http;
 
 import 'package:intl/intl.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const String baseUrl =
       "http://89.108.66.36";
+
+  /// Ключ токена в SharedPreferences (совпадает с AuthService).
+  static const String _tokenKey = 'session_token';
+
+  // ---------------------------------
+  // JSON POST с опциональным Bearer
+  // ---------------------------------
+  /// POST JSON. Если в SharedPreferences есть session_token —
+  /// добавляет заголовок Authorization: Bearer <token>.
+  ///
+  /// Токен читается напрямую из prefs, чтобы не было циклической
+  /// зависимости с AuthService.
+  static Future<Map<String, dynamic>?> postJson(
+    String path,
+    Map<String, dynamic> body, {
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    try {
+      final headers = <String, String>{
+        "Content-Type": "application/json",
+      };
+
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString(_tokenKey);
+        if (token != null && token.isNotEmpty) {
+          headers["Authorization"] = "Bearer $token";
+        }
+      } catch (_) {
+        // нет токена — работаем без авторизации
+      }
+
+      final response = await http
+          .post(
+            Uri.parse("$baseUrl$path"),
+            headers: headers,
+            body: jsonEncode(body),
+          )
+          .timeout(timeout);
+
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+
+      return null;
+    } catch (e) {
+      debugPrint('POST $path ERROR: $e');
+      return null;
+    }
+  }
 
   // ---------------------------------
   // CREATE FAMILY

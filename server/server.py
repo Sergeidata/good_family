@@ -1163,6 +1163,67 @@ def auth_register():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route("/auth/resend", methods=["POST"])
+def auth_resend():
+    """Повторная отправка кода подтверждения (без смены пароля)."""
+    try:
+        data = request.get_json() or {}
+        email = (data.get("email") or "").strip().lower()
+
+        if not email:
+            return jsonify({"status": "error", "message": "missing params"}), 400
+
+        conn = get_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            "SELECT id, email_verified FROM users WHERE email = %s",
+            (email,),
+        )
+        row = cur.fetchone()
+
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "user not found"}), 404
+
+        if row[1]:
+            cur.close()
+            conn.close()
+            return jsonify({"status": "error", "message": "already verified"}), 409
+
+        code = f"{secrets.randbelow(1000000):06d}"
+
+        cur.execute("""
+            UPDATE users
+            SET verification_code = %s,
+                verification_expires_at = NOW() + INTERVAL '15 minutes'
+            WHERE id = %s
+        """, (code, row[0]))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        sent = send_email(
+            email,
+            "Код подтверждения Good Family",
+            f"Ваш код подтверждения: {code}\n\n"
+            f"Он действует {VERIFICATION_TTL_MINUTES} минут.",
+        )
+
+        if not sent:
+            return jsonify({
+                "status": "error",
+                "message": "email send failed",
+            }), 500
+
+        return jsonify({"status": "ok", "message": "code sent"})
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route("/auth/verify", methods=["POST"])
 def auth_verify():
     try:

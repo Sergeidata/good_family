@@ -30,6 +30,13 @@ CRED_FILE="/root/credentials.txt"
 LOG_FILE="/var/log/goodfamily_setup.log"
 PUBLIC_IP="$(curl -s --max-time 5 https://api.ipify.org || echo '89.108.66.36')"
 
+# SMTP передаётся через переменные окружения, НЕ хардкодится в скрипте:
+#   SMTP_USER=... SMTP_PASSWORD=... bash setup.sh
+SMTP_USER_VAL="${SMTP_USER:-}"
+SMTP_PASSWORD_VAL="${SMTP_PASSWORD:-}"
+SMTP_HOST_VAL="${SMTP_HOST:-smtp.yandex.com}"
+SMTP_PORT_VAL="${SMTP_PORT:-465}"
+
 # ---------------------------------------------------------------------------
 # Логирование
 # ---------------------------------------------------------------------------
@@ -218,9 +225,20 @@ cat > "${APP_DIR}/.env" <<EOF
 # Сгенерировано setup.sh $(date '+%Y-%m-%d %H:%M:%S')
 DATABASE_URL=${DATABASE_URL}
 EXPORT_STATS_SECRET=${EXPORT_STATS_SECRET}
+SMTP_USER=${SMTP_USER_VAL}
+SMTP_PASSWORD=${SMTP_PASSWORD_VAL}
+SMTP_HOST=${SMTP_HOST_VAL}
+SMTP_PORT=${SMTP_PORT_VAL}
 EOF
 chmod 600 "${APP_DIR}/.env"
 ok "Создан ${APP_DIR}/.env (chmod 600)"
+
+if [[ -n "$SMTP_USER_VAL" && -n "$SMTP_PASSWORD_VAL" ]]; then
+  ok "SMTP настроен для ${SMTP_USER_VAL}"
+else
+  warn "SMTP не задан: регистрация по почте вернёт 'email send failed'."
+  warn "Запустите: SMTP_USER=... SMTP_PASSWORD=... bash setup.sh"
+fi
 
 # ---------------------------------------------------------------------------
 # ШАГ 8. systemd-сервис
@@ -364,6 +382,11 @@ cat > "$CRED_FILE" <<EOF
 
 СЕКРЕТ ЭКСПОРТА СТАТИСТИКИ
   EXPORT_STATS_SECRET=${EXPORT_STATS_SECRET}
+
+SMTP (регистрация по почте)
+  Хост:    ${SMTP_HOST_VAL}:${SMTP_PORT_VAL}
+  Логин:   ${SMTP_USER_VAL:-НЕ ЗАДАН}
+  Пароль:  ${SMTP_PASSWORD_VAL:-НЕ ЗАДАН}
 
 ПРИЛОЖЕНИЕ
   Каталог:   ${APP_DIR}

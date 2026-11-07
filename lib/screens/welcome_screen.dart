@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'info_screen.dart';
 import 'package:lottie/lottie.dart';
 import 'profile_setup_screen.dart';
+import 'auth/auth_gate_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -157,10 +158,22 @@ const SizedBox(height: 12),
                                 borderRadius: BorderRadius.circular(14),
                               ),
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               final name = _nameController.text.trim();
                               if (name.isEmpty) return;
                               final isCreator = !_joinMode;
+
+                              // Предлагаем создать аккаунт; можно продолжить
+                              // и без него — старые версии работают без почты.
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const AuthGateScreen(),
+                                ),
+                              );
+
+                              if (!context.mounted) return;
+
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(

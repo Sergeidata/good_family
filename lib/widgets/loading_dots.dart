@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 /// управляется своим [Interval] со сдвигом старта 0 / 150 / 300 мс
 /// и длительностью прыжка 400 мс.
 class LoadingDots extends StatefulWidget {
-  const LoadingDots({super.key});
+  /// Если задан — все точки рисуются этим цветом (например, белым на кнопке).
+  final Color? color;
+
+  const LoadingDots({super.key, this.color});
 
   @override
   State<LoadingDots> createState() => _LoadingDotsState();
@@ -107,7 +110,7 @@ class _LoadingDotsState extends State<LoadingDots>
         width: _dotSize,
         height: _dotSize,
         decoration: BoxDecoration(
-          color: _colors[index],
+          color: widget.color ?? _colors[index],
           shape: BoxShape.circle,
         ),
       ),
