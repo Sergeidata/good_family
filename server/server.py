@@ -745,13 +745,17 @@ def family_members():
     family_id = request.args.get("family_id")
     requester_device_id = request.args.get("requester_device_id", "")
 
+    # Права определяем по аккаунту, если он есть: после выхода/входа
+    # device_id может не совпасть с записью в members (переустановка).
+    requester_user_id = get_auth_user()
+
     conn = get_connection()
     cursor = conn.cursor()
 
     # device_id намеренно НЕ возвращается клиенту: он нужен только
     # для вычисления is_me внутри сервера
     cursor.execute("""
-        SELECT id, user_name, role, joined_at, avatar, device_id
+        SELECT id, user_name, role, joined_at, avatar, device_id, user_id
         FROM members
         WHERE family_id = %s
         ORDER BY joined_at ASC
@@ -761,11 +765,13 @@ def family_members():
     members = []
 
     for row in rows:
-        is_me = bool(
-            requester_device_id
-            and row[5]
-            and row[5] == requester_device_id
-        )
+        # Приоритет — привязка к аккаунту; device_id как фолбэк
+        # для клиентов без токена.
+        is_me = False
+        if requester_user_id is not None and row[6] == requester_user_id:
+            is_me = True
+        elif requester_device_id and row[5] and row[5] == requester_device_id:
+            is_me = True
 
         members.append({
             "id": row[0],
@@ -796,17 +802,31 @@ def remove_member():
         member_id = data.get("member_id")
         requester_device_id = data.get("requester_device_id")
 
-        if not family_id or not member_id or not requester_device_id:
+        if not family_id or not member_id:
+            return jsonify({"status": "error", "message": "missing fields"}), 400
+
+        # Права по аккаунту, если он привязан; иначе по device_id.
+        requester_user_id = get_auth_user()
+
+        if requester_user_id is None and not requester_device_id:
             return jsonify({"status": "error", "message": "missing fields"}), 400
 
         conn = get_connection()
         cur = conn.cursor()
 
         # Запрашивающий должен быть админом ИМЕННО этой семьи
-        cur.execute("""
-            SELECT 1 FROM members
-            WHERE family_id = %s AND device_id = %s AND role IN ('admin', 'admin_parent')
-        """, (family_id, requester_device_id))
+        if requester_user_id is not None:
+            cur.execute("""
+                SELECT 1 FROM members
+                WHERE family_id = %s AND user_id = %s
+                  AND role IN ('admin', 'admin_parent')
+            """, (family_id, requester_user_id))
+        else:
+            cur.execute("""
+                SELECT 1 FROM members
+                WHERE family_id = %s AND device_id = %s
+                  AND role IN ('admin', 'admin_parent')
+            """, (family_id, requester_device_id))
 
         admin_row = cur.fetchone()
         if not admin_row:
@@ -869,13 +889,31 @@ def leave_family():
         conn = get_connection()
         cur = conn.cursor()
 
-        # Имя может дублироваться — берём все записи с этим именем в семье
-        cur.execute("""
-            SELECT id, device_id, role FROM members
-            WHERE family_id = %s AND user_name = %s
-        """, (family_id, user_name))
+        # Права по аккаунту (устойчиво к смене устройства), device_id — фолбэк.
+        requester_user_id = get_auth_user()
 
-        rows = cur.fetchall()
+        # Имя может дублироваться — берём все записи с этим именем в семье
+        if requester_user_id is not None:
+            cur.execute("""
+                SELECT id, device_id, role FROM members
+                WHERE family_id = %s AND user_id = %s
+            """, (family_id, requester_user_id))
+            rows = cur.fetchall()
+
+            if not rows:
+                # Аккаунт не привязан — ищем по имени + устройству
+                cur.execute("""
+                    SELECT id, device_id, role FROM members
+                    WHERE family_id = %s AND user_name = %s
+                """, (family_id, user_name))
+                rows = cur.fetchall()
+        else:
+            cur.execute("""
+                SELECT id, device_id, role FROM members
+                WHERE family_id = %s AND user_name = %s
+            """, (family_id, user_name))
+            rows = cur.fetchall()
+
         if not rows:
             cur.close()
             conn.close()
@@ -883,6 +921,9 @@ def leave_family():
 
         member = None
         for row in rows:
+            if requester_user_id is not None:
+                member = row
+                break
             if (row[1] or "") == requester_device_id:
                 member = row
                 break
