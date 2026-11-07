@@ -7,7 +7,7 @@ import 'package:flutter/foundation.dart';
 
 class ApiService {
   static const String baseUrl =
-      "http://159.194.219.146:8000";
+      "http://89.108.66.36";
 
   // ---------------------------------
   // CREATE FAMILY

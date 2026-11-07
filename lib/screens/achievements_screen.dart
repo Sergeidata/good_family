@@ -802,7 +802,7 @@ Widget build(BuildContext context) {
             CircleAvatar(
               radius: 28,
               backgroundImage: NetworkImage(
-                Uri.encodeFull('http://159.194.219.146:8000${champion["avatar"]}'),
+                Uri.encodeFull('http://89.108.66.36${champion["avatar"]}'),
               ),
             )
           else

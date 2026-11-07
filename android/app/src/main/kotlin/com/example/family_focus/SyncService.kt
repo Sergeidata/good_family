@@ -143,7 +143,7 @@ class SyncService : Service() {
     val body = bodyJson.toString().toRequestBody("application/json".toMediaTypeOrNull())
 
     val request = Request.Builder()
-        .url("http://159.194.219.146:8000/upload")
+        .url("http://89.108.66.36/upload")
         .post(body)
         .build()
 
@@ -204,7 +204,7 @@ class SyncService : Service() {
         .build()
 
     val request = Request.Builder()
-        .url("http://159.194.219.146:8000/tasks?family_id=$familyId&user_name=$userName")
+        .url("http://89.108.66.36/tasks?family_id=$familyId&user_name=$userName")
         .get()
         .build()
 
@@ -292,7 +292,7 @@ class SyncService : Service() {
         .build()
 
     val request = Request.Builder()
-        .url("http://159.194.219.146:8000/weekly_events?family_id=$familyId")
+        .url("http://89.108.66.36/weekly_events?family_id=$familyId")
         .get()
         .build()
 

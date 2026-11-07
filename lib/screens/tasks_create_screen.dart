@@ -289,7 +289,7 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
               ? CircleAvatar(
                   radius: 20,
                   backgroundImage: NetworkImage(
-                    Uri.encodeFull('http://159.194.219.146:8000$avatar'),
+                    Uri.encodeFull('http://89.108.66.36$avatar'),
                   ),
                 )
               : CircleAvatar(

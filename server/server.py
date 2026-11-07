@@ -21,10 +21,13 @@ app = Flask(__name__)
 def get_connection():
 
     # Продакшен: задавайте через systemd Environment= / EnvironmentFile=
-    DATABASE_URL = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://familyfocus_user:CIVil456@localhost:5432/familyfocus",
-    )
+    DATABASE_URL = os.environ.get("DATABASE_URL")
+
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "DATABASE_URL не задан. Пропишите его в /opt/goodfamily/.env "
+            "или в systemd EnvironmentFile."
+        )
 
     return psycopg2.connect(DATABASE_URL)
 
@@ -2599,11 +2602,11 @@ def upload_avatar():
 def latest_version():
     try:
         # Версия приложения (обновлять вручную при выпуске)
-        current_version_name = "1.3.1"
-        current_version_code = 12
+        current_version_name = "1.3.2"
+        current_version_code = 13
 
         # Минимальная версия для принудительного обновления
-        min_version_code = 11  # ← МЕНЯЙТЕ ВРУЧНУЮ
+        min_version_code = 12  # ← МЕНЯЙТЕ ВРУЧНУЮ
 
         return jsonify({
             "status": "ok",

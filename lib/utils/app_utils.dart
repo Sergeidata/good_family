@@ -118,7 +118,7 @@ void bumpAvatarVersion() {
 }
 
 String avatarUrl(String path) {
-  final base = 'http://159.194.219.146:8000$path';
+  final base = 'http://89.108.66.36$path';
   return avatarVersion > 0 ? '$base?t=$avatarVersion' : base;
 }
 
