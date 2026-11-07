@@ -489,10 +489,13 @@ Future<void> _refreshDashboard() async {
     if (latest == null) return;
 
     final serverVersionCode = latest["version_code"] ?? 0;
+    final minVersionCode = latest["min_version_code"] ?? 0;
     final updateUrl = latest["update_url"] ?? "";
-    final forceUpdate = latest["force_update"] ?? false;
 
-   
+    // Принудительное обновление: наша версия ниже минимальной, которую
+    // поддерживает сервер. Сравниваем локально — сервер не знает
+    // версию клиента.
+    final forceUpdate = currentVersionCode < minVersionCode;
 
     if (serverVersionCode <= currentVersionCode && !forceUpdate) return;
 

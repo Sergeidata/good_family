@@ -3296,17 +3296,18 @@ def upload_avatar():
 def latest_version():
     try:
         # Версия приложения (обновлять вручную при выпуске)
-        current_version_name = "1.3.2"
-        current_version_code = 13
+        current_version_name = "1.3.3"
+        current_version_code = 15
 
-        # Минимальная версия для принудительного обновления
-        min_version_code = 12  # ← МЕНЯЙТЕ ВРУЧНУЮ
+        # Минимальная версия: у кого version_code меньше — принудительное
+        # обновление. Клиент сравнивает её со своей версией сам.
+        min_version_code = 15  # ← МЕНЯЙТЕ ВРУЧНУЮ
 
         return jsonify({
             "status": "ok",
             "version": current_version_name,
             "version_code": current_version_code,
-            "force_update": current_version_code < min_version_code,
+            "min_version_code": min_version_code,
             "update_url": "https://apps.rustore.ru/app/com.example.family_focus"
         })
     except Exception as e:
