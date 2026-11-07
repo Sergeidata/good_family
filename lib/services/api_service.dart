@@ -70,28 +70,18 @@ class ApiService {
   String role,
   String avatar,
 )async {
-    try {
-      final response = await http.post(
-        Uri.parse("$baseUrl/create_family"),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "family_name": familyName,
-          "user_name": userName,
-          "device_id": deviceId,
-          "role": role,
-          "avatar": avatar,
-        }),
-      ).timeout(
-        const Duration(seconds: 5),
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      debugPrint("CREATE FAMILY ERROR: $e");
-      return null;
-    }
+    // postJson добавляет Authorization: Bearer, если пользователь вошёл.
+    return postJson(
+      '/create_family',
+      {
+        "family_name": familyName,
+        "user_name": userName,
+        "device_id": deviceId,
+        "role": role,
+        "avatar": avatar,
+      },
+      timeout: const Duration(seconds: 5),
+    );
   }
 
   // ---------------------------------
@@ -104,28 +94,18 @@ class ApiService {
   String role,
   String avatar,
 )async {
-    try {
-      final response = await http.post(
-        Uri.parse("$baseUrl/join_family"),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-  "invite_code": inviteCode,
-  "user_name": userName,
-  "device_id": deviceId,
-  "role": role,
-  "avatar": avatar,
-}),
-      ).timeout(
-        const Duration(seconds: 5),
-      );
-
-      return jsonDecode(response.body);
-    } catch (e) {
-      debugPrint("JOIN FAMILY ERROR: $e");
-      return null;
-    }
+    // postJson добавляет Authorization: Bearer, если пользователь вошёл.
+    return postJson(
+      '/join_family',
+      {
+        "invite_code": inviteCode,
+        "user_name": userName,
+        "device_id": deviceId,
+        "role": role,
+        "avatar": avatar,
+      },
+      timeout: const Duration(seconds: 5),
+    );
   }
 
   // ---------------------------------

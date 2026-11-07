@@ -112,6 +112,16 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       return;
     }
 
+    if (result["status"] != "ok") {
+      final message = result["message"]?.toString() ?? "";
+      if (message == "already in another family") {
+        _showError("Вы уже в другой семье. Выйдите сначала.");
+      } else {
+        _showError("Не удалось создать семью");
+      }
+      return;
+    }
+
     await FamilyStorage.saveFamily({
       "family_id": result["family_id"],
       "invite_code": result["invite_code"],
@@ -263,6 +273,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       final message = result["message"]?.toString() ?? "";
       if (message == "family not found") {
         _showError("Неверный код");
+      } else if (message == "already in another family") {
+        _showError("Вы уже в другой семье. Выйдите сначала.");
       } else if (message == "device_id required") {
         _showError("Не удалось определить устройство. Попробуйте ещё раз.");
       } else {

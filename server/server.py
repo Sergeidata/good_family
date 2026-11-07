@@ -138,6 +138,12 @@ def init_db():
         "CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)"
     )
 
+    # Один аккаунт (user_id) может быть только в одной семье.
+    cur.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_members_user_id
+        ON members(user_id) WHERE user_id IS NOT NULL
+    """)
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS achievements (
             id SERIAL PRIMARY KEY,
@@ -520,21 +526,41 @@ def create_family():
         if not family_name:
             return jsonify({"status": "error", "message": "family_name required"}), 400
 
+        # Опциональная авторизация: токена нет — работаем по-старому.
+        auth_user_id = get_auth_user()
+
         family_id = str(uuid.uuid4())
         invite_code = str(random.randint(100000, 999999))
 
         conn = get_connection()
         cur = conn.cursor()
 
+        if auth_user_id is not None:
+            cur.execute(
+                "SELECT family_id FROM members WHERE user_id = %s LIMIT 1",
+                (auth_user_id,),
+            )
+            already = cur.fetchone()
+
+            if already:
+                cur.close()
+                conn.close()
+                return jsonify({
+                    "status": "error",
+                    "message": "already in another family",
+                }), 409
+
         cur.execute("""
             INSERT INTO families (family_id, family_name, invite_code)
             VALUES (%s, %s, %s)
         """, (family_id, family_name, invite_code))
-        
+
         cur.execute("""
-            INSERT INTO members (family_id, user_name, role, avatar, device_id)
-            VALUES (%s, %s, 'admin_parent', %s, %s)
-        """, (family_id, user_name, avatar, device_id))
+            INSERT INTO members (
+                family_id, user_name, role, avatar, device_id, user_id
+            )
+            VALUES (%s, %s, 'admin_parent', %s, %s, %s)
+        """, (family_id, user_name, avatar, device_id, auth_user_id))
 
         conn.commit()
         cur.close()
@@ -582,6 +608,25 @@ def join_family():
         family_id = row[0]
         family_name = row[1]
 
+        # Опциональная авторизация: токена нет — работаем по-старому.
+        auth_user_id = get_auth_user()
+
+        # Аккаунт уже в другой семье — 409.
+        if auth_user_id is not None:
+            cur.execute(
+                "SELECT family_id FROM members WHERE user_id = %s LIMIT 1",
+                (auth_user_id,),
+            )
+            mine = cur.fetchone()
+
+            if mine and mine[0] != family_id:
+                cur.close()
+                conn.close()
+                return jsonify({
+                    "status": "error",
+                    "message": "already in another family",
+                }), 409
+
         # Проверка device_id — обновить существующего участника
         if device_id:
             cur.execute("SELECT user_name, role FROM members WHERE family_id = %s AND device_id = %s", (family_id, device_id))
@@ -589,11 +634,14 @@ def join_family():
             
             if existing:
                 existing_name, existing_role = existing[0], existing[1]
-                # Обновить имя, аватар и роль
+                # Обновить имя, аватар и (если есть) привязать аккаунт
                 cur.execute("""
-                    UPDATE members SET user_name = %s, avatar = %s
+                    UPDATE members
+                    SET user_name = %s,
+                        avatar = %s,
+                        user_id = COALESCE(user_id, %s)
                     WHERE family_id = %s AND device_id = %s
-                """, (user_name, avatar, family_id, device_id))
+                """, (user_name, avatar, auth_user_id, family_id, device_id))
                 
                 conn.commit()
                 cur.close()
@@ -624,9 +672,10 @@ def join_family():
             cur.execute("""
                 UPDATE members
                 SET device_id = COALESCE(NULLIF(device_id, ''), %s),
-                    avatar = %s
+                    avatar = %s,
+                    user_id = COALESCE(user_id, %s)
                 WHERE id = %s AND family_id = %s
-            """, (device_id, new_avatar, member_id, family_id))
+            """, (device_id, new_avatar, auth_user_id, member_id, family_id))
 
             conn.commit()
             cur.close()
@@ -636,9 +685,11 @@ def join_family():
 
         # Добавляем нового участника
         cur.execute("""
-            INSERT INTO members (family_id, user_name, role, avatar, device_id)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (family_id, user_name, role, avatar, device_id))
+            INSERT INTO members (
+                family_id, user_name, role, avatar, device_id, user_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (family_id, user_name, role, avatar, device_id, auth_user_id))
 
         conn.commit()
         cur.close()
