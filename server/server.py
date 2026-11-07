@@ -987,19 +987,50 @@ def update_member():
         conn = get_connection()
         cur = conn.cursor()
 
-        cur.execute("SELECT user_name FROM members WHERE family_id = %s AND device_id = %s", (family_id, device_id))
-        member = cur.fetchone()
+        # Права по аккаунту (устойчиво к смене устройства), device_id — фолбэк.
+        requester_user_id = get_auth_user()
 
-        if not member:
+        target_id = None
+
+        if requester_user_id is not None:
+            cur.execute("""
+                SELECT id FROM members
+                WHERE family_id = %s AND user_id = %s
+                LIMIT 1
+            """, (family_id, requester_user_id))
+            r = cur.fetchone()
+            if r:
+                target_id = r[0]
+
+        if target_id is None:
+            cur.execute("""
+                SELECT id FROM members
+                WHERE family_id = %s AND device_id = %s
+                LIMIT 1
+            """, (family_id, device_id))
+            r = cur.fetchone()
+            if r:
+                target_id = r[0]
+
+        if target_id is None:
             cur.close()
             conn.close()
             return jsonify({"status": "error", "message": "member not found"}), 404
 
-        cur.execute("UPDATE members SET user_name = %s WHERE family_id = %s AND device_id = %s", (new_name, family_id, device_id))
-        cur.execute("UPDATE screen_time SET user_id = %s WHERE user_id = %s", (new_name, old_name))
+        cur.execute(
+            "UPDATE members SET user_name = %s WHERE id = %s",
+            (new_name, target_id),
+        )
+        cur.execute(
+            "UPDATE screen_time SET user_id = %s WHERE user_id = %s",
+            (new_name, old_name),
+        )
 
         if avatar is not None:
-            cur.execute("UPDATE members SET avatar = %s WHERE family_id = %s AND device_id = %s", (avatar, family_id, device_id))
+            cur.execute(
+                "UPDATE members SET avatar = %s WHERE id = %s",
+                (avatar, target_id),
+            )
 
         conn.commit()
         cur.close()

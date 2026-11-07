@@ -166,25 +166,17 @@ class ApiService {
     String userName,
     String deviceId,
   ) async {
-    try {
-      final response = await http.post(
-        Uri.parse("$baseUrl/leave_family"),
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: jsonEncode({
-          "family_id": familyId,
-          "user_name": userName,
-          "requester_device_id": deviceId,
-        }),
-      ).timeout(
-        const Duration(seconds: 10),
-      );
-
-      return jsonDecode(response.body);
-    } catch (_) {
-      return null;
-    }
+    // postJson добавляет Authorization: Bearer — права считаются
+    // по аккаунту, а не только по device_id.
+    return postJson(
+      '/leave_family',
+      {
+        "family_id": familyId,
+        "user_name": userName,
+        "requester_device_id": deviceId,
+      },
+      timeout: const Duration(seconds: 10),
+    );
   }
   // удаление членов
   static Future<bool> removeMember(
@@ -192,32 +184,18 @@ class ApiService {
     int memberId,
     String deviceId,
   ) async {
-    try {
-      final response =
-          await http.post(
-        Uri.parse(
-          '$baseUrl/remove_member',
-        ),
-        headers: {
-          'Content-Type':
-              'application/json',
-        },
-        body: jsonEncode({
-          'family_id': familyId,
-          'member_id': memberId,
-          'requester_device_id':
-              deviceId,
-        }),
-      );
+    // postJson добавляет Authorization: Bearer — права считаются
+    // по аккаунту, а не только по device_id.
+    final res = await postJson(
+      '/remove_member',
+      {
+        'family_id': familyId,
+        'member_id': memberId,
+        'requester_device_id': deviceId,
+      },
+    );
 
-      if (response.statusCode == 200) {
-        return true;
-      }
-
-      return false;
-    } catch (e) {
-      return false;
-    }
+    return res != null && res['status'] == 'ok';
   }
   // ---------------------------------
   // SYNC SCREEN TIME
@@ -265,8 +243,10 @@ class ApiService {
         },
       );
 
+      // _authHeaders: сервер считает права по аккаунту, если он привязан.
       final response = await http.get(
         uri,
+        headers: await _authHeaders(),
       ).timeout(
         const Duration(seconds: 5),
       );
@@ -913,32 +893,19 @@ static Future<bool> updateMember(
   String newName,
   String deviceId,
 ) async {
-
-  final response =
-      await http.post(
-    Uri.parse(
-      "$baseUrl/update_member",
-    ),
-    headers: {
-      "Content-Type":
-          "application/json",
-    },
-    body: jsonEncode({
+  // postJson добавляет Authorization: Bearer — права считаются
+  // по аккаунту, а не только по device_id.
+  final res = await postJson(
+    '/update_member',
+    {
       "family_id": familyId,
       "old_name": oldName,
       "new_name": newName,
       "device_id": deviceId,
-    }),
+    },
   );
 
-  if (response.statusCode != 200) {
-    return false;
-  }
-
-  final data =
-      jsonDecode(response.body);
-
-  return data["status"] == "ok";
+  return res != null && res["status"] == "ok";
 }
   
 }
