@@ -280,7 +280,9 @@ family_id: $familyId
         ),
         title: const Text("Выйти из аккаунта?"),
         content: const Text(
-          "Семья останется на сервере. Войти снова можно по почте и паролю.",
+          "Вы выйдете из семьи на этом устройстве.\n\n"
+          "Семья и данные останутся на сервере — вернуться можно, "
+          "войдя снова по почте и паролю.",
         ),
         actions: [
           TextButton(
@@ -301,10 +303,21 @@ family_id: $familyId
     if (confirmed != true) return;
 
     await AuthService.logout();
+
+    // Полный выход: нативный сервис не должен синкать со старым family_id.
+    await SyncServiceHelper.stop();
+
+    // Чистим локальные данные семьи (family_id, user_name, role, avatar).
+    await FamilyStorage.saveFamily({});
+
     if (!context.mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Вы вышли из аккаунта")),
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => WelcomeScreen(),
+      ),
+      (_) => false,
     );
   }
 
