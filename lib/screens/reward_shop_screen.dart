@@ -208,6 +208,7 @@ Color _colorFromHex(String hex) {
                   TextField(
                     controller: titleCtrl,
                     maxLength: 25,
+                    textCapitalization: TextCapitalization.words,
                     decoration: InputDecoration(
                       labelText: "Название",
                       counterText: "",
@@ -221,6 +222,7 @@ Color _colorFromHex(String hex) {
                       TextField(
                         controller: _descCtrl,
                         maxLength: 80,
+                        textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           labelText: "Описание (необязательно)",
                           hintText: "Например: Модель телефона",

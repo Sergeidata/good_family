@@ -414,6 +414,7 @@ class _TasksCreateScreenState extends State<TasksCreateScreen> {
             _sectionCard(
               child: TextField(
                 controller: _titleController,
+                textCapitalization: TextCapitalization.sentences,
                 textInputAction:
                     TextInputAction.done,
                 decoration: InputDecoration(

@@ -168,6 +168,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                         // Поля ввода
                         TextField(
                           controller: _nameController,
+                          textCapitalization: TextCapitalization.words,
                           decoration: _inputDecoration(
                             label: "Ваше имя",
                             icon: Icons.person_outline,
@@ -197,6 +198,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                                   children: [
                                     TextField(
                                       controller: _familyController,
+                                      textCapitalization:
+                                          TextCapitalization.words,
                                       decoration: _inputDecoration(
                                         label: "Название семьи",
                                         icon: Icons.family_restroom,
