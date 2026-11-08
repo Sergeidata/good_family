@@ -3402,6 +3402,7 @@ def export_stats():
         active_families_yday = one("""
             SELECT COUNT(DISTINCT st.family_id)
             FROM screen_time st
+            JOIN members m ON m.id = st.member_id
             WHERE st.date = %s AND st.family_id IS NOT NULL
         """, (yesterday,))
 
@@ -3425,9 +3426,14 @@ def export_stats():
               AND created_at >= %s AND created_at < %s::date + 1
         """, (yesterday, yesterday))
 
-        synced_yday = one(
-            "SELECT COUNT(*) FROM screen_time WHERE date = %s", (yesterday,)
-        )
+        # Только синки реальных участников (без строк-сирот),
+        # иначе счётчик расходится с active_members.
+        synced_yday = one("""
+            SELECT COUNT(*)
+            FROM screen_time st
+            JOIN members m ON m.id = st.member_id
+            WHERE st.date = %s
+        """, (yesterday,))
 
         # ---------------------------------
         # Популярность функций
