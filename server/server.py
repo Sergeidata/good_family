@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
 import psycopg2
 import json
+import io
 import uuid
 import random
 import os
