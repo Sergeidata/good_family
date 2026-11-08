@@ -112,6 +112,11 @@ def init_db():
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar TEXT")
     cur.execute("ALTER TABLE members ADD COLUMN IF NOT EXISTS user_id INTEGER")
 
+    # Аналитика: screen_time должен ссылаться на конкретного участника,
+    # а не на имя (имена повторяются в разных семьях).
+    cur.execute("ALTER TABLE screen_time ADD COLUMN IF NOT EXISTS family_id TEXT")
+    cur.execute("ALTER TABLE screen_time ADD COLUMN IF NOT EXISTS member_id INTEGER")
+
     # Код приглашения может быть ограничен по времени.
     # NULL = бессрочный (обратная совместимость для старых клиентов).
     cur.execute("""
@@ -364,18 +369,53 @@ def upload():
         conn = get_connection()
         cur = conn.cursor()
 
+        # Имя не уникально (в разных семьях бывает «Папа»), поэтому
+        # дополнительно записываем family_id и member_id — иначе аналитика
+        # по screen_time даёт неверные join'ы.
+        family_id = data.get("family_id")
+        member_id = None
+
+        if family_id:
+            cur.execute("""
+                SELECT id FROM members
+                WHERE family_id = %s AND user_name = %s
+                ORDER BY id ASC
+                LIMIT 1
+            """, (family_id, user_id))
+            r = cur.fetchone()
+            if r:
+                member_id = r[0]
+        else:
+            cur.execute("""
+                SELECT family_id, id FROM members
+                WHERE user_name = %s
+                ORDER BY id ASC
+                LIMIT 1
+            """, (user_id,))
+            r = cur.fetchone()
+            if r:
+                family_id, member_id = r[0], r[1]
+
         top_apps_json = json.dumps(top_apps)
 
         cur.execute("""
-            INSERT INTO screen_time (user_id, date, total_seconds, social_seconds, top_apps)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO screen_time (
+                user_id, date, total_seconds, social_seconds, top_apps,
+                family_id, member_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             ON CONFLICT (user_id, date)
             DO UPDATE SET
                 total_seconds = EXCLUDED.total_seconds,
                 social_seconds = EXCLUDED.social_seconds,
                 top_apps = EXCLUDED.top_apps,
+                family_id = COALESCE(EXCLUDED.family_id, screen_time.family_id),
+                member_id = COALESCE(EXCLUDED.member_id, screen_time.member_id),
                 created_at = NOW()
-        """, (user_id, date, total_seconds, social_seconds, top_apps_json))
+        """, (
+            user_id, date, total_seconds, social_seconds, top_apps_json,
+            family_id, member_id,
+        ))
 
         conn.commit()
         cur.close()
@@ -3315,90 +3355,304 @@ def latest_version():
 
 @app.route("/export_stats")
 def export_stats():
-    try:
+    """
+    Аналитика для дашборда (Google Sheets / BI).
 
-        # ---------------------------------
-        # Проверка секретного токена
-        # ---------------------------------
+    ?secret=...            обязательный токен
+    ?days=30               сколько дней истории отдавать
+    ?format=csv            плоский CSV для IMPORTDATA
+                           csv=summary (по умолчанию) | daily | features | achievements | top_apps
+    """
+    try:
         secret = request.args.get("secret", "")
         expected = os.environ.get("EXPORT_STATS_SECRET", "")
 
         if not expected or secret != expected:
             return jsonify({"status": "error", "message": "unauthorized"}), 403
 
+        fmt = (request.args.get("format") or "").lower()
+        table = (request.args.get("table") or "summary").lower()
+        days = int(request.args.get("days", 30))
+        days = max(1, min(days, 365))
+
+        import datetime
+        today = datetime.date.today()
+        yesterday = today - datetime.timedelta(days=1)
+        since = today - datetime.timedelta(days=days)
+
         conn = get_connection()
         cur = conn.cursor()
 
-        import datetime
-        yesterday = datetime.date.today() - datetime.timedelta(days=1)
+        def one(sql, params=()):
+            cur.execute(sql, params)
+            v = cur.fetchone()
+            return v[0] if v else 0
 
-        # Всего семей (на сегодня)
-        cur.execute("SELECT COUNT(*) FROM families;")
-        total_families = cur.fetchone()[0]
-
-        # Новые семьи за вчера
-        cur.execute("""
-            SELECT COUNT(*) FROM families 
-            WHERE created_at >= %s
-            AND created_at < %s + INTERVAL '1 day';
-        """, (yesterday, yesterday))
-        new_families_yesterday = cur.fetchone()[0]
-
-        # Активные семьи вчера
-        cur.execute("""
-            SELECT COUNT(DISTINCT m.family_id)
-            FROM members m
-            JOIN families f ON f.family_id = m.family_id
-            WHERE m.user_name IN (
-                SELECT DISTINCT user_id FROM screen_time WHERE date = %s
-            )
-            AND f.created_at::date <= %s;
-        """, (yesterday, yesterday))
-        active_families_yesterday = cur.fetchone()[0]
-
-        # Всего пользователей
-        cur.execute("SELECT COUNT(*) FROM members;")
-        total_members = cur.fetchone()[0]
-
-        # Новые пользователи за вчера
-        cur.execute("""
-            SELECT COUNT(*) FROM members 
-            WHERE joined_at >= %s
-            AND joined_at < %s + INTERVAL '1 day';
-        """, (yesterday, yesterday))
-        new_members_yesterday = cur.fetchone()[0]
-
-        # Активные пользователи вчера
-        cur.execute("""
-            SELECT COUNT(DISTINCT CONCAT(m.user_name, '_', m.family_id))
-            FROM members m
-            WHERE m.user_name IN (
-                SELECT DISTINCT user_id FROM screen_time WHERE date = %s
-            );
+        # ---------------------------------
+        # Активность: любой контакт с сервером = синк screen_time
+        # ---------------------------------
+        active_members_yday = one("""
+            SELECT COUNT(DISTINCT COALESCE(member_id::text, user_id))
+            FROM screen_time WHERE date = %s
         """, (yesterday,))
-        active_members_yesterday = cur.fetchone()[0]
+
+        active_families_yday = one("""
+            SELECT COUNT(DISTINCT st.family_id)
+            FROM screen_time st
+            WHERE st.date = %s AND st.family_id IS NOT NULL
+        """, (yesterday,))
+
+        total_families = one("SELECT COUNT(*) FROM families")
+        total_members = one("SELECT COUNT(*) FROM members")
+        total_users = one("SELECT COUNT(*) FROM users")
+
+        new_families_yday = one("""
+            SELECT COUNT(*) FROM families
+            WHERE created_at >= %s AND created_at < %s::date + 1
+        """, (yesterday, yesterday))
+
+        new_members_yday = one("""
+            SELECT COUNT(*) FROM members
+            WHERE joined_at >= %s AND joined_at < %s::date + 1
+        """, (yesterday, yesterday))
+
+        new_accounts_yday = one("""
+            SELECT COUNT(*) FROM users
+            WHERE email_verified = TRUE
+              AND created_at >= %s AND created_at < %s::date + 1
+        """, (yesterday, yesterday))
+
+        synced_yday = one(
+            "SELECT COUNT(*) FROM screen_time WHERE date = %s", (yesterday,)
+        )
+
+        # ---------------------------------
+        # Популярность функций
+        # ---------------------------------
+        tasks_created_yday = one("""
+            SELECT COUNT(*) FROM tasks
+            WHERE created_at >= %s AND created_at < %s::date + 1
+        """, (yesterday, yesterday))
+
+        tasks_done_yday = one("""
+            SELECT COUNT(*) FROM tasks
+            WHERE done_at >= %s AND done_at < %s::date + 1
+        """, (yesterday, yesterday))
+
+        tasks_approved_yday = one("""
+            SELECT COUNT(*) FROM tasks
+            WHERE approved_at >= %s AND approved_at < %s::date + 1
+        """, (yesterday, yesterday))
+
+        achievements_yday = one("""
+            SELECT COUNT(*) FROM achievements WHERE earned_date = %s
+        """, (yesterday,))
+
+        garden_levelups_yday = one("""
+            SELECT COUNT(*) FROM garden
+            WHERE updated_at >= %s AND updated_at < %s::date + 1
+        """, (yesterday, yesterday)) if one("""
+            SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_name = 'garden' AND column_name = 'updated_at'
+        """) else 0
+
+        rewards_requested_yday = one("""
+            SELECT COUNT(*) FROM reward_requests
+            WHERE created_at >= %s AND created_at < %s::date + 1
+        """, (yesterday, yesterday)) if one("""
+            SELECT COUNT(*) FROM information_schema.columns
+            WHERE table_name = 'reward_requests' AND column_name = 'created_at'
+        """) else 0
+
+        daily = []
+        cur.execute("""
+            SELECT date,
+                   COUNT(*) AS syncs,
+                   COUNT(DISTINCT COALESCE(member_id::text, user_id)) AS users,
+                   COUNT(DISTINCT family_id) AS families
+            FROM screen_time
+            WHERE date >= %s AND date <= %s
+            GROUP BY date ORDER BY date
+        """, (since, yesterday))
+        daily_rows = cur.fetchall()
+
+        cur.execute("""
+            SELECT done_at::date, COUNT(*) FROM tasks
+            WHERE done_at >= %s AND done_at <= %s
+            GROUP BY done_at::date ORDER BY done_at::date
+        """, (since, yesterday))
+        done_by_date = {str(r[0]): r[1] for r in cur.fetchall()}
+
+        cur.execute("""
+            SELECT earned_date, COUNT(*) FROM achievements
+            WHERE earned_date >= %s AND earned_date <= %s
+            GROUP BY earned_date ORDER BY earned_date
+        """, (since, yesterday))
+        ach_by_date = {str(r[0]): r[1] for r in cur.fetchall()}
+
+        for r in daily_rows:
+            d = str(r[0])
+            daily.append({
+                "date": d,
+                "syncs": r[1],
+                "active_members": r[2],
+                "active_families": r[3],
+                "tasks_done": done_by_date.get(d, 0),
+                "achievements": ach_by_date.get(d, 0),
+            })
+
+        cur.execute("""
+            SELECT achievement_key, period, COUNT(*) AS cnt
+            FROM achievements
+            GROUP BY achievement_key, period
+            ORDER BY cnt DESC LIMIT 20
+        """)
+        top_achievements = [
+            {"key": r[0], "period": r[1], "count": r[2]} for r in cur.fetchall()
+        ]
+
+        # Топ приложений за вчера (из top_apps JSONB)
+        top_apps = []
+        cur.execute("SELECT top_apps FROM screen_time WHERE date = %s", (yesterday,))
+        counter = {}
+        for (apps,) in cur.fetchall():
+            if not apps:
+                continue
+            for a in apps:
+                name = a.get("app")
+                mins = a.get("minutes", 0)
+                if name:
+                    counter[name] = counter.get(name, 0) + mins
+        top_apps = [
+            {"app": k, "minutes": v}
+            for k, v in sorted(counter.items(), key=lambda x: -x[1])[:15]
+        ]
 
         cur.close()
         conn.close()
 
+        # ---------------------------------
+        # CSV-режимы для Google Sheets
+        # ---------------------------------
+        if fmt == "csv":
+            out = io.StringIO()
+
+            if table == "daily":
+                out.write(
+                    "date,active_members,active_families,syncs,"
+                    "tasks_done,achievements\n"
+                )
+                for d in daily:
+                    out.write(
+                        f"{d['date']},{d['active_members']},"
+                        f"{d['active_families']},{d['syncs']},"
+                        f"{d['tasks_done']},{d['achievements']}\n"
+                    )
+            elif table == "features":
+                # yesterday = за вчера, total = за всё время
+                total_syncs = one("SELECT COUNT(*) FROM screen_time")
+                total_tasks = one("SELECT COUNT(*) FROM tasks")
+                total_done = one(
+                    "SELECT COUNT(*) FROM tasks WHERE done_at IS NOT NULL"
+                )
+                total_approved = one(
+                    "SELECT COUNT(*) FROM tasks WHERE approved_at IS NOT NULL"
+                )
+                total_ach = one("SELECT COUNT(*) FROM achievements")
+                total_garden = one("SELECT COUNT(*) FROM garden")
+                total_rewards = one("SELECT COUNT(*) FROM reward_requests")
+                total_fam = one("SELECT COUNT(*) FROM families")
+                total_mem = one("SELECT COUNT(*) FROM members")
+                total_acc = one("SELECT COUNT(*) FROM users")
+
+                out.write("feature,yesterday,total\n")
+                rows = [
+                    ("Синхронизация экранного времени", synced_yday, total_syncs),
+                    ("Хорошие дела: создано", tasks_created_yday, total_tasks),
+                    ("Хорошие дела: выполнено ребёнком", tasks_done_yday, total_done),
+                    ("Хорошие дела: подтверждено родителем",
+                     tasks_approved_yday, total_approved),
+                    ("Достижения: получено", achievements_yday, total_ach),
+                    ("Семейный сад: изменения", garden_levelups_yday, total_garden),
+                    ("Награды: запрошено", rewards_requested_yday, total_rewards),
+                    ("Новые семьи", new_families_yday, total_fam),
+                    ("Новые участники", new_members_yday, total_mem),
+                    ("Новые аккаунты", new_accounts_yday, total_acc),
+                ]
+                for name, yday, total in rows:
+                    safe = name.replace(",", " ")
+                    out.write(f"{safe},{yday},{total}\n")
+            elif table == "achievements":
+                out.write("achievement_key,period,count\n")
+                for a in top_achievements:
+                    out.write(f"{a['key']},{a['period']},{a['count']}\n")
+            elif table == "top_apps":
+                out.write("app,minutes_yesterday\n")
+                for a in top_apps:
+                    out.write(f"{a['app']},{a['minutes']}\n")
+            else:  # summary
+                out.write("metric,value\n")
+                out.write(f"date_measured,{yesterday}\n")
+                out.write(f"active_families_yesterday,{active_families_yday}\n")
+                out.write(f"active_members_yesterday,{active_members_yday}\n")
+                out.write(f"total_families,{total_families}\n")
+                out.write(f"total_members,{total_members}\n")
+                out.write(f"total_accounts,{total_users}\n")
+                out.write(f"new_families_yesterday,{new_families_yday}\n")
+                out.write(f"new_members_yesterday,{new_members_yday}\n")
+                out.write(f"new_accounts_yesterday,{new_accounts_yday}\n")
+                out.write(f"syncs_yesterday,{synced_yday}\n")
+                out.write(f"tasks_created_yesterday,{tasks_created_yday}\n")
+                out.write(f"tasks_done_yesterday,{tasks_done_yday}\n")
+                out.write(f"tasks_approved_yesterday,{tasks_approved_yday}\n")
+                out.write(f"achievements_yesterday,{achievements_yday}\n")
+                out.write(f"garden_changes_yesterday,{garden_levelups_yday}\n")
+                out.write(
+                    f"rewards_requested_yesterday,{rewards_requested_yday}\n"
+                )
+
+            resp = app.response_class(
+                out.getvalue(), mimetype="text/csv; charset=utf-8"
+            )
+            return resp
+
+        # ---------------------------------
+        # JSON (по умолчанию)
+        # ---------------------------------
         return jsonify({
             "status": "ok",
             "date": str(yesterday),
-            "total_families": total_families,
-            "new_families_yesterday": new_families_yesterday,
-            "active_families_yesterday": active_families_yesterday,
-            "total_members": total_members,
-            "new_members_yesterday": new_members_yesterday,
-            "active_members_yesterday": active_members_yesterday,
+            "totals": {
+                "families": total_families,
+                "members": total_members,
+                "accounts": total_users,
+            },
+            "yesterday": {
+                "active_families": active_families_yday,
+                "active_members": active_members_yday,
+                "new_families": new_families_yday,
+                "new_members": new_members_yday,
+                "new_accounts": new_accounts_yday,
+                "syncs": synced_yday,
+            },
+            "features": {
+                "tasks_created": tasks_created_yday,
+                "tasks_done": tasks_done_yday,
+                "tasks_approved": tasks_approved_yday,
+                "achievements_earned": achievements_yday,
+                "garden_changes": garden_levelups_yday,
+                "rewards_requested": rewards_requested_yday,
+            },
+            "daily": daily,
+            "top_achievements": top_achievements,
+            "top_apps": top_apps,
         })
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-    
 
 
 if __name__ == "__main__":
-
     app.run(
         host="0.0.0.0",
         port=5000
