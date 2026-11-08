@@ -367,9 +367,20 @@ static Future<Map<String, dynamic>?>
       ),
     );
 
-    return jsonDecode(
-      response.body,
-    );
+    // 404 = семьи нет на сервере (удалена или создана на старом сервере).
+    // Возвращаем null, чтобы экран показал понятную ошибку, а не пустоту.
+    if (response.statusCode != 200) {
+      debugPrint(
+        "GET FAMILY INFO: HTTP ${response.statusCode} (family_id=$familyId)",
+      );
+      return null;
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data is! Map<String, dynamic>) return null;
+
+    return data;
   } catch (_) {
     return null;
   }

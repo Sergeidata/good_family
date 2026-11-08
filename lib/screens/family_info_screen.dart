@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/family_storage.dart';
+import '../services/sync_service_helper.dart';
+import 'welcome_screen.dart';
 import '../widgets/loading_dots.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -39,6 +41,9 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
   /// Срок действия кода приглашения (ISO-строка) или null — бессрочный.
   String? _inviteExpiresAt;
   Timer? _codeTimer;
+
+  /// Локальная семья есть, но на сервере её нет — нужен выход и пересоздание.
+  bool _familyMissing = false;
 
   /// -1 = срок не определён (null или битая дата), 0 = истёк.
   int _secondsLeft = -1;
@@ -301,6 +306,21 @@ class _FamilyInfoScreenState extends State<FamilyInfoScreen> {
       // ApiService при сетевой ошибке возвращает null (не бросает),
       // поэтому без этой проверки экран уходит в «успешную» ветку с пустым списком.
       if (members == null) throw Exception('offline');
+
+      // Семья есть локально, но на сервере её нет (удалена или создана
+      // на старом сервере). Показываем понятную ошибку вместо пустого экрана.
+      if (familyInfo == null) {
+        setState(() {
+          _familyName = localFamily['family_name'] ?? 'Семья';
+          _members = [];
+          _inviteCode = '';
+          _inviteExpiresAt = null;
+          _loading = false;
+          _familyMissing = true;
+          _error = 'Семья не найдена на сервере';
+        });
+        return;
+      }
 
       final memberStatus = status?['members'] ?? [];
       final membersList = members['members'] ?? [];
@@ -687,6 +707,53 @@ if (_isAdmin && !isMe)
   }
 
   @override
+  /// Локальная семья устарела (на сервере её нет) — чистим и начинаем заново.
+  Future<void> _resetAndRestart() async {
+    if (!mounted) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: const Text("Создать семью заново?"),
+        content: const Text(
+          "Эта группа больше не существует на сервере.\n\n"
+          "Мы отвяжем приложение от неё — вы создадите новую семью "
+          "или вступите в существующую по коду.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Отмена"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              "Создать заново",
+              style: TextStyle(color: Colors.blue),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    // Останавливаем синк со старой (несуществующей) семьёй.
+    await SyncServiceHelper.stop();
+    await FamilyStorage.saveFamily({});
+
+    if (!mounted) return;
+
+    // Наверх к корню — splash/welcome пересоздадут онбординг.
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+      (_) => false,
+    );
+  }
+
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
@@ -825,6 +892,11 @@ if (_isAdmin && !isMe)
                           ? ErrorState(
                               message: _error!,
                               onRetry: _loadData,
+                              secondaryActionText: _familyMissing
+                                  ? 'Создать семью заново'
+                                  : null,
+                              onSecondaryAction:
+                                  _familyMissing ? _resetAndRestart : null,
                             )
                           : ListView.builder(
                               itemCount: _members.length,
