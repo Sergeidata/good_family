@@ -3529,9 +3529,6 @@ def export_stats():
             for k, v in sorted(counter.items(), key=lambda x: -x[1])[:15]
         ]
 
-        cur.close()
-        conn.close()
-
         # ---------------------------------
         # CSV-режимы для Google Sheets
         # ---------------------------------
@@ -3615,7 +3612,12 @@ def export_stats():
             resp = app.response_class(
                 out.getvalue(), mimetype="text/csv; charset=utf-8"
             )
+            cur.close()
+            conn.close()
             return resp
+
+        cur.close()
+        conn.close()
 
         # ---------------------------------
         # JSON (по умолчанию)
