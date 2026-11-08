@@ -3393,8 +3393,10 @@ def export_stats():
         # Активность: любой контакт с сервером = синк screen_time
         # ---------------------------------
         active_members_yday = one("""
-            SELECT COUNT(DISTINCT COALESCE(member_id::text, user_id))
-            FROM screen_time WHERE date = %s
+            SELECT COUNT(DISTINCT st.member_id)
+            FROM screen_time st
+            JOIN members m ON m.id = st.member_id
+            WHERE st.date = %s
         """, (yesterday,))
 
         active_families_yday = one("""
@@ -3469,24 +3471,27 @@ def export_stats():
         cur.execute("""
             SELECT date,
                    COUNT(*) AS syncs,
-                   COUNT(DISTINCT COALESCE(member_id::text, user_id)) AS users,
-                   COUNT(DISTINCT family_id) AS families
-            FROM screen_time
+                   COUNT(DISTINCT st.member_id) AS users,
+                   COUNT(DISTINCT st.family_id) AS families
+            FROM screen_time st
+            JOIN members m ON m.id = st.member_id
             WHERE date >= %s AND date <= %s
             GROUP BY date ORDER BY date
         """, (since, yesterday))
         daily_rows = cur.fetchall()
 
+        # Границы сравниваем как timestamps (< начало следующего дня),
+        # иначе `done_at <= <date>` отсекает весь день — он приводится к 00:00.
         cur.execute("""
             SELECT done_at::date, COUNT(*) FROM tasks
-            WHERE done_at >= %s AND done_at <= %s
+            WHERE done_at >= %s AND done_at < %s::date + 1
             GROUP BY done_at::date ORDER BY done_at::date
         """, (since, yesterday))
         done_by_date = {str(r[0]): r[1] for r in cur.fetchall()}
 
         cur.execute("""
             SELECT earned_date, COUNT(*) FROM achievements
-            WHERE earned_date >= %s AND earned_date <= %s
+            WHERE earned_date >= %s AND earned_date < %s::date + 1
             GROUP BY earned_date ORDER BY earned_date
         """, (since, yesterday))
         ach_by_date = {str(r[0]): r[1] for r in cur.fetchall()}
