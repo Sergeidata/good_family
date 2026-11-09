@@ -68,8 +68,12 @@ def send_email(to, subject, body):
         return False
 
 
-def init_db():
-    conn = get_connection()
+def init_db(conn=None):
+    """Миграция схемы. Можно передать готовое соединение —
+    тогда advisory-lock и миграция идут в одной сессии."""
+    own_conn = conn is None
+    if own_conn:
+        conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("""
@@ -273,10 +277,56 @@ def init_db():
 
     conn.commit()
     cur.close()
-    conn.close()
+    if own_conn:
+        conn.close()
 
 
-init_db()
+# Каждый воркер gunicorn выполняет init_db() при загрузке модуля.
+# При 2+ воркерах одновременный ALTER TABLE приводит к дедлоку на
+# AccessExclusiveLock — воркер падает и сервис перезапускается.
+# Поэтому: (1) берём advisory-lock, чтобы миграцию выполнял один воркер,
+# (2) делаем ограниченные повторы на случай гонки.
+def init_db_safe(attempts=5):
+    import time
+
+    for attempt in range(1, attempts + 1):
+        try:
+            conn = get_connection()
+            cur = conn.cursor()
+
+            # 12345 — произвольный ключ: только один воркер делает миграцию
+            cur.execute("SELECT pg_advisory_lock(12345)")
+
+            try:
+                init_db(conn)
+
+                print(
+                    f"INIT_DB: миграция применена (попытка {attempt})",
+                    flush=True,
+                )
+            finally:
+                try:
+                    cur.execute("SELECT pg_advisory_unlock(12345)")
+                    conn.commit()
+                except Exception:
+                    pass
+                cur.close()
+                conn.close()
+            return True
+        except Exception as e:
+            print(
+                f"INIT_DB: попытка {attempt} не удалась: {e}",
+                flush=True,
+            )
+            if attempt == attempts:
+                print("INIT_DB: миграция не применена, продолжаем без неё", flush=True)
+                return False
+            time.sleep(attempt * 2)
+
+    return False
+
+
+init_db_safe()
 
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
