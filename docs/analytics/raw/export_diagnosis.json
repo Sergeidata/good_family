@@ -1,0 +1,716 @@
+{
+  "sheets": [
+    {
+      "name": "Дашборд",
+      "dims": "A1:H46",
+      "max_row": 46,
+      "max_col": 8,
+      "formula_cells": [
+        {
+          "cell": "A2",
+          "formula": "=\"Данные за \"&_Служебный!B4&\" (вчера, UTC) · обновлено: \"&_Служебный!B3&IF(_Служебный!B5=\"OK\",\"\",\" · ⚠ \"&_Служебный!B5)",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "A6",
+          "formula": "=IFERROR(VLOOKUP(\"active_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C6",
+          "formula": "=IFERROR(VLOOKUP(\"active_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "E6",
+          "formula": "=IFERROR(INDEX('Функции'!$D$2:$D$8,1),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "G6",
+          "formula": "=IFERROR(VLOOKUP(\"new_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "A7",
+          "formula": "=IFERROR(\"из \"&VLOOKUP(\"total_families\",'Сырые данные'!$A:$B,2,FALSE)&\" семей · \"&TEXT(VLOOKUP(\"active_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE)/VLOOKUP(\"total_families\",'Сырые данные'!$A:$B,2,FALSE),\"0%\")&\" активны\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C7",
+          "formula": "=IFERROR(\"всего участников: \"&VLOOKUP(\"total_members\",'Сырые данные'!$A:$B,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "E7",
+          "formula": "=IFERROR(\"событий за вчера: \"&INDEX('Функции'!$E$2:$E$8,1),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "G7",
+          "formula": "=IFERROR(\"новых участников: \"&VLOOKUP(\"new_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE)&\" · аккаунтов: \"&VLOOKUP(\"new_accounts_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B11",
+          "formula": "=IFERROR(VLOOKUP($A11,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C11",
+          "formula": "=IFERROR(VLOOKUP($A11,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B12",
+          "formula": "=IFERROR(VLOOKUP($A12,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C12",
+          "formula": "=IFERROR(VLOOKUP($A12,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B13",
+          "formula": "=IFERROR(VLOOKUP($A13,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C13",
+          "formula": "=IFERROR(VLOOKUP($A13,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B14",
+          "formula": "=IFERROR(VLOOKUP($A14,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C14",
+          "formula": "=IFERROR(VLOOKUP($A14,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B15",
+          "formula": "=IFERROR(VLOOKUP($A15,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C15",
+          "formula": "=IFERROR(VLOOKUP($A15,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B16",
+          "formula": "=IFERROR(VLOOKUP($A16,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C16",
+          "formula": "=IFERROR(VLOOKUP($A16,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B20",
+          "formula": "=IFERROR(VLOOKUP(\"total_families\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B21",
+          "formula": "=IFERROR(VLOOKUP(\"active_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C21",
+          "formula": "=IFERROR(TEXT(B21/B20,\"0%\")&\" семей были активны\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B22",
+          "formula": "=IFERROR(VLOOKUP(\"total_members\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B23",
+          "formula": "=IFERROR(VLOOKUP(\"active_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C23",
+          "formula": "=IFERROR(IF(B23>B22,\"⚠ активных больше, чем участников\",\"ok\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B24",
+          "formula": "=IFERROR(ROUND(B22/B20,2),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "0.00"
+        },
+        {
+          "cell": "B25",
+          "formula": "=IFERROR(C11,\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B26",
+          "formula": "=IFERROR(C12,\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C26",
+          "formula": "=IFERROR(TEXT(B26/B25,\"0%\")&\" от созданных\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B27",
+          "formula": "=IFERROR(C13,\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C27",
+          "formula": "=IFERROR(TEXT(B27/B26,\"0%\")&\" от выполненных\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B28",
+          "formula": "=IFERROR(VLOOKUP(\"new_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B29",
+          "formula": "=IFERROR(VLOOKUP(\"new_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B30",
+          "formula": "=IFERROR(VLOOKUP(\"new_accounts_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B34",
+          "formula": "=IFERROR('История'!$G$2&\" дн.\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B35",
+          "formula": "=IFERROR(IF(VLOOKUP(\"tasks_done_yesterday\",'Сырые данные'!$A:$B,2,FALSE)='История'!$H$2,\"ok\",\"⚠\"),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C35",
+          "formula": "=IFERROR(\"история: \"&'История'!$H$2&\" · summary: \"&VLOOKUP(\"tasks_done_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B36",
+          "formula": "=IFERROR(IF(B23<=B22,\"ok\",\"⚠\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C36",
+          "formula": "=IFERROR(\"активных \"&B23&\" из \"&B22&\" участников\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B37",
+          "formula": "=IFERROR(IF(VLOOKUP(\"syncs_yesterday\",'Сырые данные'!$A:$B,2,FALSE)=B23,\"ok\",\"⚠\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C37",
+          "formula": "=IFERROR(\"syncs \"&VLOOKUP(\"syncs_yesterday\",'Сырые данные'!$A:$B,2,FALSE)&\" vs активных \"&B23&\" — считаются строки без member_id\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B38",
+          "formula": "=IFERROR(IF(VLOOKUP(\"achievements_yesterday\",'Сырые данные'!$A:$B,2,FALSE)=0,\"0\",\"ok\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B39",
+          "formula": "=IFERROR(IF(VLOOKUP(\"garden_changes_yesterday\",'Сырые данные'!$A:$B,2,FALSE)=0,\"0\",\"ok\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B40",
+          "formula": "=скрыт",
+          "cached": "'#NAME?'",
+          "numfmt": "General"
+        }
+      ],
+      "error_cells": [
+        {
+          "cell": "A2",
+          "formula": "=\"Данные за \"&_Служебный!B4&\" (вчера, UTC) · обновлено: \"&_Служебный!B3&IF(_Служебный!B5=\"OK\",\"\",\" · ⚠ \"&_Служебный!B5)",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "A6",
+          "formula": "=IFERROR(VLOOKUP(\"active_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C6",
+          "formula": "=IFERROR(VLOOKUP(\"active_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "E6",
+          "formula": "=IFERROR(INDEX('Функции'!$D$2:$D$8,1),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "G6",
+          "formula": "=IFERROR(VLOOKUP(\"new_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "A7",
+          "formula": "=IFERROR(\"из \"&VLOOKUP(\"total_families\",'Сырые данные'!$A:$B,2,FALSE)&\" семей · \"&TEXT(VLOOKUP(\"active_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE)/VLOOKUP(\"total_families\",'Сырые данные'!$A:$B,2,FALSE),\"0%\")&\" активны\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C7",
+          "formula": "=IFERROR(\"всего участников: \"&VLOOKUP(\"total_members\",'Сырые данные'!$A:$B,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "E7",
+          "formula": "=IFERROR(\"событий за вчера: \"&INDEX('Функции'!$E$2:$E$8,1),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "G7",
+          "formula": "=IFERROR(\"новых участников: \"&VLOOKUP(\"new_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE)&\" · аккаунтов: \"&VLOOKUP(\"new_accounts_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B11",
+          "formula": "=IFERROR(VLOOKUP($A11,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C11",
+          "formula": "=IFERROR(VLOOKUP($A11,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B12",
+          "formula": "=IFERROR(VLOOKUP($A12,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C12",
+          "formula": "=IFERROR(VLOOKUP($A12,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B13",
+          "formula": "=IFERROR(VLOOKUP($A13,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C13",
+          "formula": "=IFERROR(VLOOKUP($A13,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B14",
+          "formula": "=IFERROR(VLOOKUP($A14,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C14",
+          "formula": "=IFERROR(VLOOKUP($A14,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B15",
+          "formula": "=IFERROR(VLOOKUP($A15,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C15",
+          "formula": "=IFERROR(VLOOKUP($A15,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B16",
+          "formula": "=IFERROR(VLOOKUP($A16,'Функции'!$A:$C,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C16",
+          "formula": "=IFERROR(VLOOKUP($A16,'Функции'!$A:$C,3,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B20",
+          "formula": "=IFERROR(VLOOKUP(\"total_families\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B21",
+          "formula": "=IFERROR(VLOOKUP(\"active_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C21",
+          "formula": "=IFERROR(TEXT(B21/B20,\"0%\")&\" семей были активны\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B22",
+          "formula": "=IFERROR(VLOOKUP(\"total_members\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B23",
+          "formula": "=IFERROR(VLOOKUP(\"active_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C23",
+          "formula": "=IFERROR(IF(B23>B22,\"⚠ активных больше, чем участников\",\"ok\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B24",
+          "formula": "=IFERROR(ROUND(B22/B20,2),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "0.00"
+        },
+        {
+          "cell": "B25",
+          "formula": "=IFERROR(C11,\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B26",
+          "formula": "=IFERROR(C12,\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C26",
+          "formula": "=IFERROR(TEXT(B26/B25,\"0%\")&\" от созданных\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B27",
+          "formula": "=IFERROR(C13,\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "C27",
+          "formula": "=IFERROR(TEXT(B27/B26,\"0%\")&\" от выполненных\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B28",
+          "formula": "=IFERROR(VLOOKUP(\"new_families_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B29",
+          "formula": "=IFERROR(VLOOKUP(\"new_members_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B30",
+          "formula": "=IFERROR(VLOOKUP(\"new_accounts_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "#,##0"
+        },
+        {
+          "cell": "B34",
+          "formula": "=IFERROR('История'!$G$2&\" дн.\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B35",
+          "formula": "=IFERROR(IF(VLOOKUP(\"tasks_done_yesterday\",'Сырые данные'!$A:$B,2,FALSE)='История'!$H$2,\"ok\",\"⚠\"),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C35",
+          "formula": "=IFERROR(\"история: \"&'История'!$H$2&\" · summary: \"&VLOOKUP(\"tasks_done_yesterday\",'Сырые данные'!$A:$B,2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B36",
+          "formula": "=IFERROR(IF(B23<=B22,\"ok\",\"⚠\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C36",
+          "formula": "=IFERROR(\"активных \"&B23&\" из \"&B22&\" участников\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B37",
+          "formula": "=IFERROR(IF(VLOOKUP(\"syncs_yesterday\",'Сырые данные'!$A:$B,2,FALSE)=B23,\"ok\",\"⚠\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "C37",
+          "formula": "=IFERROR(\"syncs \"&VLOOKUP(\"syncs_yesterday\",'Сырые данные'!$A:$B,2,FALSE)&\" vs активных \"&B23&\" — считаются строки без member_id\",\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B38",
+          "formula": "=IFERROR(IF(VLOOKUP(\"achievements_yesterday\",'Сырые данные'!$A:$B,2,FALSE)=0,\"0\",\"ok\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B39",
+          "formula": "=IFERROR(IF(VLOOKUP(\"garden_changes_yesterday\",'Сырые данные'!$A:$B,2,FALSE)=0,\"0\",\"ok\"),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "B40",
+          "formula": "=скрыт",
+          "cached": "'#NAME?'",
+          "numfmt": "General"
+        }
+      ],
+      "charts": 4,
+      "merged": 22
+    },
+    {
+      "name": "Сырые данные",
+      "dims": "A1:B17",
+      "max_row": 17,
+      "max_col": 2,
+      "formula_cells": [],
+      "error_cells": [],
+      "charts": 0,
+      "merged": 0
+    },
+    {
+      "name": "Функции",
+      "dims": "A1:E11",
+      "max_row": 11,
+      "max_col": 5,
+      "formula_cells": [
+        {
+          "cell": "D2",
+          "formula": "=IFERROR(SORT(FILTER($A$2:$B$100,$A$2:$A$100<>\"\",LEFT($A$2:$A$100,5)<>\"Новые\"),2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "error_cells": [
+        {
+          "cell": "D2",
+          "formula": "=IFERROR(SORT(FILTER($A$2:$B$100,$A$2:$A$100<>\"\",LEFT($A$2:$A$100,5)<>\"Новые\"),2,FALSE),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "charts": 0,
+      "merged": 0
+    },
+    {
+      "name": "История",
+      "dims": "A1:I3",
+      "max_row": 3,
+      "max_col": 9,
+      "formula_cells": [
+        {
+          "cell": "G2",
+          "formula": "=COUNTA($A$2:$A$1000)",
+          "cached": "2",
+          "numfmt": "General"
+        },
+        {
+          "cell": "H2",
+          "formula": "=IFERROR(INDEX($E$2:$E$1000,COUNTA($A$2:$A$1000)),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "I2",
+          "formula": "=IFERROR(INDEX($A$2:$A$1000,COUNTA($A$2:$A$1000)),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "error_cells": [
+        {
+          "cell": "H2",
+          "formula": "=IFERROR(INDEX($E$2:$E$1000,COUNTA($A$2:$A$1000)),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        },
+        {
+          "cell": "I2",
+          "formula": "=IFERROR(INDEX($A$2:$A$1000,COUNTA($A$2:$A$1000)),\"\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "charts": 0,
+      "merged": 0
+    },
+    {
+      "name": "Достижения",
+      "dims": "A1:C1",
+      "max_row": 1,
+      "max_col": 3,
+      "formula_cells": [],
+      "error_cells": [],
+      "charts": 0,
+      "merged": 0
+    },
+    {
+      "name": "Приложения",
+      "dims": "A1:C16",
+      "max_row": 16,
+      "max_col": 3,
+      "formula_cells": [
+        {
+          "cell": "C2",
+          "formula": "=ARRAYFORMULA(IF($B$2:$B$100=\"\",\"\",ROUND($B$2:$B$100/60,1)))",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "error_cells": [
+        {
+          "cell": "C2",
+          "formula": "=ARRAYFORMULA(IF($B$2:$B$100=\"\",\"\",ROUND($B$2:$B$100/60,1)))",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "charts": 0,
+      "merged": 0
+    },
+    {
+      "name": "_Служебный",
+      "dims": "A1:F6",
+      "max_row": 6,
+      "max_col": 6,
+      "formula_cells": [
+        {
+          "cell": "A4",
+          "formula": "=IFERROR(VLOOKUP(\"date_measured\",'Сырые данные'!A:B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "error_cells": [
+        {
+          "cell": "A4",
+          "formula": "=IFERROR(VLOOKUP(\"date_measured\",'Сырые данные'!A:B,2,FALSE),\"нет данных\")",
+          "cached": "'#ERROR!'",
+          "numfmt": "General"
+        }
+      ],
+      "charts": 0,
+      "merged": 0
+    },
+    {
+      "name": "Лист1",
+      "dims": "A1:A1",
+      "max_row": 1,
+      "max_col": 1,
+      "formula_cells": [],
+      "error_cells": [],
+      "charts": 0,
+      "merged": 0
+    }
+  ],
+  "totals": {
+    "errors": 51,
+    "formula_cells": 52
+  }
+}

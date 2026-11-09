@@ -2,20 +2,16 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>Good Family — превью дашборда (снимок 2026-11-08)</title>
+<title>Good Family — превью дашборда v2 (снимок 09.11.2026)</title>
 <style>
-  :root{
-    --dark:#1B5E20; --green:#2E7D32; --light-green:#E8F5E9;
-    --blue:#1565C0; --light-blue:#E3F2FD; --amber:#EF6C00; --light-amber:#FFF8E1;
-    --purple:#6A1B9A; --light-purple:#F3E5F5; --section:#ECEFF1; --head:#CFD8DC;
-    --border:#CFD8DC; --text:#212121; --muted:#546E7A; --red:#C62828; --light-red:#FFEBEE;
-    --band:#F7F9FA;
-  }
+  :root{--dark:#1B5E20;--green:#2E7D32;--light-green:#E8F5E9;--blue:#1565C0;--light-blue:#E3F2FD;
+        --amber:#EF6C00;--light-amber:#FFF8E1;--purple:#6A1B9A;--light-purple:#F3E5F5;--section:#ECEFF1;
+        --head:#CFD8DC;--border:#CFD8DC;--text:#212121;--muted:#546E7A;--red:#C62828;--light-red:#FFEBEE;--band:#F7F9FA}
   *{box-sizing:border-box}
   body{margin:0;background:#F4F6F8;color:var(--text);font:14px/1.45 -apple-system,Segoe UI,Roboto,Arial,sans-serif}
   .sheet{max-width:1180px;margin:22px auto 40px;background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 6px 26px rgba(20,40,60,.08)}
   .top{background:var(--dark);color:#fff;padding:16px 22px}
-  .top h1{margin:0;font-size:23px;letter-spacing:.2px}
+  .top h1{margin:0;font-size:23px}
   .top .sub{margin-top:4px;font-size:12px;color:#C8E6C9}
   .badge{display:inline-block;margin-top:8px;padding:3px 9px;border-radius:20px;background:#2E7D32;color:#fff;font-size:11px;letter-spacing:.4px}
   .content{padding:14px 18px 24px}
@@ -26,10 +22,10 @@
   .card .val{font-size:27px;font-weight:800;margin-top:2px;line-height:1.15}
   .card .val.small{font-size:14px;font-weight:700;line-height:1.3}
   .card .sub{font-size:10.5px;color:var(--muted);margin-top:4px}
-  .c1{background:var(--light-green)} .c1 .val{color:var(--green)}
-  .c2{background:var(--light-blue)} .c2 .val{color:var(--blue)}
-  .c3{background:var(--light-amber)} .c3 .val{color:var(--amber)}
-  .c4{background:var(--light-purple)} .c4 .val{color:var(--purple)}
+  .c1{background:var(--light-green)}.c1 .val{color:var(--green)}
+  .c2{background:var(--light-blue)}.c2 .val{color:var(--blue)}
+  .c3{background:var(--light-amber)}.c3 .val{color:var(--amber)}
+  .c4{background:var(--light-purple)}.c4 .val{color:var(--purple)}
   table{width:100%;border-collapse:collapse;font-size:12.5px}
   th{background:var(--head);text-align:left;padding:7px 9px;font-size:11.5px;color:#263238}
   td{padding:6px 9px;border-bottom:1px solid #ECEFF1;vertical-align:top}
@@ -43,118 +39,121 @@
   .chartbox{border:1px solid var(--border);border-radius:10px;padding:10px 12px 14px}
   .chartbox h3{margin:0 0 8px;font-size:12.5px;color:#263238}
   .bars{display:flex;flex-direction:column;gap:6px}
-  .bar-row{display:grid;grid-template-columns:190px 1fr 34px;align-items:center;gap:8px;font-size:11.5px}
+  .bar-row{display:grid;grid-template-columns:200px 1fr 34px;align-items:center;gap:8px;font-size:11.5px}
   .bar-track{background:#F1F3F4;border-radius:4px;height:15px;overflow:hidden}
   .bar-fill{height:100%;background:var(--green);border-radius:4px}
   .bar-fill.zero{background:#E0E0E0}
   .bar-val{text-align:right;font-weight:700;color:#37474F}
-  .cols{display:flex;align-items:flex-end;gap:26px;height:150px;padding:6px 8px 0;border-bottom:1px solid var(--border)}
+  .cols{display:flex;align-items:flex-end;gap:22px;height:150px;padding:6px 8px 0;border-bottom:1px solid var(--border)}
   .col{flex:1;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
   .col .v{font-size:11px;font-weight:700;color:#37474F;margin-bottom:3px}
   .col .b{background:var(--green);border-radius:5px 5px 0 0;margin:0 auto;width:70%}
   .col.blue .b{background:var(--blue)}
-  .cols-labels{display:flex;gap:26px;padding:5px 8px;font-size:10.5px;color:var(--muted)}
+  .cols-labels{display:flex;gap:22px;padding:5px 8px;font-size:10.5px;color:var(--muted)}
   .cols-labels span{flex:1;text-align:center}
   .note{font-size:11.5px;color:var(--muted);margin-top:8px}
   .limit{background:#FFFDE7;border:1px solid #FFF59D;border-radius:8px;padding:9px 12px;font-size:11.5px;color:#5D4037;margin-top:8px}
   .foot{font-size:10.5px;color:#90A4AE;padding:10px 18px 16px;border-top:1px solid #ECEFF1}
-  .dotline{position:relative;height:120px;border-left:1px solid var(--border);border-bottom:1px solid var(--border);margin:4px 6px 0}
-  .dot{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--blue);left:6px;bottom:38%}
-  .dot2{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--green);left:6px;bottom:30%}
-  .dlabel{position:absolute;font-size:10px;color:var(--muted);left:22px;bottom:52%}
-  .dlabel2{position:absolute;font-size:10px;color:var(--muted);left:22px;bottom:42%}
+  .linechart{width:100%;height:170px}
 </style>
 </head>
 <body>
 <div class="sheet">
   <div class="top">
     <h1>Good Family · продуктовая аналитика</h1>
-    <div class="sub">Данные за 2026-11-07 (вчера, UTC) · обновлено: 08.11.2026 17:10 · источник: /export_stats</div>
-    <div class="badge">ПРЕДПРОСМОТР · в Google Sheets обновляется каждый час</div>
+    <div class="sub">Данные за 2026-11-08 (вчера, UTC) · обновлено: 09.11.2026 18:10 · источник: /export_stats</div>
+    <div class="badge">ПРЕДПРОСМОТР v2 · на листах только значения, формул нет</div>
   </div>
-
   <div class="content">
+
     <div class="section">КЛЮЧЕВЫЕ KPI ЗА ВЧЕРА</div>
     <div class="cards">
-      <div class="card c1">
-        <div class="lbl">АКТИВНЫЕ СЕМЬИ (ВЧЕРА)</div>
-        <div class="val">6</div>
-        <div class="sub">из 7 семей · 86% активны</div>
-      </div>
-      <div class="card c2">
-        <div class="lbl">АКТИВНЫЕ ПОЛЬЗОВАТЕЛИ (ВЧЕРА)</div>
-        <div class="val">9</div>
-        <div class="sub">всего участников: 11</div>
-      </div>
-      <div class="card c3">
-        <div class="lbl">ТОП-ФУНКЦИЯ (ВЧЕРА)</div>
-        <div class="val small">Синхронизация экранного времени</div>
-        <div class="sub">событий за вчера: 12</div>
-      </div>
-      <div class="card c4">
-        <div class="lbl">НОВЫЕ СЕМЬИ (ВЧЕРА)</div>
-        <div class="val">5</div>
-        <div class="sub">новых участников: 9 · аккаунтов: 4</div>
-      </div>
+      <div class="card c1"><div class="lbl">АКТИВНЫЕ СЕМЬИ (ВЧЕРА)</div><div class="val">5</div><div class="sub">из 7 семей · 71% активны</div></div>
+      <div class="card c2"><div class="lbl">АКТИВНЫЕ ПОЛЬЗОВАТЕЛИ (ВЧЕРА)</div><div class="val">8</div><div class="sub">всего участников: 12</div></div>
+      <div class="card c3"><div class="lbl">ТОП-ФУНКЦИЯ (ВЧЕРА)</div><div class="val small">Хорошие дела: создано</div><div class="sub">событий за вчера: 22</div></div>
+      <div class="card c4"><div class="lbl">НОВЫЕ СЕМЬИ (ВЧЕРА)</div><div class="val">2</div><div class="sub">новых участников: 2 · аккаунтов: 0</div></div>
     </div>
 
     <div class="section">ХОРОШИЕ ДЕЛА, САД, ДОСТИЖЕНИЯ — ВЧЕРА И ВСЕГО</div>
     <table>
       <tr><th>Функция</th><th class="num">Вчера</th><th class="num">Всего</th><th>Комментарий</th></tr>
-      <tr><td>Хорошие дела: создано</td><td class="num">1</td><td class="num">16</td><td class="muted">задание придумано родителем</td></tr>
-      <tr><td>Хорошие дела: выполнено ребёнком</td><td class="num">1</td><td class="num">7</td><td class="muted">ребёнок нажал «Я сделал»</td></tr>
-      <tr><td>Хорошие дела: подтверждено родителем</td><td class="num">1</td><td class="num">6</td><td class="muted">родитель принял → начислены звёзды</td></tr>
+      <tr><td>Хорошие дела: создано</td><td class="num">22</td><td class="num">27</td><td class="muted">задание придумано родителем</td></tr>
+      <tr><td>Хорошие дела: выполнено ребёнком</td><td class="num">8</td><td class="num">13</td><td class="muted">ребёнок нажал «Я сделал»</td></tr>
+      <tr><td>Хорошие дела: подтверждено родителем</td><td class="num">7</td><td class="num">11</td><td class="muted">родитель принял → начислены звёзды</td></tr>
       <tr><td>Достижения: получено</td><td class="num">0</td><td class="num">0</td><td class="muted">личные/групповые достижения</td></tr>
       <tr><td>Семейный сад: изменения</td><td class="num">0</td><td class="num">0</td><td class="muted">уровень/прогресс сада</td></tr>
       <tr><td>Награды: запрошено</td><td class="num">0</td><td class="num">0</td><td class="muted">ребёнок обменял звёзды на награду</td></tr>
     </table>
-    <div class="note">Данных мало и это ожидаемо: семей — 7, достижения и сад пока не заработаны. Цифры честные, без «нарисованных» значений.</div>
 
     <div class="section">ВОРОНКА И ОХВАТ</div>
     <table>
       <tr><th>Метрика</th><th class="num">Значение</th><th>Комментарий</th></tr>
       <tr><td>Семей всего</td><td class="num">7</td><td></td></tr>
-      <tr><td>Активные семьи вчера</td><td class="num">6</td><td class="ok">86% семей были активны</td></tr>
-      <tr><td>Участников всего</td><td class="num">11</td><td></td></tr>
-      <tr><td>Активные пользователи вчера</td><td class="num">9</td><td class="ok">активных 9 из 11 участников</td></tr>
-      <tr><td>Участников на семью (в среднем)</td><td class="num">1.57</td><td class="muted">в среднем на одну семью</td></tr>
-      <tr><td>Хорошие дела: создано (всего)</td><td class="num">16</td><td class="muted">все задания за всё время</td></tr>
-      <tr><td>Хорошие дела: выполнено (всего)</td><td class="num">7</td><td class="ok">44% от созданных</td></tr>
-      <tr><td>Хорошие дела: подтверждено (всего)</td><td class="num">6</td><td class="ok">86% от выполненных</td></tr>
-      <tr><td>Новые семьи вчера</td><td class="num">5</td><td></td></tr>
-      <tr><td>Новые участники вчера</td><td class="num">9</td><td></td></tr>
-      <tr><td>Новые аккаунты вчера</td><td class="num">4</td><td class="muted">аккаунты = пользователи сервера (users)</td></tr>
+      <tr><td>Активные семьи вчера</td><td class="num">5</td><td class="ok">71% семей были активны</td></tr>
+      <tr><td>Участников всего</td><td class="num">12</td><td></td></tr>
+      <tr><td>Активные пользователи вчера</td><td class="num">8</td><td class="ok">ok</td></tr>
+      <tr><td>Участников на семью (в среднем)</td><td class="num">1.71</td><td class="muted">в среднем на одну семью</td></tr>
+      <tr><td>Хорошие дела: создано (всего)</td><td class="num">27</td><td class="muted">все задания семьи за всё время</td></tr>
+      <tr><td>Хорошие дела: выполнено (всего)</td><td class="num">13</td><td class="ok">48% от созданных</td></tr>
+      <tr><td>Хорошие дела: подтверждено (всего)</td><td class="num">11</td><td class="ok">85% от выполненных</td></tr>
+      <tr><td>Новые семьи вчера</td><td class="num">2</td><td></td></tr>
+      <tr><td>Новые участники вчера</td><td class="num">2</td><td></td></tr>
+      <tr><td>Новые аккаунты вчера</td><td class="num">0</td><td class="muted">аккаунты = пользователи сервера (users)</td></tr>
     </table>
 
     <div class="section">КАЧЕСТВО ДАННЫХ — ПРОЧТИТЕ ПЕРЕД ВЫВОДАМИ</div>
     <table>
       <tr><th>Проверка</th><th>Статус</th><th>Пояснение</th></tr>
-      <tr><td>Дней истории</td><td class="neutral">1 дн.</td><td class="muted">экранное время пишется с 07.11.2026 — графики накопятся</td></tr>
-      <tr><td>Задания вчера: история vs summary</td><td class="ok">ok</td><td class="muted">история: 1 · summary: 1</td></tr>
-      <tr><td>Активные пользователи</td><td class="ok">ok</td><td class="muted">активных 9 из 11 участников</td></tr>
-      <tr><td>Синхронизации vs активные</td><td class="warn">⚠</td><td class="muted">syncs 12 vs активных 9 — считаются строки без member_id</td></tr>
+      <tr><td>Дней истории</td><td class="neutral">2 дн.</td><td class="muted">экранное время пишется с 07.11.2026 — графики накопятся</td></tr>
+      <tr><td>Задания вчера: история vs summary</td><td class="ok">ok</td><td class="muted">история: 8 · summary: 8</td></tr>
+      <tr><td>Активные пользователи</td><td class="ok">ok</td><td class="muted">активных 8 из 12 участников</td></tr>
+      <tr><td>Синхронизации vs активные</td><td class="ok">ok</td><td class="muted">syncs 8 vs активных 8</td></tr>
       <tr><td>Достижения</td><td class="neutral">0</td><td class="muted">ещё никто не заработал, это не ошибка</td></tr>
       <tr><td>Семейный сад</td><td class="neutral">0</td><td class="muted">садом пока не пользуются</td></tr>
-      <tr><td>Топ приложений</td><td class="warn">скрыт</td><td class="muted">минуты накапливаются клиентом и недостоверны; до фикса не выводим</td></tr>
+      <tr><td>Топ приложений</td><td class="ok">вкл.</td><td class="muted">минуты за вчера, аномалии обрезаны на сервере</td></tr>
     </table>
+    <div class="note">Раньше здесь был красный ⚠ по «syncs vs активные» — после фикса сервера он стал `ok`. Блок из 7 проверок оставлен: именно он раньше вскрыл баг с сиротами в screen_time.</div>
+
+    <div class="section">ТОП ПРИЛОЖЕНИЙ ЗА ВЧЕРА (МИНУТЫ, С ОБРЕЗКОЙ АНОМАЛИЙ)</div>
+    <table>
+      <tr><th>Приложение</th><th class="num">Минуты</th><th class="num">Часы</th></tr>
+      <tr><td>com.example.family_focus</td><td class="num">321</td><td class="num">5.4</td></tr>
+      <tr><td>ru.hh.android</td><td class="num">295</td><td class="num">4.9</td></tr>
+      <tr><td>ru.gosuslugi.auto</td><td class="num">165</td><td class="num">2.8</td></tr>
+      <tr><td>ru.beru.android</td><td class="num">162</td><td class="num">2.7</td></tr>
+      <tr><td>Messenger</td><td class="num">129</td><td class="num">2.2</td></tr>
+      <tr><td>ru.belkacar.belkacar</td><td class="num">123</td><td class="num">2.1</td></tr>
+      <tr><td>App</td><td class="num">117</td><td class="num">2.0</td></tr>
+      <tr><td>ru.yandex.mail</td><td class="num">99</td><td class="num">1.7</td></tr>
+      <tr><td>Android</td><td class="num">97</td><td class="num">1.6</td></tr>
+      <tr><td>ru.mail.mailapp</td><td class="num">89</td><td class="num">1.5</td></tr>
+    </table>
+    <div class="note">Максимум — 5.4 ч (раньше было ~160 ч из-за накопления на клиенте). В списке может быть само приложение и служебные пакеты — подпись об этом есть на листе.</div>
 
     <div class="section">ГРАФИКИ</div>
     <div class="grid2">
       <div class="chartbox">
         <h3>Активность: пользователи и семьи (до 30 дней)</h3>
-        <div class="dotline">
-          <div class="dot"></div><div class="dlabel">9 пользователей</div>
-          <div class="dot2"></div><div class="dlabel2">6 семей</div>
-        </div>
-        <div class="note">Пока одна точка (07.11.2026) — график наполнится автоматически.</div>
+        <svg class="linechart" viewBox="0 0 420 150" preserveAspectRatio="none">
+          <line x1="30" y1="10" x2="30" y2="130" stroke="#CFD8DC"/>
+          <line x1="30" y1="130" x2="400" y2="130" stroke="#CFD8DC"/>
+          <polyline fill="none" stroke="#1565C0" stroke-width="2" points="90,52 250,62"/>
+          <circle cx="90" cy="52" r="4" fill="#1565C0"/><circle cx="250" cy="62" r="4" fill="#1565C0"/>
+          <polyline fill="none" stroke="#2E7D32" stroke-width="2" points="90,74 250,88"/>
+          <circle cx="90" cy="74" r="4" fill="#2E7D32"/><circle cx="250" cy="88" r="4" fill="#2E7D32"/>
+          <text x="80" y="145" font-size="9" fill="#546E7A">07.11</text>
+          <text x="240" y="145" font-size="9" fill="#546E7A">08.11</text>
+          <text x="300" y="110" font-size="9" fill="#2E7D32">семьи: 6 → 5</text>
+          <text x="300" y="60" font-size="9" fill="#1565C0">люди: 9 → 8</text>
+        </svg>
       </div>
       <div class="chartbox">
         <h3>Функции за вчера (по убыванию)</h3>
         <div class="bars">
-          <div class="bar-row"><span>Синхронизация экранного времени</span><span class="bar-track"><span class="bar-fill" style="width:100%"></span></span><span class="bar-val">12</span></div>
-          <div class="bar-row"><span>Хорошие дела: создано</span><span class="bar-track"><span class="bar-fill" style="width:8.3%"></span></span><span class="bar-val">1</span></div>
-          <div class="bar-row"><span>Хорошие дела: выполнено</span><span class="bar-track"><span class="bar-fill" style="width:8.3%"></span></span><span class="bar-val">1</span></div>
-          <div class="bar-row"><span>Хорошие дела: подтверждено</span><span class="bar-track"><span class="bar-fill" style="width:8.3%"></span></span><span class="bar-val">1</span></div>
+          <div class="bar-row"><span>Хорошие дела: создано</span><span class="bar-track"><span class="bar-fill" style="width:100%"></span></span><span class="bar-val">22</span></div>
+          <div class="bar-row"><span>Хорошие дела: выполнено</span><span class="bar-track"><span class="bar-fill" style="width:36%"></span></span><span class="bar-val">8</span></div>
+          <div class="bar-row"><span>Синхронизация экранного времени</span><span class="bar-track"><span class="bar-fill" style="width:36%"></span></span><span class="bar-val">8</span></div>
+          <div class="bar-row"><span>Хорошие дела: подтверждено</span><span class="bar-track"><span class="bar-fill" style="width:32%"></span></span><span class="bar-val">7</span></div>
           <div class="bar-row"><span>Достижения: получено</span><span class="bar-track"><span class="bar-fill zero" style="width:100%"></span></span><span class="bar-val">0</span></div>
           <div class="bar-row"><span>Семейный сад: изменения</span><span class="bar-track"><span class="bar-fill zero" style="width:100%"></span></span><span class="bar-val">0</span></div>
           <div class="bar-row"><span>Награды: запрошено</span><span class="bar-track"><span class="bar-fill zero" style="width:100%"></span></span><span class="bar-val">0</span></div>
@@ -163,27 +162,26 @@
       <div class="chartbox">
         <h3>Хорошие дела: создано → выполнено → подтверждено (всего)</h3>
         <div class="cols">
-          <div class="col"><div class="v">16</div><div class="b" style="height:100%"></div></div>
-          <div class="col"><div class="v">7</div><div class="b" style="height:44%"></div></div>
-          <div class="col"><div class="v">6</div><div class="b" style="height:38%"></div></div>
+          <div class="col"><div class="v">27</div><div class="b" style="height:100%"></div></div>
+          <div class="col"><div class="v">13</div><div class="b" style="height:48%"></div></div>
+          <div class="col"><div class="v">11</div><div class="b" style="height:41%"></div></div>
         </div>
         <div class="cols-labels"><span>создано</span><span>выполнено</span><span>подтверждено</span></div>
       </div>
       <div class="chartbox">
         <h3>Привлечение за вчера</h3>
         <div class="cols">
-          <div class="col blue"><div class="v">5</div><div class="b" style="height:56%"></div></div>
-          <div class="col blue"><div class="v">9</div><div class="b" style="height:100%"></div></div>
-          <div class="col blue"><div class="v">4</div><div class="b" style="height:44%"></div></div>
+          <div class="col blue"><div class="v">2</div><div class="b" style="height:100%"></div></div>
+          <div class="col blue"><div class="v">2</div><div class="b" style="height:100%"></div></div>
+          <div class="col blue"><div class="v">0</div><div class="b" style="height:2%;background:#E0E0E0"></div></div>
         </div>
         <div class="cols-labels"><span>новые семьи</span><span>участники</span><span>аккаунты</span></div>
       </div>
     </div>
 
-    <div class="limit"><b>Чего пока нет:</b> retention, DAU/WAU, когорты и воронка «семья → приглашение → первая задача» требуют серверных срезов по когортам; экспорт отдаёт только суточные агрегаты. Пустые графики-заглушки не растягиваем.</div>
+    <div class="limit"><b>Чего пока нет:</b> retention, DAU/WAU, когорты и воронка «семья → приглашение → первая задача» требуют серверных срезов по когортам; экспорт отдаёт только суточные агрегаты. Пустые графики-заглушки не добавляем.</div>
   </div>
-
-  <div class="foot">Превью статичное (снимок данных 2026-11-07). В Google Sheets значения и графики обновляются по формулам каждый час; топ приложений доступен только на отдельном листе «Приложения» с пометкой о недостоверности.</div>
+  <div class="foot">Превью статичное (снимок 2026-11-08). В Google Sheets значения и графики пересчитываются каждый час; на листах нет ни одной формулы — поэтому локаль и #ERROR! не страшны.</div>
 </div>
 </body>
 </html>
