@@ -346,6 +346,54 @@ def upload():
                 "message": "user_id and date required"
             }), 400
 
+        # Защита от невозможных значений: экранное время не может
+        # превышать сутки. Старые версии клиента присылали до 160 часов.
+        MAX_SECONDS = 86400
+
+        try:
+            total_seconds = int(total_seconds or 0)
+        except (TypeError, ValueError):
+            total_seconds = 0
+
+        try:
+            social_seconds = int(social_seconds or 0)
+        except (TypeError, ValueError):
+            social_seconds = 0
+
+        if total_seconds > MAX_SECONDS:
+            print(
+                f"UPLOAD WARN: total_seconds={total_seconds} для {user_id} "
+                f"({date}) > 24ч — обрезано",
+                flush=True,
+            )
+            total_seconds = MAX_SECONDS
+
+        if social_seconds > MAX_SECONDS:
+            social_seconds = MAX_SECONDS
+
+        # top_apps: суммы минут тоже не могут превышать сутки.
+        if isinstance(top_apps, list):
+            apps_total = sum(
+                int(a.get("minutes", 0))
+                for a in top_apps
+                if isinstance(a, dict)
+            )
+            if apps_total * 60 > MAX_SECONDS and apps_total > 0:
+                ratio = MAX_SECONDS / (apps_total * 60)
+                top_apps = [
+                    {
+                        **a,
+                        "minutes": int(int(a.get("minutes", 0)) * ratio),
+                    }
+                    if isinstance(a, dict) else a
+                    for a in top_apps
+                ]
+                print(
+                    f"UPLOAD WARN: top_apps {apps_total} мин > 24ч "
+                    f"для {user_id} — масштабировано",
+                    flush=True,
+                )
+
         # Если клиент не прислал — считаем из top_apps
         if social_seconds == 0 and top_apps:
             social_packages = {

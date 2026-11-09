@@ -102,7 +102,32 @@ class SyncService : Service() {
     }
 
     val usageMap = getUsageStatsTodayStatic(context)
-    val totalSeconds = usageMap.values.sum()
+
+    // Физический предел: сумма экранного времени не может превышать
+    // длительность суток. Если превышает — на устройстве что-то не так
+    // с usage stats (зависшие сессии, кривые прошивки). Обрезаем
+    // пропорционально, чтобы не портить аналитику.
+    val MAX_SECONDS_PER_DAY = 86_400L
+    val rawTotal = usageMap.values.sum().toLong()
+    val totalSeconds: Long
+    var usageMapFixed = usageMap
+
+    if (rawTotal > MAX_SECONDS_PER_DAY) {
+        val ratio = MAX_SECONDS_PER_DAY.toDouble() / rawTotal.toDouble()
+
+        android.util.Log.w(
+            "SYNC_SERVICE",
+            "Usage stats anomaly: ${rawTotal}s (%.1f h) > 24h, scaling by %.3f"
+                .format(rawTotal / 3600.0, ratio)
+        )
+
+        usageMapFixed = usageMap.mapValues { (_, v) ->
+            (v * ratio).toInt()
+        }.toMap()
+        totalSeconds = usageMapFixed.values.sum().toLong()
+    } else {
+        totalSeconds = rawTotal
+    }
 
     android.util.Log.d("SYNC_SERVICE", "totalSeconds=$totalSeconds")
 
@@ -116,7 +141,7 @@ class SyncService : Service() {
         prefs.edit().putBoolean("notified_4h", true).apply()
     }
 
-    val topApps = usageMap.entries
+    val topApps = usageMapFixed.entries
         .sortedByDescending { it.value }
         .take(10)
 
@@ -670,13 +695,30 @@ class SyncService : Service() {
                                 packageName
                             ) ?: continue
 
-                        val durationSeconds =
+                        val rawDuration =
                             (
                                 (
                                     timestamp -
                                             startTs
                                     ) / 1000
                                 ).toInt()
+
+                        // Защита от «зависших» сессий: если приложение
+                        // не прислало MOVE_TO_BACKGROUND вовремя
+                        // (убит процесс, перезагрузка), разница может
+                        // достигать многих часов. Ограничиваем одну
+                        // сессию 3 часами.
+                        val MAX_SINGLE_SESSION_SECONDS = 3 * 60 * 60
+
+                        if (rawDuration > MAX_SINGLE_SESSION_SECONDS) {
+                            android.util.Log.w(
+                                "SYNC_SERVICE",
+                                "Session anomaly: $packageName ${rawDuration}s, capped"
+                            )
+                        }
+
+                        val durationSeconds =
+                            rawDuration.coerceIn(0, MAX_SINGLE_SESSION_SECONDS)
 
                         if (
                             durationSeconds >= 60
@@ -703,6 +745,7 @@ class SyncService : Service() {
                                     entry.value
                             ) / 1000
                         ).toInt()
+                        .coerceIn(0, 3 * 60 * 60)
 
                 if (
                     durationSeconds >= 60
