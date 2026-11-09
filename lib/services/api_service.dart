@@ -208,6 +208,12 @@ class ApiService {
     {int socialSeconds = 0}
   ) async {
     try {
+      // device_id позволяет серверу найти актуальную запись участника,
+      // если имя в prefs устарело (пользователь переименовался).
+      final prefs = await SharedPreferences.getInstance();
+      final deviceId = prefs.getString("device_id") ?? "";
+      final familyId = prefs.getString("family_id") ?? "";
+
       final response = await http.post(
         Uri.parse("$baseUrl/upload"),
         headers: {"Content-Type": "application/json"},
@@ -217,6 +223,8 @@ class ApiService {
           "total_seconds": totalSeconds,
           "social_seconds": socialSeconds,
           "top_apps": topApps,
+          if (deviceId.isNotEmpty) "device_id": deviceId,
+          if (familyId.isNotEmpty) "family_id": familyId,
         }),
       ).timeout(const Duration(seconds: 5));
       return jsonDecode(response.body);

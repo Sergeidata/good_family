@@ -159,6 +159,17 @@ class SyncService : Service() {
     bodyJson.put("top_apps", appsArray)
     bodyJson.put("date", today)
 
+    // user_id в prefs может устареть (пользователь переименовался).
+    // device_id позволяет серверу найти актуальную запись участника.
+    val deviceId = prefs.getString("device_id", null)
+    if (deviceId != null) {
+        bodyJson.put("device_id", deviceId)
+    }
+    val familyIdForUpload = prefs.getString("family_id", null)
+    if (familyIdForUpload != null) {
+        bodyJson.put("family_id", familyIdForUpload)
+    }
+
     val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)

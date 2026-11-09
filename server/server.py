@@ -468,13 +468,34 @@ def upload():
         conn = get_connection()
         cur = conn.cursor()
 
-        # Имя не уникально (в разных семьях бывает «Папа»), поэтому
-        # дополнительно записываем family_id и member_id — иначе аналитика
-        # по screen_time даёт неверные join'ы.
+        # Имя не уникально (в разных семьях бывает «Папа») и может
+        # устареть: пользователь переименовался, а устройство шлёт старое
+        # имя. Поэтому ищем участника по device_id (приоритет), затем по имени.
         family_id = data.get("family_id")
+        device_id = (data.get("device_id") or "").strip()
         member_id = None
 
-        if family_id:
+        if device_id:
+            cur.execute("""
+                SELECT id, family_id, user_name FROM members
+                WHERE device_id = %s
+                ORDER BY id DESC
+                LIMIT 1
+            """, (device_id,))
+            r = cur.fetchone()
+            if r:
+                member_id, family_id, current_name = r[0], r[1], r[2]
+
+                # Устройство прислало устаревшее имя — используем актуальное.
+                if current_name and current_name != user_id:
+                    print(
+                        f"UPLOAD: устройство {device_id} прислало '{user_id}', "
+                        f"но в семье это '{current_name}' — используем актуальное",
+                        flush=True,
+                    )
+                    user_id = current_name
+
+        if member_id is None and family_id:
             cur.execute("""
                 SELECT id FROM members
                 WHERE family_id = %s AND user_name = %s
@@ -484,7 +505,7 @@ def upload():
             r = cur.fetchone()
             if r:
                 member_id = r[0]
-        else:
+        elif member_id is None:
             cur.execute("""
                 SELECT family_id, id FROM members
                 WHERE user_name = %s
@@ -1160,10 +1181,29 @@ def update_member():
             "UPDATE members SET user_name = %s WHERE id = %s",
             (new_name, target_id),
         )
-        cur.execute(
-            "UPDATE screen_time SET user_id = %s WHERE user_id = %s",
-            (new_name, old_name),
-        )
+
+        # Старые записи экранного времени должны продолжать принадлежать
+        # этому участнику. Привязываем по member_id, а не по имени —
+        # имена повторяются между семьями и меняются.
+        cur.execute("""
+            UPDATE screen_time
+            SET user_id = %s,
+                member_id = %s,
+                family_id = COALESCE(family_id, %s)
+            WHERE member_id = %s
+        """, (new_name, target_id, family_id, target_id))
+
+        # Записи, созданные до появления member_id: переименовываем
+        # ТОЛЬКО внутри своей семьи (или без семьи), не задевая чужие.
+        cur.execute("""
+            UPDATE screen_time
+            SET user_id = %s,
+                member_id = %s,
+                family_id = %s
+            WHERE member_id IS NULL
+              AND user_id = %s
+              AND (family_id = %s OR family_id IS NULL)
+        """, (new_name, target_id, family_id, old_name, family_id))
 
         if avatar is not None:
             cur.execute(
