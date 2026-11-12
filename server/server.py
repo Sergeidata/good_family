@@ -2834,15 +2834,13 @@ def create_task():
         conn = get_connection()
         cur = conn.cursor()
 
-     # Удаляем старую невыполненную задачу с тем же названием
-        cur.execute("""
-            DELETE FROM tasks
-            WHERE family_id = %s
-            AND title = %s
-            AND assigned_to = %s
-            AND status = 'pending'
-        """, (family_id, title, assigned_to))  
-        
+        # ВАЖНО: раньше здесь стоял DELETE старой незавершённой задачи с тем же
+        # названием (family_id + title + assigned_to + status='pending'). Он
+        # выполнялся ДО вставки и молча стирал только что созданное задание:
+        # пользователь видел "Задание создано", а задачи в списке не было.
+        # Особенно часто это ломалось при создании нескольких заданий на
+        # будущее с одинаковым названием. Теперь старые задачи не удаляются.
+
         if repeat_mode == "custom":
             cur.execute("""
                 INSERT INTO tasks (family_id, title, stars, created_by, assigned_to,
