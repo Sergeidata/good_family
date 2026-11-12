@@ -469,7 +469,8 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   ///
   /// [upcomingEnabled] == false — задание ещё не наступило: карточка
   /// полупрозрачная, вместо бейджа повторения показано КОГДА наступит,
-  /// и кнопки действия нет (ни «Выполнено», ни «Удалить»).
+  /// и нет кнопки «Выполнено». Родителю кнопка «Удалить» доступна всегда —
+  /// иначе ошибочно созданное будущее задание нельзя убрать.
   Widget _taskCard(Map<String, dynamic> task, bool isChild, DateTime now) {
     final isUpcoming = _upcoming.contains(task);
     final repeatColor = _repeatColor(task);
@@ -611,45 +612,61 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
                 ),
               ),
             ),
-            // Кнопки действия — только у заданий, которые уже можно выполнять.
-            if (!isUpcoming)
-              if (isChild)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: () => _markDone(task['id']),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.green,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(Icons.check, color: Colors.white, size: 20),
+            // «Выполнено» — только у заданий, которые уже можно выполнять:
+            // отметить выполненной ещё не наступившую задачу нельзя.
+            if (!isUpcoming && isChild)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _markDone(task['id']),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(12),
                     ),
+                    child: const Icon(Icons.check, color: Colors.white, size: 20),
                   ),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
-                  onPressed: () => _deleteTask(task['id']),
                 ),
+              ),
+            // «Удалить» — родителю в любом случае, в том числе для будущих
+            // заданий: ошибочно созданное «на будущее» иначе не убрать с
+            // экрана, пока не наступит его день. Тап-зона не меньше 48x48
+            // по гайдлайнам Material. У IconButton нет параметра behavior —
+            // кликабельность обеспечивает снятый IgnorePointer ниже.
+            if (!isChild)
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                iconSize: 24,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                tooltip: 'Удалить задание',
+                onPressed: () => _deleteTask(task['id']),
+              ),
           ],
         ),
       ),
     );
 
     // Пометка о наступлении — поверх полупрозрачной карточки.
+    //
+    // ВАЖНО: карточку НЕ оборачиваем в IgnorePointer. Раньше он стоял здесь
+    // и глушил всю карточку целиком — из-за этого кнопка «Удалить» у будущих
+    // заданий отрисовывалась, но не нажималась. Неинтерактивность «будущего»
+    // обеспечивается тем, что «Выполнено» рисуется только при !isUpcoming;
+    // прозрачность 0.55 обрабатывает HitTest сама (Opacity включает hit test
+    // при opacity > 0), поэтому тапы доходят до кнопок.
     if (!isUpcoming) return card;
 
-    return Opacity(
-      opacity: 0.55,
-      child: Stack(
-        children: [
-          IgnorePointer(child: card),
-          Positioned(
-            right: 12,
-            top: 10,
+    return Stack(
+      children: [
+        card,
+        Positioned(
+          right: 12,
+          top: 10,
+          child: Opacity(
+            opacity: 0.55,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -666,8 +683,8 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
