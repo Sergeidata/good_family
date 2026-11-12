@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, request
 from datetime import datetime, timedelta
+import calendar
 import psycopg2
 import json
 import io
@@ -213,6 +214,11 @@ def init_db(conn=None):
         );
     """)
 
+    # Повторение по конкретным дням: дни недели (1=Пн … 7=Вс, как Dart/weekday)
+    # и/или числа месяца (1..31), храним CSV в TEXT. NULL = не задано.
+    cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS repeat_days TEXT")
+    cur.execute("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS repeat_month_days TEXT")
+
     cur.execute("""
         CREATE TABLE IF NOT EXISTS task_log (
             id SERIAL PRIMARY KEY,
@@ -360,6 +366,111 @@ def get_period_dates(period):
         end_date = today
 
     return (str(start_date), str(end_date))
+
+
+# ---------------------------------
+# Повторение по конкретным дням (repeat_mode='custom')
+# ---------------------------------
+def _parse_int_list(value, min_value, max_value, field_name):
+    """Нормализует список чисел из API: None/'' -> [], список/CSV -> sorted list.
+
+    Строгая валидация: нечисловые значения и значения вне [min_value, max_value]
+    дают ValueError (эндпоинты превращают его в 400).
+    """
+    if value is None:
+        return []
+
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return []
+        parts = raw.split(",")
+    elif isinstance(value, (list, tuple, set)):
+        parts = list(value)
+    else:
+        raise ValueError(f"invalid {field_name}")
+
+    result = set()
+    for part in parts:
+        if isinstance(part, bool):
+            raise ValueError(f"invalid {field_name}")
+        try:
+            number = int(str(part).strip())
+        except (TypeError, ValueError):
+            raise ValueError(f"invalid {field_name}")
+        if number < min_value or number > max_value:
+            raise ValueError(f"invalid {field_name}")
+        result.add(number)
+    return sorted(result)
+
+
+def _format_int_list(values):
+    """list[int] -> CSV для TEXT-колонки (по возрастанию); пусто -> None (NULL)."""
+    if not values:
+        return None
+    return ",".join(str(v) for v in sorted(values))
+
+
+def _parse_stored_int_list(value, min_value, max_value):
+    """Читает CSV из БД терпимо к мусору: битые токены игнорирует."""
+    if not value:
+        return []
+    result = set()
+    for part in str(value).split(","):
+        try:
+            number = int(part.strip())
+        except (TypeError, ValueError):
+            continue
+        if min_value <= number <= max_value:
+            result.add(number)
+    return sorted(result)
+
+
+def _effective_month_days(selected_month_days, year, month):
+    """Числа месяца с правилом «нет такого дня — берём последний».
+
+    Например, выбран 31: в феврале это 28/29, в апреле — 30.
+    Смещение добавляется ТОЛЬКО если выбранного числа реально нет в месяце.
+    """
+    days_in_month = calendar.monthrange(year, month)[1]
+    effective = {d for d in selected_month_days if d <= days_in_month}
+    if any(d > days_in_month for d in selected_month_days):
+        effective.add(days_in_month)
+    return effective
+
+
+def _next_available_for_custom(
+    now,
+    repeat_days,
+    repeat_month_days,
+    strict=True,
+):
+    """Ближайшая дата (00:00), когда custom-задание активно.
+
+    День подходит, если совпал день недели ИЛИ число месяца (объединение).
+    strict=True  — строго позже дня now (клонирование после выполнения/одобрения);
+    strict=False — начиная с today (создание задания: если сегодня подходит,
+                    вернёт сегодня 00:00, т.е. задача сразу доступна).
+    Дни недели: Python isoweekday() 1=Пн … 7=Вс (совпадает с Dart weekday).
+    """
+    days = set(repeat_days or [])
+    month_days = set(repeat_month_days or [])
+    if not days and not month_days:
+        raise ValueError("custom repeat requires repeat_days or repeat_month_days")
+
+    start_offset = 1 if strict else 0
+    for offset in range(start_offset, 400):
+        candidate = now.date() + timedelta(days=offset)
+        if candidate.isoweekday() in days:
+            return datetime(candidate.year, candidate.month, candidate.day)
+        if candidate.day in _effective_month_days(
+            month_days, candidate.year, candidate.month
+        ):
+            return datetime(candidate.year, candidate.month, candidate.day)
+
+    # Недостижимо при валидных данных: матч по дню недели ≤ 7 дней,
+    # по числу месяца — ≤ ~62 дней. Страховка от бесконечного цикла.
+    raise ValueError("cannot compute next_available for custom repeat")
 
 
 # ---------------------------------
@@ -2686,6 +2797,40 @@ def create_task():
         if not family_id or not title or not created_by or not assigned_to:
             return jsonify({"status": "error", "message": "missing parameters"}), 400
 
+        # repeat_mode='custom': конкретные дни недели (1=Пн … 7=Вс, как Dart weekday)
+        # и/или конкретные числа месяца (1..31). Для остальных режимов списки
+        # игнорируем и храним NULL (поведение legacy-режимов не меняется).
+        repeat_days = []
+        repeat_month_days = []
+        custom_next_available = None
+
+        if repeat_mode == "custom":
+            try:
+                repeat_days = _parse_int_list(
+                    data.get("repeat_days"), 1, 7, "repeat_days"
+                )
+                repeat_month_days = _parse_int_list(
+                    data.get("repeat_month_days"), 1, 31, "repeat_month_days"
+                )
+            except ValueError as exc:
+                return jsonify({"status": "error", "message": str(exc)}), 400
+
+            if not repeat_days and not repeat_month_days:
+                return jsonify({
+                    "status": "error",
+                    "message": "custom requires repeat_days or repeat_month_days",
+                }), 400
+
+            # Ближайший подходящий день (strict=False: если сегодня подходит —
+            # сегодня 00:00, иначе следующий матч). Чтобы задача не «вылезала»
+            # раньше срока, как это было бы с NOW().
+            custom_next_available = _next_available_for_custom(
+                datetime.now(),
+                repeat_days,
+                repeat_month_days,
+                strict=False,
+            )
+
         conn = get_connection()
         cur = conn.cursor()
 
@@ -2698,11 +2843,30 @@ def create_task():
             AND status = 'pending'
         """, (family_id, title, assigned_to))  
         
-        cur.execute("""
-            INSERT INTO tasks (family_id, title, stars, created_by, assigned_to, repeat_mode, next_available_at)
-            VALUES (%s, %s, %s, %s, %s, %s, NOW())
-            RETURNING id
-        """, (family_id, title, stars, created_by, assigned_to, repeat_mode))
+        if repeat_mode == "custom":
+            cur.execute("""
+                INSERT INTO tasks (family_id, title, stars, created_by, assigned_to,
+                                   repeat_mode, next_available_at, repeat_days,
+                                   repeat_month_days)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """, (
+                family_id,
+                title,
+                stars,
+                created_by,
+                assigned_to,
+                repeat_mode,
+                custom_next_available,
+                _format_int_list(repeat_days),
+                _format_int_list(repeat_month_days),
+            ))
+        else:
+            cur.execute("""
+                INSERT INTO tasks (family_id, title, stars, created_by, assigned_to, repeat_mode, next_available_at)
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
+                RETURNING id
+            """, (family_id, title, stars, created_by, assigned_to, repeat_mode))
 
         task_id = cur.fetchone()[0]
 
@@ -2733,7 +2897,8 @@ def task_done():
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT family_id, title, stars, created_by, assigned_to, repeat_mode
+            SELECT family_id, title, stars, created_by, assigned_to, repeat_mode,
+                   repeat_days, repeat_month_days
             FROM tasks WHERE id = %s
         """, (task_id,))
         task = cur.fetchone()
@@ -2743,7 +2908,16 @@ def task_done():
             conn.close()
             return jsonify({"status": "error", "message": "task not found"}), 404
 
-        family_id, title, stars, created_by, assigned_to, repeat_mode = task
+        (
+            family_id,
+            title,
+            stars,
+            created_by,
+            assigned_to,
+            repeat_mode,
+            repeat_days,
+            repeat_month_days,
+        ) = task
 
         cur.execute("""
             UPDATE tasks SET status = 'done', done_at = NOW()
@@ -2754,6 +2928,64 @@ def task_done():
             INSERT INTO task_log (task_id, user_name, action)
             VALUES (%s, %s, %s)
         """, (task_id, user_name, "done"))
+
+        # custom: клонируем следующее повторение с датой, посчитанной в Python
+        # (объединение дней недели и чисел месяца, смещение на последний день
+        # месяца). Legacy-режимы ниже не трогаем — у них прежнее поведение.
+        if repeat_mode == "custom":
+            stored_days = _parse_stored_int_list(repeat_days, 1, 7)
+            stored_month_days = _parse_stored_int_list(repeat_month_days, 1, 31)
+
+            if not stored_days and not stored_month_days:
+                print(
+                    f"TASK CUSTOM WARN: task {task_id} без дней повтора — "
+                    f"fallback на daily",
+                    flush=True,
+                )
+                clone_mode = "daily"
+                next_available_at = (
+                    datetime.now() + timedelta(days=1)
+                ).replace(hour=0, minute=0, second=0, microsecond=0)
+            else:
+                clone_mode = "custom"
+                next_available_at = _next_available_for_custom(
+                    datetime.now(),
+                    stored_days,
+                    stored_month_days,
+                    strict=True,
+                )
+
+            # Удаляем старую невыполненную задачу с тем же названием
+            cur.execute("""
+                DELETE FROM tasks
+                WHERE family_id = %s
+                  AND title = %s
+                  AND assigned_to = %s
+                  AND status = 'pending'
+                  AND id != %s
+            """, (family_id, title, assigned_to, task_id))
+
+            cur.execute("""
+                INSERT INTO tasks (family_id, title, stars, created_by, assigned_to,
+                                   repeat_mode, next_available_at, repeat_days,
+                                   repeat_month_days, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+            """, (
+                family_id,
+                title,
+                stars,
+                created_by,
+                assigned_to,
+                clone_mode,
+                next_available_at,
+                _format_int_list(stored_days),
+                _format_int_list(stored_month_days),
+            ))
+
+            conn.commit()
+            cur.close()
+            conn.close()
+            return jsonify({"status": "ok"})
 
         if repeat_mode and repeat_mode != "none":
             if repeat_mode == "daily":
@@ -2932,7 +3164,8 @@ def task_approve():
         cur = conn.cursor()
 
         cur.execute("""
-            SELECT family_id, title, stars, created_by, assigned_to, repeat_mode
+            SELECT family_id, title, stars, created_by, assigned_to, repeat_mode,
+                   repeat_days, repeat_month_days
             FROM tasks WHERE id = %s
         """, (task_id,))
 
@@ -2942,7 +3175,16 @@ def task_approve():
             conn.close()
             return jsonify({"status": "error", "message": "task not found"}), 404
 
-        family_id, title, stars, created_by, assigned_to, repeat_mode = task
+        (
+            family_id,
+            title,
+            stars,
+            created_by,
+            assigned_to,
+            repeat_mode,
+            repeat_days,
+            repeat_month_days,
+        ) = task
 
         cur.execute("""
             UPDATE tasks SET status = 'approved', approved_at = NOW()
@@ -2954,6 +3196,68 @@ def task_approve():
         cur.execute("""
             INSERT INTO task_log (task_id, user_name, action) VALUES (%s, %s, %s)
         """, (task_id, user_name, "approved"))
+
+        # custom: то же клонирование, что и в /tasks/done (см. комментарий там).
+        if repeat_mode == "custom":
+            stored_days = _parse_stored_int_list(repeat_days, 1, 7)
+            stored_month_days = _parse_stored_int_list(repeat_month_days, 1, 31)
+
+            if not stored_days and not stored_month_days:
+                print(
+                    f"TASK CUSTOM WARN: task {task_id} без дней повтора — "
+                    f"fallback на daily",
+                    flush=True,
+                )
+                clone_mode = "daily"
+                next_available_at = (
+                    datetime.now() + timedelta(days=1)
+                ).replace(hour=0, minute=0, second=0, microsecond=0)
+            else:
+                clone_mode = "custom"
+                next_available_at = _next_available_for_custom(
+                    datetime.now(),
+                    stored_days,
+                    stored_month_days,
+                    strict=True,
+                )
+
+            # Удаляем старую невыполненную задачу с тем же названием
+            cur.execute("""
+                DELETE FROM tasks
+                WHERE family_id = %s
+                  AND title = %s
+                  AND assigned_to = %s
+                  AND status = 'pending'
+                  AND id != %s
+            """, (family_id, title, assigned_to, task_id))
+
+            cur.execute("""
+                INSERT INTO tasks (family_id, title, stars, created_by, assigned_to,
+                                   repeat_mode, next_available_at, repeat_days,
+                                   repeat_month_days, status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'pending')
+            """, (
+                family_id,
+                title,
+                stars,
+                created_by,
+                assigned_to,
+                clone_mode,
+                next_available_at,
+                _format_int_list(stored_days),
+                _format_int_list(stored_month_days),
+            ))
+
+            cur.execute("""
+                UPDATE garden
+                SET achievement_progress = COALESCE(achievement_progress, 0) + 0.01
+                WHERE family_id = %s
+            """, (family_id,))
+
+            conn.commit()
+            cur.close()
+            conn.close()
+            return jsonify({"status": "ok"})
 
         if repeat_mode and repeat_mode != "none":
             if repeat_mode == "daily":
@@ -3056,7 +3360,8 @@ def get_tasks():
 
         query = """
             SELECT t.id, t.family_id, t.title, t.stars, t.created_by, t.assigned_to, t.status,
-                   t.created_at, t.done_at, t.approved_at, t.repeat_mode, t.next_available_at
+                   t.created_at, t.done_at, t.approved_at, t.repeat_mode, t.next_available_at,
+                   t.repeat_days, t.repeat_month_days
             FROM tasks t
             WHERE t.family_id = %s
               AND t.next_available_at <= NOW()
@@ -3086,6 +3391,9 @@ def get_tasks():
                 "approved_at": row[9].isoformat() if row[9] else None,
                 "repeat_mode": row[10],
                 "next_available_at": row[11].isoformat() if row[11] else None,
+                # contract: списки int 1..7 (1=Пн) / 1..31 или null, если NULL в БД
+                "repeat_days": _parse_stored_int_list(row[12], 1, 7) or None,
+                "repeat_month_days": _parse_stored_int_list(row[13], 1, 31) or None,
             })
 
         cur.close()
