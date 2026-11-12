@@ -651,22 +651,21 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
 
     // Пометка о наступлении — поверх полупрозрачной карточки.
     //
-    // ВАЖНО: карточку НЕ оборачиваем в IgnorePointer. Раньше он стоял здесь
-    // и глушил всю карточку целиком — из-за этого кнопка «Удалить» у будущих
-    // заданий отрисовывалась, но не нажималась. Неинтерактивность «будущего»
-    // обеспечивается тем, что «Выполнено» рисуется только при !isUpcoming;
-    // прозрачность 0.55 обрабатывает HitTest сама (Opacity включает hit test
-    // при opacity > 0), поэтому тапы доходят до кнопок.
+    // ВАЖНО: прозрачность задаём ТОЛЬКО через Opacity — карточку не
+    // оборачиваем в IgnorePointer. Раньше он стоял здесь рядом с Opacity и
+    // вырезал всё поддерево из hit-test: кнопка «Удалить» рисовалась, но не
+    // нажималась. Opacity (при opacity > 0) hit-test не отключает, поэтому
+    // полупрозрачность и кликабельность совместимы.
     if (!isUpcoming) return card;
 
-    return Stack(
-      children: [
-        card,
-        Positioned(
-          right: 12,
-          top: 10,
-          child: Opacity(
-            opacity: 0.55,
+    return Opacity(
+      opacity: 0.55,
+      child: Stack(
+        children: [
+          card,
+          Positioned(
+            right: 12,
+            top: 10,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
@@ -683,8 +682,8 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
