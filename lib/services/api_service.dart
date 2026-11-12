@@ -516,6 +516,8 @@ static Future<bool> createTask({
   required String createdBy,
   required String assignedTo,
   required String repeatMode,
+  List<int>? repeatDays,
+  List<int>? repeatMonthDays,
 }) async {
   final response = await http.post(
     Uri.parse("$baseUrl/tasks/create"),
@@ -527,6 +529,8 @@ static Future<bool> createTask({
       "created_by": createdBy,
       "assigned_to": assignedTo,
       "repeat_mode": repeatMode,
+      if (repeatDays != null) "repeat_days": repeatDays,
+      if (repeatMonthDays != null) "repeat_month_days": repeatMonthDays,
     }),
   );
   return response.statusCode == 200;

@@ -6,6 +6,7 @@ import '../services/api_service.dart';
 import '../services/family_storage.dart';
 import '../services/usage_stats_helper.dart';
 import '../utils/app_utils.dart';
+import '../utils/task_repeat.dart';
 import 'stats_screen.dart';
 import '../services/session_storage.dart';
 import '../services/sync_service_helper.dart';
@@ -784,17 +785,11 @@ Future<void> _loadTasksData() async {
   }
 
   final now = DateTime.now();
-  final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
 
   final isChild = role == "child";
   final filtered = (isChild
       ? tasks.where((t) => t["assigned_to"] == userName)
-      : tasks).where((t) {
-    final repeatMode = t["repeat_mode"] ?? "none";
-    if (repeatMode == "weekends" && !isWeekend) return false;
-    if (repeatMode == "weekdays" && isWeekend) return false;
-    return true;
-  }).toList();
+      : tasks).where((t) => isTaskActiveToday(t, now)).toList();
 
   final active = filtered.where((t) => t["status"] == "pending").length;
   final review = filtered.where((t) => t["status"] == "done").length;

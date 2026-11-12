@@ -10,6 +10,7 @@ import 'main_navigation_screen.dart';
 import 'reward_shop_screen.dart';
 import 'reward_requests_screen.dart';
 import '../services/api_service.dart';
+import '../utils/task_repeat.dart';
 
 class TasksScreen extends StatefulWidget {
   const TasksScreen({super.key});
@@ -188,14 +189,10 @@ Widget build(BuildContext context) {
   builder: (ctx, snap) {
     final tasks = snap.data ?? [];
     final now = DateTime.now();
-    final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
     final count = tasks.where((t) {
       if (t["status"] != "pending") return false;
       if (t["assigned_to"] != snapshot.data?["user_name"]) return false;
-      final repeatMode = t["repeat_mode"] ?? "none";
-      if (repeatMode == "weekends" && !isWeekend) return false;
-      if (repeatMode == "weekdays" && isWeekend) return false;
-      return true;
+      return isTaskActiveToday(t, now);
     }).length;
     return _badge(count);
   },

@@ -5,6 +5,7 @@ import '../widgets/main_bottom_bar.dart';
 import 'main_navigation_screen.dart';
 import 'tasks_create_screen.dart';
 import '../utils/app_utils.dart';
+import '../utils/task_repeat.dart';
 import '../widgets/loading_dots.dart';
 import '../widgets/error_state.dart';
 
@@ -53,26 +54,17 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   }
 
   final now = DateTime.now();
-  final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
 
   setState(() {
     if (_role == 'child') {
       _tasks = tasks.where((t) {
         if (t['status'] != 'pending' || t['assigned_to'] != _userName) return false;
-        final repeatMode = t['repeat_mode'] ?? 'none';
-        // По выходным — только в субботу/воскресенье
-        if (repeatMode == 'weekends' && !isWeekend) return false;
-        // По будням — только пн-пт
-        if (repeatMode == 'weekdays' && isWeekend) return false;
-        return true;
+        return isTaskActiveToday(t, now);
       }).toList();
     } else {
       _tasks = tasks.where((t) {
         if (t['status'] != 'pending') return false;
-        final repeatMode = t['repeat_mode'] ?? 'none';
-        if (repeatMode == 'weekends' && !isWeekend) return false;
-        if (repeatMode == 'weekdays' && isWeekend) return false;
-        return true;
+        return isTaskActiveToday(t, now);
       }).toList();
     }
     _loading = false;
@@ -309,23 +301,14 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
     _loadData();
   }
 
-  Color _repeatColor(String mode) {
-    switch (mode) {
+  Color _repeatColor(Map<String, dynamic> task) {
+    switch (repeatModeOf(task)) {
       case 'daily': return Colors.blue;
       case 'weekly': return Colors.purple;
       case 'weekdays': return Colors.teal;
       case 'weekends': return Colors.orange;
+      case 'custom': return Colors.indigo;
       default: return Colors.grey;
-    }
-  }
-
-  String _repeatLabel(String mode) {
-    switch (mode) {
-      case 'daily': return 'Ежедневно';
-      case 'weekly': return 'Еженедельно';
-      case 'weekdays': return 'По будням';
-      case 'weekends': return 'По выходным';
-      default: return 'Разовое';
     }
   }
 
@@ -373,7 +356,6 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
               itemCount: _tasks.length,
               itemBuilder: (context, index) {
                 final task = _tasks[index];
-                final repeatMode = task['repeat_mode'] ?? 'none';
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 12),
@@ -392,7 +374,7 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
                         Container(
                           width: 6,
                           decoration: BoxDecoration(
-                            color: _repeatColor(repeatMode),
+                            color: _repeatColor(task),
                             borderRadius: const BorderRadius.only(
                               topLeft: Radius.circular(16),
                               bottomLeft: Radius.circular(16),
@@ -417,7 +399,14 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
                                       const SizedBox(width: 16),
                                       const Icon(Icons.repeat, size: 16, color: Colors.grey),
                                       const SizedBox(width: 4),
-                                      Text(_repeatLabel(repeatMode), style: TextStyle(color: _repeatColor(repeatMode), fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Flexible(
+                                        child: Text(
+                                          taskRepeatBadgeLabel(task),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(color: _repeatColor(task), fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 if (isChild)
@@ -425,7 +414,14 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
                                     children: [
                                       const Icon(Icons.repeat, size: 16, color: Colors.grey),
                                       const SizedBox(width: 4),
-                                      Text(_repeatLabel(repeatMode), style: TextStyle(color: _repeatColor(repeatMode), fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Flexible(
+                                        child: Text(
+                                          taskRepeatBadgeLabel(task),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(color: _repeatColor(task), fontSize: 13, fontWeight: FontWeight.w600),
+                                        ),
+                                      ),
                                       const SizedBox(width: 16),
                                       const Icon(Icons.person_outline, size: 16, color: Colors.grey),
                                       const SizedBox(width: 4),
