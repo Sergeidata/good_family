@@ -21,6 +21,7 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   String _userName = '';
   String _role = '';
   List<dynamic> _tasks = [];
+  List<dynamic> _upcoming = [];
   bool _loading = true;
   String? _error;
 
@@ -56,17 +57,33 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   final now = DateTime.now();
 
   setState(() {
-    if (_role == 'child') {
-      _tasks = tasks.where((t) {
-        if (t['status'] != 'pending' || t['assigned_to'] != _userName) return false;
-        return isTaskActiveToday(t, now);
-      }).toList();
-    } else {
-      _tasks = tasks.where((t) {
-        if (t['status'] != 'pending') return false;
-        return isTaskActiveToday(t, now);
-      }).toList();
-    }
+    // Сервер отдаёт все задачи семьи (включая ещё не наступившие), поэтому
+    // делим на клиенте по местному времени устройства:
+    //   _tasks    — активные сегодня (или разовые без срока);
+    //   _upcoming — ещё не наступили, показываем полупрозрачными.
+    final mine = _role == 'child'
+        ? tasks.where((t) => t['assigned_to'] == _userName)
+        : tasks.where((t) => true);
+
+    final pending = mine.where((t) => t['status'] == 'pending').toList();
+
+    _tasks = pending.where((t) => isTaskActiveToday(t, now)).toList();
+
+    // Разовая задача без повторения не может «наступить» — её никогда
+    // не отправляем в «Скоро», иначе она застряла бы там навсегда.
+    _upcoming = pending
+        .where((t) => !isTaskActiveToday(t, now))
+        .where((t) => repeatModeOf(t) != 'none')
+        .where((t) => nextOccurrence(t, now) != null)
+        .toList()
+      ..sort((a, b) {
+        final aNext = nextOccurrence(a, now);
+        final bNext = nextOccurrence(b, now);
+        if (aNext == null) return 1;
+        if (bNext == null) return -1;
+        return aNext.compareTo(bNext);
+      });
+
     _loading = false;
     _error = null;
   });
@@ -315,6 +332,9 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
   @override
   Widget build(BuildContext context) {
     final isChild = _role == 'child';
+    const pageTitleActive = 'Активные задания';
+    const pageTitleMine = 'Мои задания';
+    final title = isChild ? pageTitleMine : pageTitleActive;
 
     if (_loading) {
       return const Scaffold(body: Center(child: LoadingDots()));
@@ -322,7 +342,7 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
 
     if (_error != null) {
       return Scaffold(
-        appBar: AppBar(title: Text(isChild ? 'Мои задания' : 'Активные задания')),
+        appBar: AppBar(title: Text(title)),
         body: ErrorState(
           message: _error!,
           onRetry: _loadData,
@@ -330,168 +350,324 @@ class _TasksActiveScreenState extends State<TasksActiveScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(isChild ? 'Мои задания' : 'Активные задания')),
-      body: _tasks.isEmpty
-          ? EmptyState(
-              icon: Icons.check_circle_outline,
-              title: 'Нет активных заданий',
-              subtitle: isChild
-                  ? 'Выполни задание и заработай монеты'
-                  : 'Создай первое задание для семьи',
-              actionText: isChild ? null : 'Создать задание',
-              onAction: isChild
-                  ? null
-                  : () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const TasksCreateScreen(),
-                        ),
-                      ).then((_) => _loadData());
-                    },
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: _tasks.length,
-              itemBuilder: (context, index) {
-                final task = _tasks[index];
-
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
-                    ],
-                  ),
-                  child: IntrinsicHeight(
-                    child: Row(
-                      children: [
-                        // Цветная полоска
-                        Container(
-                          width: 6,
-                          decoration: BoxDecoration(
-                            color: _repeatColor(task),
-                            borderRadius: const BorderRadius.only(
-                              topLeft: Radius.circular(16),
-                              bottomLeft: Radius.circular(16),
-                            ),
-                          ),
-                        ),
-                        // Содержимое
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(task['title'] ?? '', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 8),
-                                if (!isChild)
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.person_outline, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 4),
-                                      Text(task['assigned_to'] ?? '', style: const TextStyle(color: Colors.grey, fontSize: 14)),
-                                      const SizedBox(width: 16),
-                                      const Icon(Icons.repeat, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          taskRepeatBadgeLabel(task),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(color: _repeatColor(task), fontSize: 13, fontWeight: FontWeight.w600),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                if (isChild)
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.repeat, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 4),
-                                      Flexible(
-                                        child: Text(
-                                          taskRepeatBadgeLabel(task),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(color: _repeatColor(task), fontSize: 13, fontWeight: FontWeight.w600),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      const Icon(Icons.person_outline, size: 16, color: Colors.grey),
-                                      const SizedBox(width: 4),
-                                      Text('От: ${task['created_by'] ?? ''}', style: const TextStyle(color: Colors.grey, fontSize: 14)),
-                                    ],
-                                  ),
-                                const SizedBox(height: 6),
-                                Row(
-  children: [
-    const Stack(
-      alignment: Alignment.center,
-      children: [
-        Icon(Icons.circle, size: 24, color: Colors.amber),
-        Icon(Icons.star, size: 13, color: Colors.white),
-      ],
-    ),
-    const SizedBox(width: 6),
-    Text(
-      '${task['stars'] ?? 10}',
-      style: TextStyle(color: Colors.orange.shade700, fontSize: 18, fontWeight: FontWeight.w600),
-    ),
-  ],
-),
-                              ],
-                            ),
-                          ),
-                        ),
-                        // Кнопка: Я сделал (ребёнок) или Удалить (родитель)
-                       if (isChild)
-  Padding(
-    padding: const EdgeInsets.only(right: 8),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => _markDone(task['id']),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.green,
-          borderRadius: BorderRadius.circular(12),
+    // Обе группы пусты — показываем полноэкранную заглушку как раньше.
+    if (_tasks.isEmpty && _upcoming.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: Text(title)),
+        body: EmptyState(
+          icon: Icons.check_circle_outline,
+          title: 'Нет активных заданий',
+          subtitle: isChild
+              ? 'Выполни задание и заработай монеты'
+              : 'Создай первое задание для семьи',
+          actionText: isChild ? null : 'Создать задание',
+          onAction: isChild
+              ? null
+              : () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TasksCreateScreen(),
+                    ),
+                  ).then((_) => _loadData());
+                },
         ),
-        child: const Icon(Icons.check, color: Colors.white, size: 20),
+        bottomNavigationBar: _bottomBar(),
+      );
+    }
+
+    final now = DateTime.now();
+
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            if (_tasks.isNotEmpty) ...[
+              _sectionHeader(
+                label: 'Активные',
+                count: _tasks.length,
+                color: Colors.green.shade700,
+              ),
+              const SizedBox(height: 8),
+              ..._tasks.map((task) => _taskCard(task, isChild, now)),
+            ],
+            if (_upcoming.isNotEmpty) ...[
+              if (_tasks.isNotEmpty) const SizedBox(height: 12),
+              _sectionHeader(
+                label: 'Скоро',
+                count: _upcoming.length,
+                color: Colors.grey.shade600,
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  'Эти задания ещё не наступили — выполнить их пока нельзя',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ),
+              ..._upcoming.map((task) => _taskCard(task, isChild, now)),
+            ],
+          ],
+        ),
       ),
-    ),
-  )
-                        else
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.red),
-                            onPressed: () => _deleteTask(task['id']),
+      bottomNavigationBar: _bottomBar(),
+    );
+  }
+
+  Widget _sectionHeader({
+    required String label,
+    required int count,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: color,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _bottomBar() {
+    return MainBottomBar(
+      currentIndex: null,
+      onTap: (index) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MainNavigationScreen(initialIndex: index),
+          ),
+          (_) => false,
+        );
+      },
+    );
+  }
+
+  /// Карточка задания.
+  ///
+  /// [upcomingEnabled] == false — задание ещё не наступило: карточка
+  /// полупрозрачная, вместо бейджа повторения показано КОГДА наступит,
+  /// и кнопки действия нет (ни «Выполнено», ни «Удалить»).
+  Widget _taskCard(Map<String, dynamic> task, bool isChild, DateTime now) {
+    final isUpcoming = _upcoming.contains(task);
+    final repeatColor = _repeatColor(task);
+    final label = isUpcoming
+        ? taskUpcomingLabel(task, now)
+        : taskRepeatBadgeLabel(task);
+
+    final card = Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      constraints: const BoxConstraints(minHeight: 108),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            // Цветная полоска
+            Container(
+              width: 6,
+              decoration: BoxDecoration(
+                color: repeatColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                ),
+              ),
+            ),
+            // Содержимое
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      task['title'] ?? '',
+                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    if (!isChild)
+                      Row(
+                        children: [
+                          const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              task['assigned_to'] ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
                           ),
+                          const SizedBox(width: 16),
+                          Icon(
+                            isUpcoming ? Icons.schedule : Icons.repeat,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: isUpcoming ? Colors.grey.shade700 : repeatColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    if (isChild)
+                      Row(
+                        children: [
+                          Icon(
+                            isUpcoming ? Icons.schedule : Icons.repeat,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: isUpcoming ? Colors.grey.shade700 : repeatColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Icon(Icons.person_outline, size: 16, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'От: ${task['created_by'] ?? ''}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(color: Colors.grey, fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        const Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Icon(Icons.circle, size: 24, color: Colors.amber),
+                            Icon(Icons.star, size: 13, color: Colors.white),
+                          ],
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${task['stars'] ?? 10}',
+                          style: TextStyle(
+                            color: Colors.orange.shade700,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                );
-              },
+                  ],
+                ),
+              ),
             ),
-
-            bottomNavigationBar: MainBottomBar(
-  currentIndex: null,
-  onTap: (index) {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MainNavigationScreen(
-          initialIndex: index,
+            // Кнопки действия — только у заданий, которые уже можно выполнять.
+            if (!isUpcoming)
+              if (isChild)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _markDone(task['id']),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.check, color: Colors.white, size: 20),
+                    ),
+                  ),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _deleteTask(task['id']),
+                ),
+          ],
         ),
       ),
-      (_) => false,
     );
-  },
-),
+
+    // Пометка о наступлении — поверх полупрозрачной карточки.
+    if (!isUpcoming) return card;
+
+    return Opacity(
+      opacity: 0.55,
+      child: Stack(
+        children: [
+          IgnorePointer(child: card),
+          Positioned(
+            right: 12,
+            top: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade200,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey.shade800,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
