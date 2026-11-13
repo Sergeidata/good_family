@@ -104,6 +104,18 @@ String taskRepeatBadgeLabel(Map<String, dynamic> task) {
   return parts.join(' • ');
 }
 
+/// Разобрать `next_available_at`, как его отдаёт сервер: ISO-8601 без
+/// таймзоны (`2026-11-20T00:00:00`). Трактyем как ЛОКАЛЬНОЕ время: сервер
+/// считает дату в МСК, а `DateTime.parse` на строке без зоны тоже даёт
+/// локальное время — то есть сутки совпадают с ожидаемыми.
+DateTime? nextAvailableAtOf(Map<String, dynamic> task) {
+  final raw = task['next_available_at'];
+  if (raw == null) return null;
+  final value = raw.toString().trim();
+  if (value.isEmpty) return null;
+  return DateTime.tryParse(value);
+}
+
 /// Активна ли задача сегодня с учётом режима повторения.
 ///
 /// - none — разовая задача, активна всегда (сервер отдаёт только доступные);
@@ -114,8 +126,24 @@ String taskRepeatBadgeLabel(Map<String, dynamic> task) {
 /// - custom — день недели из repeat_days ИЛИ число месяца из
 ///   repeat_month_days; если выбранное число больше числа дней в месяце,
 ///   срабатывает последний день месяца.
+///
+/// ВАЖНО: для всех режимов дополнительно учитывается `next_available_at`.
+/// После выполнения и подтверждения сервер создаёт следующее повторение с
+/// датой в будущем (например, через неделю). Без этой проверки задача
+/// «всплывала» обратно в активные в тот же день: день недели у клона тот же,
+/// что у выполненной задачи, а дату клиент игнорировал.
 bool isTaskActiveToday(Map<String, dynamic> task, DateTime now) {
   final mode = repeatModeOf(task);
+
+  // Задача, которая наступит только в будущем, не активна сегодня —
+  // независимо от режима повторения. Сравниваем по календарным суткам,
+  // чтобы задание «на сегодня 00:00» оставалось доступным весь день.
+  final nextAt = nextAvailableAtOf(task);
+  if (nextAt != null) {
+    final today = DateTime(now.year, now.month, now.day);
+    final nextDay = DateTime(nextAt.year, nextAt.month, nextAt.day);
+    if (nextDay.isAfter(today)) return false;
+  }
 
   switch (mode) {
     case 'daily':
@@ -241,6 +269,19 @@ DateTime? nextOccurrence(
   }
 
   final start = _dateOnly(now);
+
+  // Сервер уже посчитал, когда задача снова станет доступной (после
+  // выполнения/подтверждения он клонирует её со strict=True). Это точнее
+  // локального перебора: учитывает реальный расчёт сервера, включая сдвиг
+  // «31-го нет в месяце → последний день». Берём только будущие даты —
+  // прошедшая next_available_at значит, что задача активна сегодня, и её
+  // место в основном списке, а не в «Скоро».
+  final serverNext = nextAvailableAtOf(task);
+  if (serverNext != null) {
+    final serverDay = _dateOnly(serverNext);
+    if (serverDay.isAfter(start)) return serverDay;
+  }
+
   final monthDays = repeatMonthDaysOf(task);
 
   for (var offset = 1; offset <= horizonDays; offset++) {
