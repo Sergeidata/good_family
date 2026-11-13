@@ -3792,7 +3792,7 @@ def latest_version():
 
         # Минимальная версия: у кого version_code меньше — принудительное
         # обновление. Клиент сравнивает её со своей версией сам.
-        min_version_code = 15  # ← МЕНЯЙТЕ ВРУЧНУЮ
+        min_version_code = 17  # ← МЕНЯЙТЕ ВРУЧНУЮ
 
         return jsonify({
             "status": "ok",
