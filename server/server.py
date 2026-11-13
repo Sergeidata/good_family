@@ -3788,7 +3788,7 @@ def latest_version():
     try:
         # Версия приложения (обновлять вручную при выпуске)
         current_version_name = "1.4.0"
-        current_version_code = 17
+        current_version_code = 18
 
         # Минимальная версия: у кого version_code меньше — принудительное
         # обновление. Клиент сравнивает её со своей версией сам.
