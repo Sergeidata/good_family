@@ -1058,8 +1058,18 @@ def family_members():
             ),
         })
 
+    # Есть ли запрашивающий среди участников. Нужен клиенту, чтобы отличить
+    # «меня удалили из семьи» от «семья удалена»: без флага приложение
+    # показывает живой список участников, в котором самого пользователя нет,
+    # и не предлагает вступить заново.
+    # null — запрос без опознавательных данных, судить не о чем.
+    if requester_user_id is not None or requester_device_id:
+        is_member = any(m["is_me"] for m in members)
+    else:
+        is_member = None
+
     conn.close()
-    return jsonify({"members": members})
+    return jsonify({"members": members, "is_member": is_member})
 
 @app.route("/remove_member", methods=["POST"])
 def remove_member():
